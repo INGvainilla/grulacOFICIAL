@@ -1,0 +1,157 @@
+WhatsApp	Audio	2026-03-26	at	11.59.27	AM
+Transcrito	por	
+TurboScribe
+.	
+Actualizar	a	Ilimitado
+	para	eliminar	este	mensaje.
+¿Ustedes	son	cinco	o	dos	o	seis?	Yo	soy	dos,	pero	todavía	no	estoy	en	la	plataforma.	Ya	me
+aceptaron	en	el	caso	inicial,	pero	todavía	no	van	a	registrarme.	¿A	este	grupo	los	invidieron	o	a
+los	otros?	Porque	a	veces	lo	aceptan	y	lo	ponen	en	cualquier	grupo.
+No	sé,	yo	puse	que	era	parte	del	grupo.	¿Ya	lo	aceptaron,	no?	Sí,	se	lo	aceptaron.	¿Hasta	cuándo
+va	a	ser	eso,	por	favor?	Me	dijeron	que	esta	semana,	27	más	o	menos.
+Sí,	mañana,	hasta	el	27.	Porque	eso	está	desde	la	anterior	semana.	No	se	olviden	que	un	mes
+ya	pasó.
+Yo	fui	a	preguntar	toda	esta	semana	y	me	dijeron,	hasta	esta	semana	no	lo	vamos	a	agregar.
+Esperemos	que	esté	para	la	próxima	semana	ya,	porque	lo	que	pasa	es	que	ya	voy	a	poner	en
+mi	primer	nota	el	día	jueves.	Este	jueves,	cuando	consiga	la	base	de	datos,	va	a	tener	la	primera
+nota	del	proyecto	con	todo	lo	que	se	ha	venido	trabajando	hasta	ahora.
+Entonces,	si	usted	no	está,	se	va	a	quedar	sin	nota.	Por	eso	le	digo,	vamos.	¿Qué	dice	el	título?
+Sistema	de	información	para	la	gestión	de	inventario,	producción	y	ventas	de	productos
+lácteos.
+Entonces	se	llama	GLATO.	Ya,	pero	ahí	faltaría	el	proceso	de	venta	y	compra,	¿no?	¿O	no?
+Proceso	de	venta	y	compra.	¿Tiene	o	no	tiene?	¿No	compran	ustedes	acaso	para	abastecer	el
+inventario?	Sí,	compramos	los	insumos	y	tenemos	un	proceso	de	producción.
+Entonces	sería	gestionar	compra,	inventario	y	las	ventas,	¿no?	La	compra	faltaría.	Y
+producciones.	Vamos	al	alcance	a	ver.
+¿Qué	dice?	Alcance.	Tenemos	en	total	trece	modos.	A	ver,	¿qué	se	llaman?	A	ver,	vamos	a	ver	el
+nombre	para	luego	ver.
+El	modo	de	los	usuarios,	que	es	la	gestión	de	acceso	al	sistema.	Cada	usuario	tiene	distintos
+roles	y	cada	rol	tiene	distinto	acceso	a	los	diferentes	modos	del	sistema.	Y	tiene	todos	sus
+respectivos	atributos,	nombre,	correo	electrónico,	contraseña	y	tiene	su	rol.
+Su	rol,	para	hacerlo	más	estructurado	y	más	ordenado,	lo	hicimos	en	una	clase	distinta,	como
+se	puede	ver	acá.	Ya	no	se	olviden	que	eso,	cada	rol	deberían	asignarle	los	privilegios	también,
+¿no?	Sí.	Para	poder	hacer.
+A	veces,	por	ejemplo,	yo	puedo	solo	buscar,	pero	no	puedo	escribir,	no	puedo	actualizar	nada.
+En	algunas	ocasiones,	yo	necesito	hacer,	actualizar	o	tal	vez	hacer	un	registro,	me	va	a	permitir.
+Pero	a	veces	solo	me	permite	mirar.
+Dependiendo	cuál	es	el	rol	que	tenga	cada	uno.	Administrador,	supervisor	de	producción,
+encargado	de	calidad,	operario,	encargado	de	despacho.	De	hecho,	de	esa	manera,	como	la
+que	usted	acaba	de	aclarar,	¿no?	Está	así.
+Se	está	llevando	de	esa	forma.	En	ese	momento	se	hace	por	perfil,	por	grupo,	por	lo	que	se	ve.
+Sí.
+Después	otro	módulo	que	tenemos	es	el	módulo	de	recepción,	de	la	lechectura.	La	leche	que
+ustedes	reciben	es	una	unidad	de	medida	en	litros.	En	litros.
+En	litros,	sí.	Y	después	lo	convierten	al	tipo	de	leche	que	lo	quieren	vender	en	el	mercado.	Pese
+a	que	en	leche	hay,	no	venden	la	tosada,	la	vitaminada	entera.
+No	se	vende	leche,	se	hace	producto	derivado	de	la	leche.	Todavía	no	se	ha...	Dulce	de	leche,
+por	ejemplo.	Dulce	de	leche	y	queso	cheddar.
+O	sea	que	la	leche	solo	sirve	como	una	materia	prima.	Exactamente.	Pero	están	parametrizados
+cada	producto.
+Puede	tener	cierta	cantidad	de	leche	y	así.	Y	normalmente	cuando	hay	producción,	debo	saber
+yo	la	cantidad	de	lo	que	yo	quiero	producir.	O	sea,	la	cantidad	de	leche	para	cuantos	productos
+más	o	menos	va.
+O	la	cantidad	de	productos	que	se	necesitan	como	materia	prima	para	poder	hacer	lo	que
+ustedes	quieren.	No	sé,	fabricar	o...	Sí,	creo	que	eso	tiene	una	receta	y	es	conversado	con	una
+mamá	pasada.	Claro,	eso	es	importante	saberlo	para	que	ustedes	más	o	menos	hagan	una
+estimación.
+Yo	tenía	una	pregunta	ahí.	¿Qué	pasó?	Es	que	pasa	que	sucede	que	para	nosotros	tener	el
+control	como	tal	de	producción	hay	un	problema.	En	la	de	queso	mozzarella,	por	ejemplo.
+Pasa	que	cuando	ellos	meten,	o	sea,	lo	meten	en	una	caja	a	un	cuarto	de	guardado	para
+después	despacharlo.	Entran	en	un	peso,	pasan	las	horas	y	muchas	veces	llegan	a	tener	un
+peso.	Pero	no	se	sabe	específicamente	cuánto	peso	pierde	porque	varía.
+Esa	es	la	transformación	del	producto.	Eso,	por	ejemplo,	ellos	más	o	menos	van	haciendo	una
+estimación.	Por	decir,	este	pesaba	un	kilo,	pero	a	medida	que	va	pasando...	O	sea,	eso	es	como
+que...	Antes	era	porque	tenía	todo,	pero	a	veces	eso	lo	van	haciendo	el	tratamiento	y	ya	en	vez
+de	un	kilo	ya	no	son	más	de	450	gramos,	por	decir.
+¿Por	qué?	Porque	sucede	que	el	producto	ahí	terminó.	¿Por	qué?	Porque	necesitó	varios	días
+hasta	que	pueda	quedar	en	el	producto	óptimo.	Eso,	yo	me	imagino	que	si	ustedes	están	en	el
+proceso	de	materia	prima,	lo	contemplan.
+Pero	si	ustedes	están	como	producto	acabado,	no	es	contemplado.	No	es	contemplado.	Claro.
+Es	dependiendo	del	alcance	de	ustedes.	Si	ustedes	quieren	hacer	ese	proceso	de	materia	prima
+que	el	producto	termina,	sí	es	contemplado.	Pero	si	ustedes	solamente	van	a	tener	una
+estimación	de	qué	producto	se	necesita	y	cuántos	productos	van	a	salir	después	y	no	están
+interesados	en	la	pérdida	o	la	materia	prima,	cómo	se	va	el	procedimiento,	entonces	no	lo
+hacen.
+Eso	determina	el	orden.	¿Qué	más?	Para	cada	control	de	insumo,	o	sea,	para	cada	recepción	de
+insumo	que	nos	dan	los	proveedores,	tenemos	un	control	cuantitativo	y	a	la	vez	cualitativo.
+Que	nos	marca	la	recepción,	el	pH,	la	acidez,	la	temperatura,	la	grasa	y	demás	cosas.
+¿Y	a	qué	más	terminamos	con	los	módulos?	Módulos	de	proveedores,	gestión	de	insumos	y
+proveedores.	Módulos	de	inventario	de	insumos	y	materias	primas.	Son	dos	cosas,	¿no?	Sí,
+exactamente.
+Módulos	de	producción	por	lotes,	porque	son	módulos	de	control	de	calidad	para	tener	un
+respaldo.	Exacto.	Lo	que	pasa	es	que	a	veces	los	productos	no	salen	buenos	y	no	pueden	tener
+el	mismo	precio	en	el	mercado.
+¿O	directamente	los	vuelven	a	la	distribución?	Módulo	de	producto	terminado.	El	módulo	de
+gestión	de	pedidos,	recesionamos	cada	pedido.	Módulo	de	despacho	y	de	ventas,	que	es	este
+de	acá.
+El	módulo	de	reportes	y	análisis.	Cualquier	reporte	también	tenemos	que	tenerlo	guardado
+para	tener	un	respaldo.	El	módulo	de	gestión	de	clientes.
+El	módulo	de	evoluciones	y	logística	inmersa.	El	módulo	de	gestión	documental,	que	por	si	hay
+auditoría,	así	exactamente.	Esta	gestión	documental	abarca	para	todos	los	procesos	que	tiene
+una	empresa.
+Tanto	para	el	inventario,	las	ventas	y	la	producción.	Para	cualquier	tipo	de	auditoría	o	cualquier
+tipo	de	control	que	nos	quieran	hacer,	nosotros	ya	tenemos	un	documento	para	cada	proceso.
+Ya.
+Y	esos	tres	semanas...	Tengo	dos	totales.	Comencemos	a	ver	por	el	inventario.	¿Con	qué
+inventario	está	relacionado	el	inventario?	El	inventario	está	relacionado	con	los	bloques	de
+producción.
+Genial.	Y	quiero	saber	si	tienen	dos	inventarios,	no?	Este	tiene	batería	prima	y	tiene	un
+producto	terminado.	¿Cómo	nos	van	diferenciando?	Producto	terminado.
+¿Solo	el	producto	terminado?	Sí.	Tenemos	los	movimientos	y	con	los	productos.	Ya	otra	cosa,
+por	ejemplo,	yo	fabriqué,	por	decir,	y	no	salieron	muy	bien	los	productos.
+No	sé	si	lo	vuelven	a...	¿Si	lo	sacan	del	inventario?	No,	lo	reutilizan.	No,	te	explico.	Cuando	a
+veces...	Porque	me	da	una	nota	de	salida.
+A	veces	es	una	nota	de	salida	porque	lo	estoy	dando	de	baja.	Lo	vuelven	a	producción	y	como
+que	lo	vuelven	a...	Ocupan	esa	materia	y	aumentan	qué	es	lo	que	falló	para	que	ya	cumpla
+con...	Eso,	entonces,	significa	que	estuvo	en	un	inventario	terminado,	pero	otra	vez	lo	estoy
+retornando.	Entonces,	¿qué	le	van	a	llamar	a	esa	nota?	Porque	esa	es	una	nota	de	reingreso.
+Porque	yo	tenía	batería	prima,	la	fabriqué,	pero	tengo	que	decir	que	esto	que	no	salieron	bien,
+están	volviendo	a	hacer	y	se	le	están	aumentando	nuevos	ingredientes	para	sacarlo	como
+producto	terminado.	Entonces,	¿dónde	estaría	eso?	¿Es	lo	que	acabamos	de	hablar?	No	hay,
+¿no?	No	lo	vemos,	pero	lo	notamos.	Por	favor,	eso	es	los	ajustes	que	hay	que	ir	haciendo.
+Tenemos	un	movimiento	de	inventario.	A	veces	yo	creo	que	sería	de	las	ventas.	Porque,	¿saben
+qué?	Uno	podría	hacer	como	una	nota	de	salida.
+Lo	saco	y	después...	¿Por	qué?	Porque	en	realidad	lo	terminé,	pero	no	va	a	quedar	como
+cantidad	de	laptop.	Tengo	que	sacar,	retirarlo.	Después	de	retirarlo	tengo	que	volverlo	a
+ingresar	al	inventario	para	volver	a	procesarlo.
+Si	es	que	serviría.	Así	como	le	dice	su	compañero.	Que	lo	vuelven	otra	vez,	lo	preparan,	le	echan
+más	ingredientes	hasta	generar	el	producto	esperado.
+Si	fuera	así,	entonces	ese	movimiento...	Por	favor.	Es	como	un	movimiento	de	reingreso	del
+inventario.	Exacto,	más	o	menos	así.
+Ahora,	¿dónde	está	la	compra	y	los	proveedores?	¿Dónde	están	los	proveedores?	La	compra.
+¿Es	que	el	proveedor	tiene	que	estar	ligado	con	la	compra?	No	es	este	compra.	¿No	es	este
+compra?	Este	proveedor	tiene	que	estar	aquí.
+El	proveedor	tiene	que	estar	ligado	con	compra.	¿Este?	Este	tiene	que	estar.	Este	tiene	que
+estar.
+Este	es	el	proveedor.	Aquí	está	la	compra.	Esta	compra	tiene	que	irse	con	el	inventario.
+¿Dónde	está	el	inventario?	¿Dónde	van	a	depositar	el...	Órdenes	de	compra,	el	detalle.	¿A	dónde
+va	a	irse?	A	órdenes	de	compra,	detalle.	¿Y	dónde	está	el	inventario?	El	inventario	está	acá.
+Inventario	de	productos	terminados.	¿Con	quién	se	relaciona	con	detalle	de	compra?	No,	se
+relaciona...	El	inventario	se	relaciona	con	los	movimientos	de	inventario.	Se	relaciona	con	lotes
+de	producción.
+Y	se	relaciona	con	productos.	No,	pero	es	que	cuando	yo	compro,	el	inventario	actualiza.
+Normalmente	yo	te	diré.
+Compra.	Proveedor.	Proveedor.
+Compra.	La	compra	con	el	inventario.	El	inventario	con	la	venta.
+La	venta,	el	cliente.	No	hay	esa	relación.	Pero	de	un	inventario	yo	actualizo.
+Cuando	compro,	aumenta.	Porque	vienen	nuevos,	nuevas	cantidades.	O	nuevos	productos.
+Cuando	yo	vendo,	disminuyo.	Esa	es	la	actualización	de	entrada	y	salida	en	inventario.	Eso	no
+se	está	muy	claro.
+Por	favor,	eso	a	acomodar.	Y	hacerse	todas	las	preguntas	que	ustedes	vean	pertinentes.	La	que
+corresponda,	obviamente,	a	su	trabajo.
+Y,	como	les	dije.	Pregunta,	respuesta.	Y	también,	poblado.
+Debe	poblarse	totalmente	la	base	de	datos.	Porque	si	no,	no	tendría	respuesta.	Sobre	eso,
+entonces,	por	favor,	actualizamos.
+Tengo	una	duda.	Nosotros	realizamos	órdenes	de	compra.	Tenemos	proveedores.
+Pero,	¿las	órdenes	de	compra	no	actualizarían	en	los	insumos?	Y	donde	corresponde,	pues.	Por
+eso,	en	el	inventario.	En	el	inventario	de	insumos,	en	el	inventario	de	dólares.
+Ustedes	lo	corresponden	donde	debería	ser.	Si	están	comprando	materia	prima,	va	al
+inventario	de	insumos.	Si	están	comprando	productos	terminados.
+Es	un	inventario	donde	los	productos	están	terminados	y	no	están.	Ah,	si	compramos	solo
+insumos.	Claro,	tienen	que	ver	dónde.
+Quieren	llamar.	Eso.	Ya.
+Transcrito	por	
+TurboScribe
+.	
+Actualizar	a	Ilimitado
+	para	eliminar	este	mensaje.
