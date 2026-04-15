@@ -86,9 +86,9 @@ CREATE TABLE catalogo_items (
     precio_referencia DECIMAL(10,2) DEFAULT 0,
     vida_util_dias INT,
     stock_minimo DECIMAL(10,2) DEFAULT 0,
-    created_at TIMESTAMPTZ DEFAULT NOW(),
-    updated_at TIMESTAMPTZ DEFAULT NOW()
-);
+    created_at TIMESTAMPTZ DEFAULT NOW(), --fecha y hora de creacion del producto
+    updated_at TIMESTAMPTZ DEFAULT NOW()  --fecha y hora de modificacion   
+);    -- todas aquellas tablas que contengan el created_at y updated_at son para la tabla de auditoria
 
 CREATE TABLE proveedores (
     id_proveedor SERIAL PRIMARY KEY,
