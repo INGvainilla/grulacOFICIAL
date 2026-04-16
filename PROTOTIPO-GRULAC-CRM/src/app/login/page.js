@@ -19,24 +19,97 @@ export default function LoginPage() {
 
   const handleLogin = async (e) => {
     e.preventDefault()
+
+    // Excepción E3: Verificar bloqueo previo
+    const lockTime = localStorage.getItem('login_lock_until')
+    if (lockTime && new Date().getTime() < parseInt(lockTime)) {
+      const remainingMinutes = Math.ceil((parseInt(lockTime) - new Date().getTime()) / 60000)
+      toast.error('Sistema bloqueado', {
+        description: `Demasiados intentos fallidos. Intente nuevamente en ${remainingMinutes} minutos.`
+      })
+      return
+    }
+
     setLoading(true)
 
-    const { error } = await supabase.auth.signInWithPassword({
+    const { data: authData, error } = await supabase.auth.signInWithPassword({
       email,
       password,
     })
 
     if (error) {
-      toast.error('Credenciales incorrectas', {
-        description: error.message
-      })
+      // Excepción E3: Rastreo de intentos fallidos
+      let attempts = parseInt(localStorage.getItem('login_attempts') || '0')
+      attempts += 1
+      
+      if (attempts >= 3) {
+        // Bloquear por 15 minutos (15 * 60 * 1000 ms)
+        const lockUntil = new Date().getTime() + 15 * 60 * 1000
+        localStorage.setItem('login_lock_until', lockUntil.toString())
+        localStorage.setItem('login_attempts', '0')
+        
+        // Registrar en bitácora de auditoría
+        try {
+          await supabase.from('bitacora_auditoria').insert([{
+            accion_sql: 'ACCESS_LOCKED',
+            tabla_afectada: 'usuarios',
+            new_data: { email_target: email, reason: '3 failed attempts' }
+          }])
+        } catch(err) {
+          // Fallo silencioso si la bitácora falla
+        }
+
+        toast.error('Bloqueo de seguridad activado', {
+          description: 'Ha excedido el número máximo de intentos. Comuníquese con Gerencia o espere 15 minutos.'
+        })
+      } else {
+        localStorage.setItem('login_attempts', attempts.toString())
+        toast.error('Credenciales incorrectas', {
+          description: `Intento fallido ${attempts}/3. Reintente.`
+        })
+      }
       setLoading(false)
       return
     }
 
-    toast.success('Sesión iniciada con éxito')
-    router.refresh()
-    router.push('/inicio')
+    // Excepción E2: Verificar si el empleado está inhabilitado por gerencia
+    if (authData?.user) {
+      const { data: userData } = await supabase
+        .from('usuarios')
+        .select(`estado_acceso, roles(nombre_rol)`)
+        .eq('auth_uid', authData.user.id)
+        .single()
+
+      if (userData && userData.estado_acceso === false) {
+        await supabase.auth.signOut()
+        toast.error('Acceso Restringido', {
+          description: 'Usted no está autorizado por Gerencia.'
+        })
+        setLoading(false)
+        return
+      }
+
+      // Limpiar intentos si la autenticación es exitosa
+      localStorage.removeItem('login_attempts')
+      localStorage.removeItem('login_lock_until')
+
+      toast.success('Sesión iniciada con éxito')
+      router.refresh()
+
+      // Redirección condicional (por rol)
+      const rol = userData?.roles?.nombre_rol?.toLowerCase() || ''
+      if (rol.includes('recepción') || rol.includes('recepcion')) {
+        router.push('/recepcion')
+      } else if (rol.includes('calidad')) {
+        router.push('/calidad')
+      } else if (rol.includes('almacén') || rol.includes('almacen')) {
+        router.push('/kardex')
+      } else {
+        router.push('/inicio') // Default dashboard
+      }
+    } else {
+      setLoading(false)
+    }
   }
 
   return (
