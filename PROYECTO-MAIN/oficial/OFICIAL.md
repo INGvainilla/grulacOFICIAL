@@ -1635,7 +1635,6 @@ Existen en el sistema como registros transaccionales; no teclean ni tienen login
 
 Derivados estrictamente del bloque de alcance del proyecto (30 Módulos Atómicos identificados), se enuncian unificados y formalizados los **30 Casos de Uso** directos que sostendrán el flujo del ERP agroindustrial, desglosados bajo estricta separación de responsabilidades:
 
-### I. Módulo de Seguridad y Accesos
 - **CU01**: Iniciar Sesión en Plataforma
 - **CU02**: Cerrar Sesión Activa
 - **CU03**: Registrar Nuevo Empleado
@@ -1643,36 +1642,24 @@ Derivados estrictamente del bloque de alcance del proyecto (30 Módulos Atómico
 - **CU05**: Asignar/Modificar Roles y Permisos
 - **CU06**: Consultar Bitácora de Auditoría
 - **CU07**: Respaldar Fichas a Storage Externo
-
-### II. Módulo de Inventario y Catálogo (WMS)
 - **CU08**: Registrar Nuevo Producto/Insumo en Catálogo
 - **CU09**: Consultar Kardex Dinámico (Historial)
 - **CU10**: Registrar Ajuste Manual o Merma Aislada
 - **CU11**: Configurar Alertas de Stock Mínimo
-
-### III. Módulo de Compras y Proveedores (SCM)
 - **CU12**: Registrar Proveedor/Ganadero
 - **CU13**: Inhabilitar Proveedor (Bloqueo)
 - **CU14**: Elaborar Orden de Compra de Insumos
 - **CU15**: Registrar Recepción Física de Insumos
 - **CU16**: Registrar Pago a Proveedor
-
-### IV. Módulo de Recepción (Materia Prima - Km 102)
 - **CU17**: Registrar Ticket de Ingreso de Cisterna (Volumen)
 - **CU18**: Registrar Dictamen de Triage Bioquímico (Aceptación/Rechazo)
-
-### V. Módulo de Producción (MRP)
 - **CU19**: Registrar Receta Base (Ingeniería BOM)
 - **CU20**: Aperturar Orden de Producción
 - **CU21**: Registrar Parámetros Físicos (Mermas, Tiempos, Temperatura)
 - **CU22**: Codificar Lote Físico Terminado
-
-### VI. Módulo de Calidad (QA)
 - **CU23**: Registrar Ficha de Control de Calidad
 - **CU24**: Aprobar/Liberar Lote a Almacén
 - **CU25**: Enviar Lote a Cuarentena/Reproceso
-
-### VII. Módulo Comercial y Logística (CRM)
 - **CU26**: Registrar Cliente Comercial (B2B/B2C)
 - **CU27**: Generar Pedido de Venta (Reserva de stock)
 - **CU28**: Emitir Factura Comercial
