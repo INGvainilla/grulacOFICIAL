@@ -2076,7 +2076,690 @@ CU26 ..> Categoria : <<include>>
 *Prompt a ingresar textual en tu IA:*
 > "Pantalla de tipo CRM (Customer Relationship Management) moderna. Estética brillante y oxigenada empleando blancos puros y acentos azules claros. Existe una tabla central sobresaliente con 4 columnas principales y tipografía clara: 'ID Cuenta', 'Razón Social - NIT', 'Categoría (Aquí usar etiquetas flotantes amarillas o verdes para mostrar Retail / Mayorista)', y 'Total Vuelto Mensual (bs)'. Superpuesto al centro de la pantalla, se despliega un panel flotante para 'Registro de Nuevo Cliente'. Cajas de texto finas acompañadas de iconos tenues a la izquierda (un edificio corporativo para Razón social, una tarjeta ID para NIT). Abajo a la derecha, un único botón de confirmación: 'Confirmar y Guardar'."
 
-CAPÍTULO 4: FLUJO DE TRABAJO - DISEÑO
+## 7.5. Estructurar caso de uso
+### 7.5.1. Ciclo #1
+
+```plantuml
+@startuml UC_Ciclo1
+left to right direction
+skinparam packageStyle rectangle
+
+actor "Administrador General\n(from CU3)" as Admin
+actor "Usuario autenticado\n(from CU1)" as Usuario
+actor "Asesor Comercial\n(from CU9)" as Asesor
+actor "Jefe de Produccion\n(from CU9)" as JefeProd
+
+usecase "Registrar Empleado\n(from CU3)" as CU3
+usecase "Validar Duplicado de DNI\n(from CU3)" as V_DNI
+usecase "Inhabilitar Empleado\n(from CU4)" as CU4
+usecase "Destruir Token de Inmediato\n(from CU4)" as D_Token_Inm
+usecase "Asignar Rol\n(from CU5)" as CU5
+usecase "Notificar Cambio a Bitacora\n(from CU5)" as N_Bitacora
+usecase "Configurar Catalogo\n(from CU8)" as CU8
+usecase "Categoria Item-Subfamilia\n(from CU8)" as C_Item
+
+usecase "Iniciar sesion\n(from CU1)" as CU1
+usecase "Validar Credenciales\n(from CU1)" as V_Cred
+usecase "bloquear Acceso\n(from CU1)" as B_Acceso
+usecase "Cerrar Sesion\n(from CU2)" as CU2
+usecase "Destruir token JWT\n(from CU2)" as D_Token_JWT
+
+usecase "Consultar Kardex\n(from CU9)" as CU9
+usecase "Filtrar por Lotes-Fechas\n(from CU9)" as F_Lotes
+usecase "Registrar Cliente\n(from CU26)" as CU26
+usecase "Asignar nivel precio\n(from CU26)" as A_Precio
+usecase "Registrar Proveedor\n(from CU12)" as CU12
+usecase "Verificar Clínica-NIT\n(from CU12)" as V_Nit
+
+Admin --> CU3
+Admin --> CU4
+Admin --> CU5
+Admin --> CU8
+CU3 .> V_DNI : <<include>>
+CU4 .> D_Token_Inm : <<include>>
+CU5 .> N_Bitacora : <<include>>
+CU8 .> C_Item : <<include>>
+
+Admin -right-|> Usuario
+Asesor -up-|> Usuario
+JefeProd -up-|> Usuario
+
+Usuario --> CU1
+Usuario --> CU2
+CU1 .> V_Cred : <<include>>
+CU1 <. B_Acceso : <<extend>>
+CU2 .> D_Token_JWT : <<include>>
+
+Asesor --> CU9
+Asesor --> CU26
+Asesor --> CU12
+CU9 <. F_Lotes : <<extend>>
+CU26 .> A_Precio : <<include>>
+
+JefeProd --> CU9
+JefeProd --> CU12
+CU12 .> V_Nit : <<include>>
+
+@enduml
+```
+
+# 8. CAPITULO 4: FLUJO DE TRABAJO: ANALISIS
+
+## 8.1. Análisis de Arquitectura
+
+### 8.1.1. Identificar Paquetes
+
+A continuación, se describen los paquetes arquitectónicos fundamentales identificados para el Ciclo 1 del sistema, agrupando los casos de uso por áreas lógicas de responsabilidad funcional:
+
+```plantuml
+@startuml Paquetes_Ciclo1_Arquitectura
+skinparam packageStyle folder
+skinparam backgroundColor transparent
+
+package "seguridad" as P1
+package "Gestion de Usuario" as P2
+package "Gestion de inventario" as P3
+package "Gestion de Comercial" as P4
+package "Bitacora" as P5
+
+@enduml
+```
+
+- **Seguridad**: Este paquete comprende los mecanismos fundamentales de protección y control de acceso al sistema ERP. Su propósito es validar las credenciales del personal administrativo y operativo para autorizar su ingreso (iniciar sesión) o revocar el acceso a su terminal de forma segura (cerrar sesión), protegiendo así la integridad de los datos de la fábrica.
+
+- **Gestión de Usuario**: Administra el ciclo de vida organizativo del personal dentro de la plataforma. Involucra la creación de las identidades de nuevos trabajadores, su eventual baja lógica (inhabilitación para denegar el acceso) y la asignación de permisos operativos (roles), delimitando exactamente qué operaciones y vistas puede utilizar cada empleado según su jerarquía en la empresa.
+
+- **Gestión de Inventario (WMS)**: Encargado de la estructuración técnica del almacén de la planta. Permite a los administradores registrar y tipificar de manera estandarizada los insumos, materias primas y productos finales en el catálogo maestro. Además, otorga visibilidad analítica constante mediante el Kardex, permitiendo auditar el historial de ingresos y egresos de mercadería en tiempo real.
+
+- **Gestión Comercial y Proveedores**: Enfocado en la administración del directorio de las entidades fundamentales que originan y terminan el ciclo de negocio. Agrupa los casos de uso para dar de alta formalmente en el sistema a los ganaderos o proveedores (origen de la leche) y a los clientes comerciales (destino de los quesos), información indispensable para la posterior facturación y logística.
+
+- **Bitácora**: Responsable de la auditoría informática y la trazabilidad forense del sistema. Este paquete se encarga de interceptar y registrar silenciosamente las acciones críticas que ejecutan los usuarios (como otorgar permisos o modificar registros sensibles), guardando un historial inmutable y transparente que sirve de respaldo legal ante controles internos o inspecciones del SENASAG.
+
+
+### 8.1.2. Relacionar paquetes y casos de uso
+
+Esta sección establece la trazabilidad entre los paquetes arquitectónicos y los Casos de Uso específicos del Ciclo 1:
+
+```plantuml
+@startuml Paquetes_CU
+left to right direction
+skinparam packageStyle folder
+skinparam backgroundColor transparent
+
+package "SEGURIDAD" as P1
+usecase "Iniciar sesion\n(from CU1)" as CU1
+usecase "Cerrar Sesion\n(from CU2)" as CU2
+P1 ..> CU1 : <<trace>>
+P1 ..> CU2 : <<trace>>
+
+package "Gestion de Usuario" as P2
+usecase "Asignar Rol\n(from CU5)" as CU5
+usecase "Registrar Empleado\n(from CU3)" as CU3
+usecase "Inhabilitar Empleado\n(from CU4)" as CU4
+P2 ..> CU5 : <<trace>>
+P2 ..> CU3 : <<trace>>
+P2 ..> CU4 : <<trace>>
+
+package "Gestion de Inventario" as P3
+usecase "Configurar Catalogo\n(from CU8)" as CU8
+usecase "Consultar Kardex\n(from CU9)" as CU9
+P3 ..> CU8 : <<trace>>
+P3 ..> CU9 : <<trace>>
+
+package "Gestion Comercial" as P4
+usecase "Registrar Cliente\n(from CU26)" as CU26
+usecase "Registrar Proveedor\n(from CU12)" as CU12
+P4 ..> CU26 : <<trace>>
+P4 ..> CU12 : <<trace>>
+
+package "Bitacora" as P5
+usecase "Notificar Cambio a Bitacora\n(from CU5)" as CU5B
+P5 ..> CU5B : <<trace>>
+
+@enduml
+```
+
+### 8.1.3. Dependencias de Paquetes Arquitectónicos
+
+A continuación se esquematiza el acoplamiento y las dependencias lógicas direccionadas entre estos módulos (Ciclo 1):
+
+```plantuml
+@startuml Paquetes_Dependencias
+skinparam packageStyle folder
+skinparam backgroundColor transparent
+top to bottom direction
+
+package "Gestion Comercial" as P4
+package "Gestion de Inventario" as P3
+package "SEGURIDAD" as P1
+package "Gestion de Usuario" as P2
+package "Bitacora" as P5
+
+P4 ..> P1 : <<use>>
+P3 ..> P1 : <<use>>
+P1 ..> P2 : <<import>>
+P2 ..> P5 : <<use>>
+
+@enduml
+```
+
+## 8.2. Diagramas de Comunicación
+
+A continuación se presentan los diagramas de comunicación bajo el patrón arquitectónico MVC, mapeados a los elementos de Análisis: Frontera (IU), Control (CTR) y Entidad (CE).
+
+### CU01: Iniciar Sesión en Plataforma
+```plantuml
+@startuml DCom_CU01
+left to right direction
+skinparam backgroundColor transparent
+actor "Usuario" as Actor
+boundary "IU_Login" as IU
+control "CTR_Auth" as CTR
+entity "CE_Usuario" as ENT
+Actor --> IU : 1: Ingresar email y password
+IU --> CTR : 2: login(email, password)
+CTR --> ENT : 3: select_where(email)
+ENT --> CTR : 4: Datos y Hash
+CTR --> IU : 5: Redirigir a Home
+@enduml
+```
+
+### CU02: Cerrar Sesión Activa
+```plantuml
+@startuml DCom_CU02
+left to right direction
+skinparam backgroundColor transparent
+actor "Usuario" as Actor
+boundary "IU_Dashboard" as IU
+control "CTR_Auth" as CTR
+Actor --> IU : 1: Clic 'Cerrar Sesión'
+IU --> CTR : 2: logout()
+CTR --> CTR : 3: destruirToken()
+CTR --> IU : 4: Redirigir a Login
+@enduml
+```
+
+### CU03: Registrar Nuevo Empleado
+```plantuml
+@startuml DCom_CU03
+left to right direction
+skinparam backgroundColor transparent
+actor "Admin" as Actor
+boundary "IU_RRHH" as IU
+control "CTR_Usuario" as CTR
+entity "CE_Usuario" as ENT
+Actor --> IU : 1: Llenar formulario
+IU --> CTR : 2: registrarEmpleado(datos)
+CTR --> ENT : 3: check_dni()
+CTR --> ENT : 4: insert(usuario)
+ENT --> CTR : 5: Ok BD
+CTR --> IU : 6: Mensaje de éxito
+@enduml
+```
+
+### CU04: Inhabilitar Empleado
+```plantuml
+@startuml DCom_CU04
+left to right direction
+skinparam backgroundColor transparent
+actor "Admin" as Actor
+boundary "IU_RRHH" as IU
+control "CTR_Usuario" as CTR
+entity "CE_Usuario" as ENT
+Actor --> IU : 1: Clic 'Inhabilitar'
+IU --> CTR : 2: darDeBaja(id)
+CTR --> ENT : 3: update(is_active=false)
+ENT --> CTR : 4: Confirmación BD
+CTR --> IU : 5: Actualizar lista visual
+@enduml
+```
+
+### CU05: Asignar/Modificar Roles
+```plantuml
+@startuml DCom_CU05
+left to right direction
+skinparam backgroundColor transparent
+actor "Admin" as Actor
+boundary "IU_Permisos" as IU
+control "CTR_Rol" as CTR
+entity "CE_Usuario" as ENT1
+entity "CE_Bitacora" as ENT2
+Actor --> IU : 1: Seleccionar nuevo rol
+IU --> CTR : 2: asignarNuevoRol(id, rol)
+CTR --> ENT1 : 3: update(id_rol)
+CTR --> ENT2 : 4: insert(auditoria)
+ENT1 --> CTR : 5: OK
+CTR --> IU : 6: Notificar Exito
+@enduml
+```
+
+### CU08: Registrar Nuevo Producto/Insumo en Catálogo
+```plantuml
+@startuml DCom_CU08
+left to right direction
+skinparam backgroundColor transparent
+actor "Admin/WMS" as Actor
+boundary "IU_Catalogo" as IU
+control "CTR_Inventario" as CTR
+entity "CE_Catalogo_Items" as ENT
+Actor --> IU : 1: Crear Ítem
+IU --> CTR : 2: registrarCatalogo(Item)
+CTR --> ENT : 3: check_codigo()
+CTR --> ENT : 4: insert(Item)
+ENT --> CTR : 5: ID generado
+CTR --> IU : 6: Refrescar catálogo
+@enduml
+```
+
+### CU09: Consultar Kardex Dinámico
+```plantuml
+@startuml DCom_CU09
+left to right direction
+skinparam backgroundColor transparent
+actor "Operador" as Actor
+boundary "IU_Kardex" as IU
+control "CTR_Kardex" as CTR
+entity "CE_Kardex" as ENT
+Actor --> IU : 1: Filtrar fechas/producto
+IU --> CTR : 2: consultarMovimientos()
+CTR --> ENT : 3: select_where()
+ENT --> CTR : 4: Array de registros
+CTR --> IU : 5: Renderizar Gráfica
+@enduml
+```
+
+### CU12: Registrar Proveedor/Ganadero
+```plantuml
+@startuml DCom_CU12
+left to right direction
+skinparam backgroundColor transparent
+actor "Compras" as Actor
+boundary "IU_Proveedores" as IU
+control "CTR_Proveedor" as CTR
+entity "CE_Proveedor" as ENT
+Actor --> IU : 1: Ingresar datos
+IU --> CTR : 2: guardarProveedor()
+CTR --> ENT : 3: checkNit()
+CTR --> ENT : 4: insert(Proveedor)
+ENT --> CTR : 5: Confirmación BD
+CTR --> IU : 6: Mostrar éxito
+@enduml
+```
+
+### CU26: Registrar Cliente Comercial
+```plantuml
+@startuml DCom_CU26
+left to right direction
+skinparam backgroundColor transparent
+actor "Vendedor" as Actor
+boundary "IU_Clientes" as IU
+control "CTR_Cliente" as CTR
+entity "CE_Cliente" as ENT
+Actor --> IU : 1: Registrar Datos
+IU --> CTR : 2: registrarClienteNuevo()
+CTR --> ENT : 3: check_nit()
+CTR --> ENT : 4: insert(Cliente)
+ENT --> CTR : 5: OK
+CTR --> IU : 6: Añadir a Cartera
+@enduml
+```
+
+## 8.3. Análisis de Clases
+
+A continuación se presentan los Diagramas de Clases de Análisis (MVC), los cuales definen de manera estática los prototipos de atributos y métodos abstractos para todas las fronteras, controladores y entidades del Ciclo 1.
+
+### CU01: Iniciar Sesión en Plataforma
+```plantuml
+@startuml DClases_CU01
+allowmixing
+left to right direction
+skinparam classAttributeIconSize 0
+skinparam backgroundColor transparent
+actor "Usuario" as Actor
+
+class "IU_Login" as IU <<Boundary>> {
+  + email : String
+  + password : String
+  --
+  + tomarDatos()
+  + validarFormulario()
+  + enviarSolicitudLogin()
+  + mostrarError(mensaje)
+  + mostrarHome()
+}
+
+class "CTR_Auth" as CTR <<Control>> {
+  --
+  + login(email, password)
+  + validarCredenciales()
+  + generarTokenJWT()
+  + registrarIngresoBitacora()
+}
+
+class "CE_Usuario" as ENT <<Entity>> {
+  - id_usuario : Integer
+  - email : String
+  - password_hash : String
+  - full_name : String
+  - is_active : Boolean
+  - id_rol : Integer
+}
+
+Actor --> IU
+IU --> CTR
+CTR --> ENT
+@enduml
+```
+
+### CU02: Cerrar Sesión Activa
+```plantuml
+@startuml DClases_CU02
+allowmixing
+left to right direction
+skinparam classAttributeIconSize 0
+skinparam backgroundColor transparent
+actor "Usuario Autenticado" as Actor
+
+class "IU_Dashboard" as IU <<Boundary>> {
+  --
+  + clicCerrarSesion()
+  + mostrarAlertaConfirmacion()
+  + redirigirLogin()
+}
+
+class "CTR_Auth" as CTR <<Control>> {
+  --
+  + logout()
+  + destruirToken()
+  + limpiarCache()
+  + registrarSalidaBitacora()
+}
+
+Actor --> IU
+IU --> CTR
+@enduml
+```
+
+### CU03: Registrar Nuevo Empleado
+```plantuml
+@startuml DClases_CU03
+allowmixing
+left to right direction
+skinparam classAttributeIconSize 0
+skinparam backgroundColor transparent
+actor "Administrador" as Actor
+
+class "IU_RRHH" as IU <<Boundary>> {
+  + dni : String
+  + fullName : String
+  + email : String
+  --
+  + abrirFormularioNuevo()
+  + capturarDatosEntrada()
+  + mostrarMensajeExito()
+}
+
+class "CTR_Usuario" as CTR <<Control>> {
+  --
+  + registrarEmpleado(datos)
+  + verificarDuplicidadDNI()
+  + generarPasswordDefault()
+  + guardarUsuario()
+}
+
+class "CE_Usuario" as ENT <<Entity>> {
+  - id_usuario : Integer
+  - dni : String
+  - email : String
+  - full_name : String
+  - is_active : Boolean
+}
+
+Actor --> IU
+IU --> CTR
+CTR --> ENT
+@enduml
+```
+
+### CU04: Inhabilitar Empleado
+```plantuml
+@startuml DClases_CU04
+allowmixing
+left to right direction
+skinparam classAttributeIconSize 0
+skinparam backgroundColor transparent
+actor "Administrador" as Actor
+
+class "IU_RRHH" as IU <<Boundary>> {
+  + idEmpleadoSeleccionado : Integer
+  --
+  + seleccionarFila()
+  + confirmarBajaLogica()
+  + actualizarGrillaVisual()
+}
+
+class "CTR_Usuario" as CTR <<Control>> {
+  --
+  + darDeBaja(id_empleado)
+  + destruirTokensActivos()
+  + actualizarEstadoUsuario()
+}
+
+class "CE_Usuario" as ENT <<Entity>> {
+  - id_usuario : Integer
+  - is_active : Boolean
+}
+
+Actor --> IU
+IU --> CTR
+CTR --> ENT
+@enduml
+```
+
+### CU05: Asignar/Modificar Roles y Permisos
+```plantuml
+@startuml DClases_CU05
+allowmixing
+left to right direction
+skinparam classAttributeIconSize 0
+skinparam backgroundColor transparent
+actor "Administrador" as Actor
+
+class "IU_Permisos" as IU <<Boundary>> {
+  + idEmpleado : Integer
+  + idRolNuevo : Integer
+  --
+  + seleccionarRolCombo()
+  + enviarCambioRol()
+  + mostrarNotificacion()
+}
+
+class "CTR_Rol" as CTR <<Control>> {
+  --
+  + asignarNuevoRol(idEmp, idRol)
+  + auditarCambioEnBitacora()
+  + verificarCompatibilidad()
+}
+
+class "CE_Usuario" as ENT1 <<Entity>> {
+  - id_usuario : Integer
+  - id_rol : Integer
+}
+
+class "CE_Bitacora" as ENT2 <<Entity>> {
+  - id_evento : Integer
+  - descripcion : String
+  - fecha_hora : DateTime
+}
+
+Actor --> IU
+IU --> CTR
+CTR --> ENT1
+CTR --> ENT2
+@enduml
+```
+
+### CU08: Registrar Nuevo Producto/Insumo en Catálogo
+```plantuml
+@startuml DClases_CU08
+allowmixing
+left to right direction
+skinparam classAttributeIconSize 0
+skinparam backgroundColor transparent
+actor "Administrador" as Actor
+
+class "IU_Catalogo" as IU <<Boundary>> {
+  + codigo : String
+  + nombreItem : String
+  + tipoCategoria : String
+  + unidadMedida : String
+  --
+  + llenarFormItem()
+  + validarCamposVacios()
+  + enviarGuardado()
+}
+
+class "CTR_Inventario" as CTR <<Control>> {
+  --
+  + registrarCatalogo(ItemDto)
+  + verificarCodigoUnico()
+  + insertarItemBase()
+}
+
+class "CE_Catalogo_Items" as ENT <<Entity>> {
+  - id_item : Integer
+  - codigo_ref : String
+  - nombre_articulo : String
+  - categoria : String
+  - unidad_medida : String
+}
+
+Actor --> IU
+IU --> CTR
+CTR --> ENT
+@enduml
+```
+
+### CU09: Consultar Kardex Dinámico
+```plantuml
+@startuml DClases_CU09
+allowmixing
+left to right direction
+skinparam classAttributeIconSize 0
+skinparam backgroundColor transparent
+actor "Operador" as Actor
+
+class "IU_Kardex" as IU <<Boundary>> {
+  + idProducto : Integer
+  + fechaInicio : Date
+  + fechaFin : Date
+  --
+  + seleccionarFiltros()
+  + dibujarTablaMayor()
+  + graficarCurvaStock()
+}
+
+class "CTR_Kardex" as CTR <<Control>> {
+  --
+  + consultarMovimientos(filtros)
+  + computarStockDinamico()
+  + devolverArregloKardex()
+}
+
+class "CE_Kardex_Movimientos" as ENT <<Entity>> {
+  - id_movimiento : Integer
+  - id_item : Integer
+  - tipo_transaccion : String
+  - cantidad : Decimal
+  - fecha_registro : DateTime
+}
+
+Actor --> IU
+IU --> CTR
+CTR --> ENT
+@enduml
+```
+
+### CU12: Registrar Proveedor/Ganadero
+```plantuml
+@startuml DClases_CU12
+allowmixing
+left to right direction
+skinparam classAttributeIconSize 0
+skinparam backgroundColor transparent
+actor "Area Compras" as Actor
+
+class "IU_Proveedores" as IU <<Boundary>> {
+  + nitCi : String
+  + razonSocial : String
+  + zonaAcopio : String
+  --
+  + ingresarDatosGanadero()
+  + limpiarFormulario()
+  + mandarPeticionCrear()
+}
+
+class "CTR_Proveedor" as CTR <<Control>> {
+  --
+  + guardarProveedor(datos)
+  + auditarRegistro()
+  + validarNitUnico()
+}
+
+class "CE_Proveedor" as ENT <<Entity>> {
+  - id_proveedor : Integer
+  - nit_ci : String
+  - razon_social : String
+  - clasificacion : String
+  - ruta_acopio : String
+  - is_activo : Boolean
+}
+
+Actor --> IU
+IU --> CTR
+CTR --> ENT
+@enduml
+```
+
+### CU26: Registrar Cliente Comercial
+```plantuml
+@startuml DClases_CU26
+allowmixing
+left to right direction
+skinparam classAttributeIconSize 0
+skinparam backgroundColor transparent
+actor "Vendedor" as Actor
+
+class "IU_Clientes" as IU <<Boundary>> {
+  + nitFacturacion : String
+  + nombreCliente : String
+  + tipoCliente : String
+  --
+  + ingresarDatosCRM()
+  + enviarAprobacionCliente()
+}
+
+class "CTR_Cliente" as CTR <<Control>> {
+  --
+  + registrarClienteNuevo()
+  + verificarHistorial()
+  + asignarPerfilPrecios()
+}
+
+class "CE_Cliente" as ENT <<Entity>> {
+  - id_cliente : Integer
+  - nit_ci : String
+  - razon_social : String
+  - tipo_mercado : String
+}
+
+Actor --> IU
+IU --> CTR
+CTR --> ENT
+@enduml
+```
+
+CAPÍTULO 5: FLUJO DE TRABAJO - DISEÑO
 
 Este capítulo establece los cimientos técnicos definitivos del ERP de la factoría GRULAC S.R.L. A partir de la ingeniería de requerimientos (Casos de Uso), procedemos a diseñar la topología transversal de la aplicación, el esquema lógico normalizado de las entidades y finalmente, el diseño físico-relacional y sus sentencias SQL operativas.
 
