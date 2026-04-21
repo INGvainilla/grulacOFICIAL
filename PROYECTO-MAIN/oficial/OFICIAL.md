@@ -1633,7 +1633,7 @@ Existen en el sistema como registros transaccionales; no teclean ni tienen login
 
 ## 3.2 Lista de Casos de Uso Primarios (Granularidad Atómica)
 
-Derivados estrictamente del bloque de alcance del proyecto (30 Módulos Atómicos identificados), se enuncian unificados y formalizados los **30 Casos de Uso** directos que sostendrán el flujo del ERP agroindustrial, desglosados bajo estricta separación de responsabilidades:
+Derivados estrictamente del bloque de alcance del proyecto y refinados tras la revisión del Ciclo 1, se enuncian unificados y formalizados los **32 Casos de Uso** directos que sostendrán el flujo del ERP agroindustrial, desglosados bajo estricta separación de responsabilidades:
 
 - **CU01**: Iniciar Sesión en Plataforma
 - **CU02**: Cerrar Sesión Activa
@@ -1665,13 +1665,15 @@ Derivados estrictamente del bloque de alcance del proyecto (30 Módulos Atómico
 - **CU28**: Emitir Factura Comercial
 - **CU29**: Ejecutar Despacho Físico (Descontar de Kardex por FEFO)
 - **CU30**: Registrar Devolución de Queso (Logística Inversa)
+- **CU31**: Cambiar Contraseña Propia
+- **CU32**: Recuperar Contraseña Olvidada (Reset vía email)
 
 ## 3.3 Priorización y Planificación de Iteraciones (Ciclos RUP)
 
-Siguiendo estrictamente las directrices del **Proceso Unificado de Desarrollo de Software (Jacobson, Booch, Rumbaugh)**, la construcción del modelo priorizó la mitigación de riesgos arquitectónicos (Architecture-Centric). El flujo de trabajo divide los 30 Casos de Uso Atómicos en **4 Iteraciones Incrementales**:
+Siguiendo estrictamente las directrices del **Proceso Unificado de Desarrollo de Software (Jacobson, Booch, Rumbaugh)**, la construcción del modelo priorizó la mitigación de riesgos arquitectónicos (Architecture-Centric). El flujo de trabajo divide los 32 Casos de Uso Atómicos en **4 Iteraciones Incrementales**:
 
 ### Ciclo #1 Iteración — Arquitectura Base y Riesgo Estructural (Incepción)
-**Justificación (RUP):** Mitiga el riesgo fundacional. Sin seguridad básica y Catálogos de Datos Maestros abstractos, no existe base de datos operativa.
+**Justificación (RUP):** Mitiga el riesgo fundacional. Sin seguridad básica (incluyendo la gestión integral de credenciales) y Catálogos de Datos Maestros abstractos, no existe base de datos operativa.
 - **Actores Implicados:** Administrador General, Asesor Comercial.
 - **R.F (Casos de Uso a implementar):**
   - **CU01**: Iniciar Sesión en Plataforma (Prioridad: Alta)
@@ -1683,6 +1685,8 @@ Siguiendo estrictamente las directrices del **Proceso Unificado de Desarrollo de
   - **CU09**: Consultar Kardex Dinámico (Prioridad: Alta)
   - **CU12**: Registrar Proveedor/Ganadero (Prioridad: Alta)
   - **CU26**: Registrar Cliente Comercial B2B/B2C (Prioridad: Alta)
+  - **CU31**: Cambiar Contraseña Propia (Prioridad: Alta)
+  - **CU32**: Recuperar Contraseña Olvidada (Prioridad: Alta)
 
 ### Ciclo #2 Iteración — Dominio Logístico y Reglas SCM (Elaboración Temprana)
 **Justificación (RUP):** Control estricto de la entrada física, configurando pre-requisitos de manufactura como las fórmulas BOM y validando recepciones de la calle.
@@ -1754,19 +1758,22 @@ CU01 <.. Bloquear : <<extend>>
 - **7. FLUJO PRINCIPAL (Camino Feliz):**
   1. El actor ingresa a la ruta base de GRULAC ERP.
   2. El sistema despliega el formulario de Iniciar Sesión.
-  3. El actor introduce su ID corporativo (email/DNI) y Contraseña, enviando la petición.
+  3. El actor introduce su ID corporativo (email) y Contraseña, enviando la petición.
   4. El sistema encripta la contraseña, conecta con la BD y verifica la coincidencia del hash.
   5. El sistema detecta coincidencia, extrae el perfil de permisos.
-  6. El sistema redirige al actor al panel de control correspondiente a su cargo industrial.
-- **8. POST CONDICIÓN:** El usuario queda logueado, con su `id_usuario` amarrado en la sesión activa temporalmente, habilitándolo para firmar transacciones hasta que la sesión expire.
+  6. El sistema registra automáticamente en la tabla `bitacora_auditoria` la fecha, hora e IP del ingreso (acción: `LOGIN`).
+  7. El sistema actualiza el campo `ultimo_login` del registro del usuario.
+  8. El sistema redirige al actor al panel de control correspondiente a su cargo industrial.
+- **8. POST CONDICIÓN:** El usuario queda logueado, con su `id_usuario` amarrado en la sesión activa temporalmente, habilitándolo para firmar transacciones hasta que la sesión expire. La bitácora conserva el registro inmutable de la hora y fecha del ingreso.
 - **9. EXCEPCIONES (Flujo Secundario):**
-  - *E1: Credenciales Inválidas.* (Paso 4 falla). El sistema detiene el flujo, limpia el password y notifica "Credenciales incorrectas", regresando al paso 2.
+  - *E1: Credenciales Inválidas.* (Paso 4 falla). El sistema detiene el flujo, limpia el password, incrementa el contador `intentos_fallidos` y notifica "Credenciales incorrectas", regresando al paso 2.
   - *E2: Empleado Inhabilitado.* (Precondición falla). El sistema halla credenciales correctas, pero nota que el empleado ha sido vetado o despedido. Detiene el acceso con la alerta: "Usted no está autorizado por Gerencia".
-  - *E3: Múltiples Fallos (3 intentos).* Tras fallar E1 repetidamente, se ejecuta el caso `<<extend>> Bloquear Acceso`: se bloquea el input por 5 a 15 minutos y se registra una IP sospechosa en la tabla de bitácora.
+  - *E3: Múltiples Fallos (3 intentos).* Tras fallar E1 repetidamente, se ejecuta el caso `<<extend>> Bloquear Acceso`: se bloquea el input por 5 a 15 minutos, se registra la IP sospechosa en bitácora y se habilita visualmente el enlace "¿Olvidó su contraseña?" que redirige al CU32.
+- **10. NOTA TÉCNICA:** La autenticación es propia del sistema (email + password_hash contra la tabla `usuarios`). No se utiliza OAuth ni inicio de sesión con proveedores externos (Google, Facebook, etc.). El email corporativo se usa exclusivamente como identificador de la cuenta, no como proveedor de autenticación.
 
 **C. Prototipo UI (Directriz para Generador)**
 *Prompt a ingresar textual en tu IA de mockups (Google/Uizard/Figma):*
-> "Diseñar un Layout de Iniciar Sesión para uso Web/Desktop de estilo corporativo moderno, para el uso interno de una industria láctea. Debe utilizar la estética 'Glassmorphism' (paneles levemente transparentes emulando vidrio). Dividir la pantalla en 50/50: La mitad izquierda muestra una fotografía elegante, desaturada y nítida de maduración de quesos o un campo tambero limpio. La mitad derecha aloja el formulario de ingreso encajado en un panel blanco limpio. Los elementos obligatorios son: Logo 'GRULAC S.R.L', Gran encabezado 'Acceso Operativo ERP', Campo de texto redondeado 'ID Corporativo', Campo protegido por puntos para 'Contraseña', y un gran Botón de acción (accent color oscuro o azul industrial) que ordene 'AUTENTICAR'. Prohibido incluir botones para recuperar contraseña o crear cuentas de usuario, esto es una red interna estricta."
+> "Diseñar un Layout de Iniciar Sesión para uso Web/Desktop de estilo corporativo moderno, para el uso interno de una industria láctea. Debe utilizar la estética 'Glassmorphism' (paneles levemente transparentes emulando vidrio). Dividir la pantalla en 50/50: La mitad izquierda muestra una fotografía elegante, desaturada y nítida de maduración de quesos o un campo tambero limpio. La mitad derecha aloja el formulario de ingreso encajado en un panel blanco limpio. Los elementos obligatorios son: Logo 'GRULAC S.R.L', Gran encabezado 'Acceso Operativo ERP', Campo de texto redondeado 'Email Corporativo', Campo protegido por puntos para 'Contraseña', un gran Botón de acción (accent color oscuro o azul industrial) que ordene 'AUTENTICAR', y debajo del botón un enlace discreto '¿Olvidó su contraseña?' que dirija al flujo de recuperación (CU32). No incluir botón para crear cuentas de usuario; las cuentas son creadas exclusivamente por el Administrador (CU03)."
 
 #### CU02: Cerrar Sesión Activa
 
@@ -1796,11 +1803,12 @@ CU02 ..> Destruir : <<include>>
   2. El actor hace clic en la opción "Cerrar Sesión / Salir".
   3. El sistema intercepta el clic y solicita una pequeña confirmación "¿Desea abandonar el área de trabajo?".
   4. El actor confirma "Sí, salir".
-  5. El sistema purga la caché del navegador, destruye el Token JWT y marca en bitácora la hora de salida de su guardia operativa.
-  6. El sistema redirige automáticamente al navegador a la pantalla del CU01 (Login).
-- **8. POST CONDICIÓN:** La terminal queda bloqueada asépticamente; ninguna ruta interna del sistema es accesible sin volver a inyectar credenciales.
+  5. El sistema registra en la tabla `bitacora_auditoria` la fecha, hora e IP de la salida (acción: `LOGOUT`), cerrando el par de trazabilidad iniciado en el CU01.
+  6. El sistema purga la caché del navegador y destruye el Token JWT.
+  7. El sistema redirige automáticamente al navegador a la pantalla del CU01 (Login).
+- **8. POST CONDICIÓN:** La terminal queda bloqueada asépticamente; ninguna ruta interna del sistema es accesible sin volver a inyectar credenciales. La bitácora conserva un registro completo de entrada (LOGIN) y salida (LOGOUT) con sus respectivas fechas y horas.
 - **9. EXCEPCIONES (Flujo Secundario):**
-  - *E1: Destrucción por Inactividad (Timeout).* Si el usuario olvida cerrar sesión y abandona la computadora, el sistema no espera el clic: hace un auto-logout tras 15 minutos exactos de inactividad sensorial (mouse/teclado), saltando directamente a los pasos 5 y 6 para asegurar la computadora.
+  - *E1: Destrucción por Inactividad (Timeout).* Si el usuario olvida cerrar sesión y abandona la computadora, el sistema no espera el clic: hace un auto-logout tras 15 minutos exactos de inactividad sensorial (mouse/teclado), saltando directamente a los pasos 5, 6 y 7 para asegurar la computadora. La bitácora registra la acción como `LOGOUT_TIMEOUT`.
 
 **C. Prototipo UI (Directriz para Generador)**
 *Prompt a ingresar textual en tu IA:*
@@ -1836,9 +1844,10 @@ CU03 ..> Validar : <<include>>
   4. El sistema contrasta el disco duro (BD) para garantizar la regla de negocio de unicidad de DNI (No pueden existir trabajadores clonados).
   5. El sistema dispara la consulta `INSERT INTO usuarios` inyectando un hash de contraseña genérica por defecto (Ej: `grulac123`).
   6. El sistema notifica "El empleado se guardó con éxito" y cierra el modal visual.
-- **8. POST CONDICIÓN:** El empleado existe permanentemente en Disco (Persistido) y está a la espera de que el Administrador dispare el **CU05** (Asignar Rol y Permisos).
+- **8. POST CONDICIÓN:** El empleado existe permanentemente en Disco (Persistido) y está a la espera de que el Administrador dispare el **CU05** (Asignar Rol y Permisos). Toda la transacción queda inmutablemente respaldada de forma automática en la Bitácora de Auditoría por seguridad.
 - **9. EXCEPCIONES (Flujo Secundario):**
   - *E1: Conflicto de DNI (Duplicidad).* Si el DNI provisto ya pertenece a un trabajador existente, la base de datos aborta violentamente la inserción (Por UNIQUE CONSTRAINT). El sistema atrapa el error y arroja a la Interfaz: "Peligro: Este DNI ya pertenece a otro trabajador".
+  - *E2: Campos Obligatorios Vacíos.* Si el usuario deja en blanco cualquier campo marcado como NOT NULL (DNI, Nombre), el sistema bloquea el botón de guardado, resalta el campo vacío con borde rojo y muestra el mensaje inline: "Este campo es obligatorio". No se ejecuta ninguna petición al servidor hasta que se corrijan todos los campos.
 
 **C. Prototipo UI (Directriz para Generador)**
 *Prompt a ingresar textual en tu IA:*
@@ -1873,7 +1882,7 @@ CU04 ..> DestruirToken : <<include>>
   4. El sistema ejecuta el *Soft-Delete* cambiando la bandera lógica del usuario a falsa.
   5. El sistema lanza un disparador interno (Include) que rastrea si ese empleado estaba conectado e invalida instantáneamente su Token de sesión (JWT) en memoria.
   6. El sistema actualiza la lista, mostrando al empleado con un chip color rojo "Inactivo".
-- **8. POST CONDICIÓN:** El ex-empleado ya no puede hacer Login (Falla la Precondición del CU01), pero los movimientos pasados en Kardex firmados por él siguen intactos y auditables.
+- **8. POST CONDICIÓN:** El ex-empleado ya no puede hacer Login (Falla la Precondición del CU01), pero los movimientos pasados en Kardex firmados por él siguen intactos y auditables. Toda la transacción queda inmutablemente respaldada de forma automática en la Bitácora de Auditoría por seguridad.
 - **9. EXCEPCIONES (Flujo Secundario):**
   - *E1: Autodestrucción Bloqueada.* Si el Administrador intenta darse de baja a sí mismo y es el único Administrador con `id_rol = 1` vivo en la empresa, el sistema detiene la transacción por seguridad arquitectónica para evitar bloquear el ERP entero cediendo acéfalo.
 
@@ -1890,10 +1899,8 @@ left to right direction
 actor "Administrador General" as Admin
 rectangle "Sistema ERP GRULAC - Submódulo RRHH" {
   usecase "CU05: Asignar Rol" as CU05
-  usecase "Notificar Cambio a Bitácora" as Bitacora
 }
 Admin --> CU05
-CU05 ..> Bitacora : <<include>>
 @enduml
 ```
 
@@ -1901,7 +1908,7 @@ CU05 ..> Bitacora : <<include>>
 - **1. CASO DE USO:** CU05 - Asignar o Modificar Roles y Permisos.
 - **2. PROPÓSITO:** Delimitar las fronteras de poder informático de un usuario, enlazándolo con un Perfil de Autorización (Jefe de Producción, QA, Recepcionista).
 - **3. DESCRIPCIÓN:** Permite al Administrador seleccionar a un trabajador base y amarrarlo a un `id_rol` maestro que rige qué pestañas del software podrá ver y qué tablas podrá editar.
-- **4. ACTORES:** Tablas de BD (`usuarios`, `roles`, `bitacora_auditoria`).
+- **4. ACTORES:** Tablas de BD (`usuarios`, `roles`).
 - **5. ACTOR INICIADOR:** Administrador General.
 - **6. PRECONDICIÓN:** El trabajador objetivo ya debe existir como entidad (Haber ejecutado CU03) y estar activo.
 - **7. FLUJO PRINCIPAL (Camino Feliz):**
@@ -1909,9 +1916,8 @@ CU05 ..> Bitacora : <<include>>
   2. El sistema despliega una lista (Dropdown select) obtenida dinámicamente de la tabla de catálogo `roles`.
   3. El Administrador escoge la opción "Ingeniero de Calidad (QA)" y presiona Guardar.
   4. El sistema ejecuta el `UPDATE usuarios SET id_rol = X WHERE id_usuario = Y`.
-  5. El sistema escribe obligatoriamente el cambio en la `bitacora_auditoria` dejando constancia de qué Admin otorgó qué poder a qué empleado.
-  6. El sistema notifica éxito y actualiza la columna "Cargo" en la grilla principal.
-- **8. POST CONDICIÓN:** El trabajador ya cuenta con credenciales especializadas conectadas. Al iniciar su próximo Login (CU01), su menú lateral adaptará opciones exclusivas del módulo de Calidad.
+  5. El sistema notifica éxito y actualiza la columna "Cargo" en la grilla principal.
+- **8. POST CONDICIÓN:** El trabajador ya cuenta con credenciales especializadas conectadas. Al iniciar su próximo Login (CU01), su menú lateral adaptará opciones exclusivas del módulo de Calidad. Toda la transacción queda inmutablemente respaldada de forma automática en la Bitácora de Auditoría por seguridad.
 - **9. EXCEPCIONES (Flujo Secundario):**
   - *E1: Transición Ilegal de Permisos (Incompatibilidad).* La lógica del ERP no permite que un "Jefe de Producción" sea cambiado bruscamente a "Ingeniero de QA" si el trabajador en cuestión tiene Órdenes de Producción (Lotes) actualmente abiertas a su nombre. El sistema exige cerrar los lotes en la tina antes del cambio de oficina bloqueando la operación.
 
@@ -1949,9 +1955,10 @@ CU08 ..> Categoria : <<include>>
   5. Presiona "Guardar en Sistema Central".
   6. El sistema formatea los textos evitando dobles espacios en blanco e inserta en la tabla master `catalogo_items`.
   7. El listado de catálogo se actualiza reflejando el nuevo ítem con "Stock 0.00" por defecto.
-- **8. POST CONDICIÓN:** El Ítem existe contablemente. A partir de ahora puede ser objeto de una Orden de Compra o registrado como merma en la línea de producción.
+- **8. POST CONDICIÓN:** El Ítem existe contablemente. A partir de ahora puede ser objeto de una Orden de Compra o registrado como merma en la línea de producción. Toda la transacción queda inmutablemente respaldada de forma automática en la Bitácora de Auditoría por seguridad.
 - **9. EXCEPCIONES (Flujo Secundario):**
   - *E1: Falta de Categorización Restrictiva.* Si el actor omite clasificar si es Producto Vendible o Insumo de Producción, el software lanza alerta y niega la creación, puesto que afecta el comportamiento de las tablas de ventas posteriores.
+  - *E2: Campos Obligatorios Vacíos.* Si el usuario deja en blanco cualquier campo marcado como NOT NULL (nombre, SKU, unidad de medida), el sistema bloquea el botón de guardado, resalta el campo vacío con borde rojo y muestra el mensaje inline: "Este campo es obligatorio".
 
 **C. Prototipo UI (Directriz para Generador)**
 *Prompt a ingresar textual en tu IA:*
@@ -2029,9 +2036,10 @@ CU12 ..> Validar : <<include>>
   5. El sistema escanea la tabla `proveedores` buscando duplicidad estricta de NIT/CI.
   6. El sistema aprueba el `INSERT` y le estampa automáticamente el estado algorítmico `'Activo'` (Apto para negocios).
   7. El listado de proveedores se recarga con la nueva información.
-- **8. POST CONDICIÓN:** El Proveedor obtiene un `id_proveedor` válido, logrando que el Encargado de Recepción (CU17) pueda seleccionar su nombre oficial cuando su camión llegue a la fábrica.
+- **8. POST CONDICIÓN:** El Proveedor obtiene un `id_proveedor` válido, logrando que el Encargado de Recepción (CU17) pueda seleccionar su nombre oficial cuando su camión llegue a la fábrica. Toda la transacción queda inmutablemente respaldada de forma automática en la Bitácora de Auditoría por seguridad.
 - **9. EXCEPCIONES (Flujo Secundario):**
   - *E1: Conflicto de Identidad Única.* Si el sistema detecta que el NIT proveído o el código de ruta ya pertenece a un ganadero preexistente, aborta la creación impidiendo silenciosamente la corrupción de historiales contables.
+  - *E2: Campos Obligatorios Vacíos.* Si el usuario deja en blanco cualquier campo marcado como NOT NULL (NIT, Razón Social, Tipo Proveedor), el sistema bloquea el botón de guardado, resalta el campo vacío con borde rojo y muestra el mensaje inline: "Este campo es obligatorio".
 
 **C. Prototipo UI (Directriz para Generador)**
 *Prompt a ingresar textual en tu IA:*
@@ -2068,13 +2076,109 @@ CU26 ..> Categoria : <<include>>
   5. El sistema escanea duplicidad de Documentos de Identidad Tributaria.
   6. El sistema aprueba el `INSERT` en la tabla maestra `clientes`.
   7. El sistema despliega el mensaje de éxito ("Cliente apto para despachos") y refresca el DataGrid del CRM mostrando el registro en primera fila.
-- **8. POST CONDICIÓN:** El cliente queda habilitado irrevocablemente en BD como llave primaria (ID). El Asesor Comercial ya puede utilizar su nombre como palanca para el levantamiento de Pedidos y descarte de Kárdex.
+- **8. POST CONDICIÓN:** El cliente queda habilitado irrevocablemente en BD como llave primaria (ID). El Asesor Comercial ya puede utilizar su nombre como palanca para el levantamiento de Pedidos y descarte de Kárdex. Toda la transacción queda inmutablemente respaldada de forma automática en la Bitácora de Auditoría por seguridad.
 - **9. EXCEPCIONES (Flujo Secundario):**
   - *E1: Registro Centralizado (Duplicado).* El sistema detecta que otra sucursal ya registró a ese NIT (ej: Supermercados FIDALGA). Interrumpe la inserción con un cartel restrictivo forzando al usuario a utilizar el contacto ya existente para salvar la consistencia financiera general.
+  - *E2: Campos Obligatorios Vacíos.* Si el usuario deja en blanco cualquier campo marcado como NOT NULL (NIT, Razón Social), el sistema bloquea el botón de guardado, resalta el campo vacío con borde rojo y muestra el mensaje inline: "Este campo es obligatorio".
 
 **C. Prototipo UI (Directriz para Generador)**
 *Prompt a ingresar textual en tu IA:*
 > "Pantalla de tipo CRM (Customer Relationship Management) moderna. Estética brillante y oxigenada empleando blancos puros y acentos azules claros. Existe una tabla central sobresaliente con 4 columnas principales y tipografía clara: 'ID Cuenta', 'Razón Social - NIT', 'Categoría (Aquí usar etiquetas flotantes amarillas o verdes para mostrar Retail / Mayorista)', y 'Total Vuelto Mensual (bs)'. Superpuesto al centro de la pantalla, se despliega un panel flotante para 'Registro de Nuevo Cliente'. Cajas de texto finas acompañadas de iconos tenues a la izquierda (un edificio corporativo para Razón social, una tarjeta ID para NIT). Abajo a la derecha, un único botón de confirmación: 'Confirmar y Guardar'."
+
+#### CU31: Cambiar Contraseña Propia
+
+**A. Estructura del Modelo de CU (Diagrama Específico)**
+```plantuml
+@startuml
+left to right direction
+actor "Usuario Autenticado" as Actor
+rectangle "Sistema ERP GRULAC - Seguridad" {
+  usecase "CU31: Cambiar Contraseña" as CU31
+  usecase "Validar Contraseña Segura" as ValidarPass
+}
+Actor --> CU31
+CU31 ..> ValidarPass : <<include>>
+@enduml
+```
+
+**B. Ficha de Especificación del Caso de Uso**
+- **1. CASO DE USO:** CU31 - Cambiar Contraseña Propia.
+- **2. PROPÓSITO:** Permitir que cualquier usuario autenticado actualice su contraseña de forma autónoma desde su perfil, sin intervención del Administrador.
+- **3. DESCRIPCIÓN:** El usuario accede a la configuración de su perfil y despliega una ventana modal donde debe ingresar su contraseña actual (para verificar identidad), seguida de la nueva contraseña y su confirmación. El sistema valida políticas de seguridad y actualiza el hash en la tabla `usuarios`.
+- **4. ACTORES:** Tablas de BD (`usuarios`, `bitacora_auditoria`).
+- **5. ACTOR INICIADOR:** Usuario Autenticado (Cualquier empleado de GRULAC).
+- **6. PRECONDICIÓN:** El usuario debe estar logueado con sesión activa (CU01 ejecutado).
+- **7. FLUJO PRINCIPAL (Camino Feliz):**
+  1. El actor accede a "Mi Perfil" desde el menú de la esquina superior derecha.
+  2. El actor hace clic en "Cambiar Contraseña".
+  3. El sistema despliega una ventana modal con tres campos: "Contraseña Actual", "Nueva Contraseña" y "Confirmar Nueva Contraseña".
+  4. El actor llena los tres campos y presiona "Guardar".
+  5. El sistema verifica que la contraseña actual coincida con el hash almacenado en BD.
+  6. El sistema valida que la nueva contraseña cumpla las políticas de seguridad: mínimo 8 caracteres, al menos una mayúscula, una minúscula, un número, y que NO sea idéntica a la contraseña anterior.
+  7. El sistema genera un nuevo hash (`bcrypt`) y ejecuta `UPDATE usuarios SET password_hash = $nuevo_hash`.
+  8. El sistema registra el evento en `bitacora_auditoria` (acción: `CAMBIO_PASSWORD`).
+  9. El sistema muestra un toast de éxito: "Su contraseña ha sido actualizada correctamente".
+- **8. POST CONDICIÓN:** El hash anterior es irrecuperable. La próxima vez que el usuario ejecute el CU01 (Login), deberá usar la nueva contraseña.
+- **9. EXCEPCIONES (Flujo Secundario):**
+  - *E1: Contraseña Actual Incorrecta.* El sistema detecta que el hash enviado no coincide con el almacenado. Muestra: "Su contraseña actual es incorrecta" y no permite continuar.
+  - *E2: Política de Seguridad Incumplida.* La nueva contraseña no cumple los requisitos (falta mayúscula, minúscula, número o longitud insuficiente). El sistema resalta el campo con borde rojo e indica qué requisito falta.
+  - *E3: Confirmación No Coincide.* "Nueva Contraseña" y "Confirmar" difieren. El sistema muestra: "Las contraseñas no coinciden".
+  - *E4: Contraseña Repetida.* Si la nueva contraseña es idéntica a la actual, el sistema la rechaza: "La nueva contraseña no puede ser igual a la anterior".
+
+**C. Prototipo UI (Directriz para Generador)**
+*Prompt a ingresar textual en tu IA:*
+> "Ventana modal centrada sobre fondo overlay oscuro. Fondo blanco puro con bordes redondeados. Título: 'Actualizar Contraseña'. Tres campos de texto protegidos (tipo password con ojito toggle): 'Contraseña Actual', 'Nueva Contraseña' y 'Confirmar Nueva Contraseña'. Debajo de 'Nueva Contraseña', un pequeño listado visual de requisitos tipo checklist que se van marcando en verde: '✓ Mínimo 8 caracteres', '✓ Una mayúscula', '✓ Una minúscula', '✓ Un número'. Dos botones: 'Cancelar' gris y 'Guardar Contraseña' azul industrial."
+
+#### CU32: Recuperar Contraseña Olvidada
+
+**A. Estructura del Modelo de CU (Diagrama Específico)**
+```plantuml
+@startuml
+left to right direction
+actor "Usuario No Autenticado" as Actor
+rectangle "Sistema ERP GRULAC - Seguridad" {
+  usecase "CU32: Recuperar Contraseña" as CU32
+  usecase "Enviar Token por Email" as EnviarToken
+  usecase "Validar Token Temporal" as ValidarToken
+}
+Actor --> CU32
+CU32 ..> EnviarToken : <<include>>
+CU32 ..> ValidarToken : <<include>>
+@enduml
+```
+
+**B. Ficha de Especificación del Caso de Uso**
+- **1. CASO DE USO:** CU32 - Recuperar Contraseña Olvidada.
+- **2. PROPÓSITO:** Permitir que un usuario que olvidó sus credenciales pueda restablecer su contraseña de forma segura, sin necesidad de contactar al Administrador.
+- **3. DESCRIPCIÓN:** El usuario accede al enlace "¿Olvidó su contraseña?" desde la pantalla de Login (CU01). Ingresa su email corporativo y el sistema le envía un token temporal (de un solo uso, con expiración de 5 minutos) a su correo electrónico registrado. Al hacer clic en el enlace del correo, se despliega la pantalla para establecer una nueva contraseña.
+- **4. ACTORES:** Tablas de BD (`usuarios`, `bitacora_auditoria`), Servicio de Email (SMTP/Supabase Auth).
+- **5. ACTOR INICIADOR:** Usuario No Autenticado (el que olvidó su clave).
+- **6. PRECONDICIÓN:** El email corporativo debe existir en la tabla `usuarios` y el estado del usuario debe ser `Activo`.
+- **7. FLUJO PRINCIPAL (Camino Feliz):**
+  1. El actor hace clic en "¿Olvidó su contraseña?" desde la pantalla de Login.
+  2. El sistema despliega un formulario simple pidiendo el "Email Corporativo".
+  3. El actor ingresa su email y presiona "Enviar Enlace de Recuperación".
+  4. El sistema verifica que el email exista en la tabla `usuarios` y que el estado sea Activo.
+  5. El sistema genera un token criptográfico de un solo uso con expiración de 5 minutos.
+  6. El sistema envía un correo electrónico al email corporativo con un enlace seguro que contiene el token.
+  7. El sistema muestra en pantalla: "Hemos enviado un enlace de recuperación a su correo corporativo. El enlace expira en 5 minutos".
+  8. El actor abre su correo, hace clic en el enlace.
+  9. El sistema valida el token (existencia, no expirado, no usado).
+  10. El sistema despliega un formulario con dos campos: "Nueva Contraseña" y "Confirmar Nueva Contraseña".
+  11. El actor ingresa su nueva contraseña (cumpliendo políticas de seguridad del CU31).
+  12. El sistema actualiza el hash en BD, invalida el token usado, resetea el contador `intentos_fallidos` a 0.
+  13. El sistema registra en `bitacora_auditoria` (acción: `RESET_PASSWORD`).
+  14. El sistema redirige al CU01 (Login) con mensaje: "Contraseña restablecida. Inicie sesión con su nueva clave".
+- **8. POST CONDICIÓN:** El usuario recupera el acceso a su cuenta. El token usado queda invalidado permanentemente. La bitácora registra el evento para auditoría.
+- **9. EXCEPCIONES (Flujo Secundario):**
+  - *E1: Email No Registrado.* El sistema detecta que el email no existe en `usuarios`. Por seguridad, NO revela esta información al actor. Muestra el mismo mensaje genérico del paso 7 para evitar enumeración de cuentas.
+  - *E2: Usuario Inhabilitado.* El email existe pero el estado es inactivo. El sistema responde con el mismo mensaje genérico sin enviar correo.
+  - *E3: Token Expirado.* Si el actor hace clic en el enlace después de 5 minutos, el sistema muestra: "El enlace ha expirado. Solicite uno nuevo" y redirige al paso 1.
+  - *E4: Token Ya Usado.* Si el actor intenta reutilizar un enlace ya consumido, el sistema lo rechaza: "Este enlace ya fue utilizado".
+
+**C. Prototipo UI (Directriz para Generador)**
+*Prompt a ingresar textual en tu IA:*
+> "Pantalla de recuperación de acceso con el mismo layout 50/50 del Login. Sobre la mitad derecha: Logo GRULAC S.R.L. pequeño arriba. Encabezado: 'Recuperar Acceso'. Subtítulo tenue: 'Ingrese su email corporativo y le enviaremos un enlace seguro'. Un solo campo de texto redondeado: 'Email Corporativo'. Botón principal azul industrial: 'Enviar Enlace de Recuperación'. Debajo, un enlace discreto: 'Volver al Inicio de Sesión'. Todo minimalista y limpio."
 
 ## 7.5. Estructurar caso de uso
 ### 7.5.1. Ciclo #1
@@ -2094,7 +2198,6 @@ usecase "Validar Duplicado de DNI\n(from CU3)" as V_DNI
 usecase "Inhabilitar Empleado\n(from CU4)" as CU4
 usecase "Destruir Token de Inmediato\n(from CU4)" as D_Token_Inm
 usecase "Asignar Rol\n(from CU5)" as CU5
-usecase "Notificar Cambio a Bitacora\n(from CU5)" as N_Bitacora
 usecase "Configurar Catalogo\n(from CU8)" as CU8
 usecase "Categoria Item-Subfamilia\n(from CU8)" as C_Item
 
@@ -2103,6 +2206,11 @@ usecase "Validar Credenciales\n(from CU1)" as V_Cred
 usecase "bloquear Acceso\n(from CU1)" as B_Acceso
 usecase "Cerrar Sesion\n(from CU2)" as CU2
 usecase "Destruir token JWT\n(from CU2)" as D_Token_JWT
+usecase "Cambiar Contrasena\n(from CU31)" as CU31
+usecase "Validar Contrasena Segura\n(from CU31)" as V_Pass
+usecase "Recuperar Contrasena\n(from CU32)" as CU32
+usecase "Enviar Token por Email\n(from CU32)" as E_Token
+usecase "Validar Token Temporal\n(from CU32)" as V_Token
 
 usecase "Consultar Kardex\n(from CU9)" as CU9
 usecase "Filtrar por Lotes-Fechas\n(from CU9)" as F_Lotes
@@ -2117,7 +2225,6 @@ Admin --> CU5
 Admin --> CU8
 CU3 .> V_DNI : <<include>>
 CU4 .> D_Token_Inm : <<include>>
-CU5 .> N_Bitacora : <<include>>
 CU8 .> C_Item : <<include>>
 
 Admin -right-|> Usuario
@@ -2126,9 +2233,16 @@ JefeProd -up-|> Usuario
 
 Usuario --> CU1
 Usuario --> CU2
+Usuario --> CU31
 CU1 .> V_Cred : <<include>>
 CU1 <. B_Acceso : <<extend>>
 CU2 .> D_Token_JWT : <<include>>
+CU31 .> V_Pass : <<include>>
+
+actor "Usuario No Autenticado\n(from CU32)" as NoAuth
+NoAuth --> CU32
+CU32 .> E_Token : <<include>>
+CU32 .> V_Token : <<include>>
 
 Asesor --> CU9
 Asesor --> CU26
@@ -2160,7 +2274,6 @@ package "seguridad" as P1
 package "Gestion de Usuario" as P2
 package "Gestion de inventario" as P3
 package "Gestion de Comercial" as P4
-package "Bitacora" as P5
 
 @enduml
 ```
@@ -2172,9 +2285,6 @@ package "Bitacora" as P5
 - **Gestión de Inventario (WMS)**: Encargado de la estructuración técnica del almacén de la planta. Permite a los administradores registrar y tipificar de manera estandarizada los insumos, materias primas y productos finales en el catálogo maestro. Además, otorga visibilidad analítica constante mediante el Kardex, permitiendo auditar el historial de ingresos y egresos de mercadería en tiempo real.
 
 - **Gestión Comercial y Proveedores**: Enfocado en la administración del directorio de las entidades fundamentales que originan y terminan el ciclo de negocio. Agrupa los casos de uso para dar de alta formalmente en el sistema a los ganaderos o proveedores (origen de la leche) y a los clientes comerciales (destino de los quesos), información indispensable para la posterior facturación y logística.
-
-- **Bitácora**: Responsable de la auditoría informática y la trazabilidad forense del sistema. Este paquete se encarga de interceptar y registrar silenciosamente las acciones críticas que ejecutan los usuarios (como otorgar permisos o modificar registros sensibles), guardando un historial inmutable y transparente que sirve de respaldo legal ante controles internos o inspecciones del SENASAG.
-
 
 ### 8.1.2. Relacionar paquetes y casos de uso
 
@@ -2189,8 +2299,12 @@ skinparam backgroundColor transparent
 package "SEGURIDAD" as P1
 usecase "Iniciar sesion\n(from CU1)" as CU1
 usecase "Cerrar Sesion\n(from CU2)" as CU2
+usecase "Cambiar Contrasena\n(from CU31)" as CU31
+usecase "Recuperar Contrasena\n(from CU32)" as CU32
 P1 ..> CU1 : <<trace>>
 P1 ..> CU2 : <<trace>>
+P1 ..> CU31 : <<trace>>
+P1 ..> CU32 : <<trace>>
 
 package "Gestion de Usuario" as P2
 usecase "Asignar Rol\n(from CU5)" as CU5
@@ -2212,10 +2326,6 @@ usecase "Registrar Proveedor\n(from CU12)" as CU12
 P4 ..> CU26 : <<trace>>
 P4 ..> CU12 : <<trace>>
 
-package "Bitacora" as P5
-usecase "Notificar Cambio a Bitacora\n(from CU5)" as CU5B
-P5 ..> CU5B : <<trace>>
-
 @enduml
 ```
 
@@ -2233,12 +2343,10 @@ package "Gestion Comercial" as P4
 package "Gestion de Inventario" as P3
 package "SEGURIDAD" as P1
 package "Gestion de Usuario" as P2
-package "Bitacora" as P5
 
 P4 ..> P1 : <<use>>
 P3 ..> P1 : <<use>>
 P1 ..> P2 : <<import>>
-P2 ..> P5 : <<use>>
 
 @enduml
 ```
@@ -2256,11 +2364,13 @@ actor "Usuario" as Actor
 boundary "IU_Login" as IU
 control "CTR_Auth" as CTR
 entity "CE_Usuario" as ENT
+entity "CE_Bitacora" as ENT2
 Actor --> IU : 1: Ingresar email y password
 IU --> CTR : 2: login(email, password)
 CTR --> ENT : 3: select_where(email)
 ENT --> CTR : 4: Datos y Hash
-CTR --> IU : 5: Redirigir a Home
+CTR --> ENT2 : 5: insert(LOGIN)
+CTR --> IU : 6: Redirigir a Home
 @enduml
 ```
 
@@ -2272,10 +2382,12 @@ skinparam backgroundColor transparent
 actor "Usuario" as Actor
 boundary "IU_Dashboard" as IU
 control "CTR_Auth" as CTR
+entity "CE_Bitacora" as ENT2
 Actor --> IU : 1: Clic 'Cerrar Sesión'
 IU --> CTR : 2: logout()
 CTR --> CTR : 3: destruirToken()
-CTR --> IU : 4: Redirigir a Login
+CTR --> ENT2 : 4: insert(LOGOUT)
+CTR --> IU : 5: Redirigir a Login
 @enduml
 ```
 
@@ -2288,10 +2400,12 @@ actor "Admin" as Actor
 boundary "IU_RRHH" as IU
 control "CTR_Usuario" as CTR
 entity "CE_Usuario" as ENT
+entity "CE_Bitacora" as ENT2
 Actor --> IU : 1: Llenar formulario
 IU --> CTR : 2: registrarEmpleado(datos)
 CTR --> ENT : 3: check_dni()
 CTR --> ENT : 4: insert(usuario)
+ENT ..> ENT2 : 4.1: <<trigger DB>> insert(audit)
 ENT --> CTR : 5: Ok BD
 CTR --> IU : 6: Mensaje de éxito
 @enduml
@@ -2306,9 +2420,11 @@ actor "Admin" as Actor
 boundary "IU_RRHH" as IU
 control "CTR_Usuario" as CTR
 entity "CE_Usuario" as ENT
+entity "CE_Bitacora" as ENT2
 Actor --> IU : 1: Clic 'Inhabilitar'
 IU --> CTR : 2: darDeBaja(id)
 CTR --> ENT : 3: update(is_active=false)
+ENT ..> ENT2 : 3.1: <<trigger DB>> insert(audit)
 ENT --> CTR : 4: Confirmación BD
 CTR --> IU : 5: Actualizar lista visual
 @enduml
@@ -2327,9 +2443,9 @@ entity "CE_Bitacora" as ENT2
 Actor --> IU : 1: Seleccionar nuevo rol
 IU --> CTR : 2: asignarNuevoRol(id, rol)
 CTR --> ENT1 : 3: update(id_rol)
-CTR --> ENT2 : 4: insert(auditoria)
-ENT1 --> CTR : 5: OK
-CTR --> IU : 6: Notificar Exito
+ENT1 ..> ENT2 : 3.1: <<trigger DB>> insert(audit)
+ENT1 --> CTR : 4: OK
+CTR --> IU : 5: Notificar Exito
 @enduml
 ```
 
@@ -2342,10 +2458,12 @@ actor "Admin/WMS" as Actor
 boundary "IU_Catalogo" as IU
 control "CTR_Inventario" as CTR
 entity "CE_Catalogo_Items" as ENT
+entity "CE_Bitacora" as ENT2
 Actor --> IU : 1: Crear Ítem
 IU --> CTR : 2: registrarCatalogo(Item)
 CTR --> ENT : 3: check_codigo()
 CTR --> ENT : 4: insert(Item)
+ENT ..> ENT2 : 4.1: <<trigger DB>> insert(audit)
 ENT --> CTR : 5: ID generado
 CTR --> IU : 6: Refrescar catálogo
 @enduml
@@ -2377,10 +2495,12 @@ actor "Compras" as Actor
 boundary "IU_Proveedores" as IU
 control "CTR_Proveedor" as CTR
 entity "CE_Proveedor" as ENT
+entity "CE_Bitacora" as ENT2
 Actor --> IU : 1: Ingresar datos
 IU --> CTR : 2: guardarProveedor()
 CTR --> ENT : 3: checkNit()
 CTR --> ENT : 4: insert(Proveedor)
+ENT ..> ENT2 : 4.1: <<trigger DB>> insert(audit)
 ENT --> CTR : 5: Confirmación BD
 CTR --> IU : 6: Mostrar éxito
 @enduml
@@ -2395,12 +2515,58 @@ actor "Vendedor" as Actor
 boundary "IU_Clientes" as IU
 control "CTR_Cliente" as CTR
 entity "CE_Cliente" as ENT
+entity "CE_Bitacora" as ENT2
 Actor --> IU : 1: Registrar Datos
 IU --> CTR : 2: registrarClienteNuevo()
 CTR --> ENT : 3: check_nit()
 CTR --> ENT : 4: insert(Cliente)
+ENT ..> ENT2 : 4.1: <<trigger DB>> insert(audit)
 ENT --> CTR : 5: OK
 CTR --> IU : 6: Añadir a Cartera
+@enduml
+```
+
+### CU31: Cambiar Contraseña Propia
+```plantuml
+@startuml DCom_CU31
+left to right direction
+skinparam backgroundColor transparent
+actor "Usuario Autenticado" as Actor
+boundary "IU_Perfil" as IU
+control "CTR_Password" as CTR
+entity "CE_Usuario" as ENT1
+entity "CE_Bitacora" as ENT2
+Actor --> IU : 1: Clic 'Cambiar Contraseña'
+IU --> CTR : 2: cambiarPassword(actual, nueva)
+CTR --> ENT1 : 3: verificarHashActual()
+CTR --> CTR : 4: validarPoliticaSeguridad()
+CTR --> ENT1 : 5: update(password_hash)
+CTR --> ENT2 : 6: insert(CAMBIO_PASSWORD)
+CTR --> IU : 7: Toast de éxito
+@enduml
+```
+
+### CU32: Recuperar Contraseña Olvidada
+```plantuml
+@startuml DCom_CU32
+left to right direction
+skinparam backgroundColor transparent
+actor "Usuario No Autenticado" as Actor
+boundary "IU_Recovery" as IU
+control "CTR_Recovery" as CTR
+entity "CE_Usuario" as ENT1
+entity "CE_Bitacora" as ENT2
+Actor --> IU : 1: Ingresar email corporativo
+IU --> CTR : 2: solicitarReset(email)
+CTR --> ENT1 : 3: verificarEmailExiste()
+CTR --> CTR : 4: generarTokenTemporal(5min)
+CTR --> IU : 5: Enviar email con enlace
+Actor --> IU : 6: Clic en enlace del correo
+IU --> CTR : 7: validarToken(token)
+CTR --> CTR : 8: validarNuevaPassword()
+CTR --> ENT1 : 9: update(password_hash)
+CTR --> ENT2 : 10: insert(RESET_PASSWORD)
+CTR --> IU : 11: Redirigir a Login
 @enduml
 ```
 
@@ -2445,9 +2611,15 @@ class "CE_Usuario" as ENT <<Entity>> {
   - id_rol : Integer
 }
 
+class "CE_Bitacora" as ENT2 <<Entity>> {
+  - accion_sql : String
+  - fecha_hora : DateTime
+}
+
 Actor --> IU
 IU --> CTR
 CTR --> ENT
+CTR --> ENT2
 @enduml
 ```
 
@@ -2475,8 +2647,14 @@ class "CTR_Auth" as CTR <<Control>> {
   + registrarSalidaBitacora()
 }
 
+class "CE_Bitacora" as ENT2 <<Entity>> {
+  - accion_sql : String
+  - fecha_hora : DateTime
+}
+
 Actor --> IU
 IU --> CTR
+CTR --> ENT2
 @enduml
 ```
 
@@ -2515,9 +2693,15 @@ class "CE_Usuario" as ENT <<Entity>> {
   - is_active : Boolean
 }
 
+class "CE_Bitacora" as ENT2 <<Entity>> {
+  - accion_sql : String
+  - fecha_hora : DateTime
+}
+
 Actor --> IU
 IU --> CTR
 CTR --> ENT
+ENT ..> ENT2 : <<trigger>>
 @enduml
 ```
 
@@ -2550,9 +2734,15 @@ class "CE_Usuario" as ENT <<Entity>> {
   - is_active : Boolean
 }
 
+class "CE_Bitacora" as ENT2 <<Entity>> {
+  - accion_sql : String
+  - fecha_hora : DateTime
+}
+
 Actor --> IU
 IU --> CTR
 CTR --> ENT
+ENT ..> ENT2 : <<trigger>>
 @enduml
 ```
 
@@ -2577,7 +2767,6 @@ class "IU_Permisos" as IU <<Boundary>> {
 class "CTR_Rol" as CTR <<Control>> {
   --
   + asignarNuevoRol(idEmp, idRol)
-  + auditarCambioEnBitacora()
   + verificarCompatibilidad()
 }
 
@@ -2587,15 +2776,14 @@ class "CE_Usuario" as ENT1 <<Entity>> {
 }
 
 class "CE_Bitacora" as ENT2 <<Entity>> {
-  - id_evento : Integer
-  - descripcion : String
+  - accion_sql : String
   - fecha_hora : DateTime
 }
 
 Actor --> IU
 IU --> CTR
 CTR --> ENT1
-CTR --> ENT2
+ENT1 ..> ENT2 : <<trigger>>
 @enduml
 ```
 
@@ -2634,9 +2822,15 @@ class "CE_Catalogo_Items" as ENT <<Entity>> {
   - unidad_medida : String
 }
 
+class "CE_Bitacora" as ENT2 <<Entity>> {
+  - accion_sql : String
+  - fecha_hora : DateTime
+}
+
 Actor --> IU
 IU --> CTR
 CTR --> ENT
+ENT ..> ENT2 : <<trigger>>
 @enduml
 ```
 
@@ -2702,7 +2896,6 @@ class "IU_Proveedores" as IU <<Boundary>> {
 class "CTR_Proveedor" as CTR <<Control>> {
   --
   + guardarProveedor(datos)
-  + auditarRegistro()
   + validarNitUnico()
 }
 
@@ -2715,9 +2908,15 @@ class "CE_Proveedor" as ENT <<Entity>> {
   - is_activo : Boolean
 }
 
+class "CE_Bitacora" as ENT2 <<Entity>> {
+  - accion_sql : String
+  - fecha_hora : DateTime
+}
+
 Actor --> IU
 IU --> CTR
 CTR --> ENT
+ENT ..> ENT2 : <<trigger>>
 @enduml
 ```
 
@@ -2753,1129 +2952,119 @@ class "CE_Cliente" as ENT <<Entity>> {
   - tipo_mercado : String
 }
 
+class "CE_Bitacora" as ENT2 <<Entity>> {
+  - accion_sql : String
+  - fecha_hora : DateTime
+}
+
 Actor --> IU
 IU --> CTR
 CTR --> ENT
+ENT ..> ENT2 : <<trigger>>
 @enduml
 ```
 
-CAPÍTULO 5: FLUJO DE TRABAJO - DISEÑO
 
-Este capítulo establece los cimientos técnicos definitivos del ERP de la factoría GRULAC S.R.L. A partir de la ingeniería de requerimientos (Casos de Uso), procedemos a diseñar la topología transversal de la aplicación, el esquema lógico normalizado de las entidades y finalmente, el diseño físico-relacional y sus sentencias SQL operativas.
+### CU31: Cambiar Contraseña Propia
+```plantuml
+@startuml DClases_CU31
+allowmixing
+left to right direction
+skinparam classAttributeIconSize 0
+skinparam backgroundColor transparent
+actor "Usuario Autenticado" as Actor
+
+class "IU_Perfil" as IU <<Boundary>> {
+  + passwordActual : String
+  + passwordNueva : String
+  + passwordConfirm : String
+  --
+  + abrirModalCambio()
+  + validarCamposVacios()
+  + mostrarChecklist()
+  + enviarCambio()
+  + mostrarToastExito()
+}
+
+class "CTR_Password" as CTR <<Control>> {
+  --
+  + cambiarPassword(actual, nueva)
+  + verificarHashActual()
+  + validarPoliticaSeguridad()
+  + generarNuevoHash()
+  + registrarEnBitacora()
+}
+
+class "CE_Usuario" as ENT1 <<Entity>> {
+  - id_usuario : Integer
+  - password_hash : String
+  - updated_at : DateTime
+}
+
+class "CE_Bitacora" as ENT2 <<Entity>> {
+  - id_log : Integer
+  - accion_sql : String
+  - fecha_hora : DateTime
+}
+
+Actor --> IU
+IU --> CTR
+CTR --> ENT1
+CTR --> ENT2
+@enduml
+```
+
+### CU32: Recuperar Contraseña Olvidada
+```plantuml
+@startuml DClases_CU32
+allowmixing
+left to right direction
+skinparam classAttributeIconSize 0
+skinparam backgroundColor transparent
+actor "Usuario No Autenticado" as Actor
+
+class "IU_Recovery" as IU <<Boundary>> {
+  + emailCorporativo : String
+  + nuevaPassword : String
+  + confirmarPassword : String
+  --
+  + mostrarFormEmail()
+  + enviarSolicitud()
+  + mostrarMensajeGenerico()
+  + mostrarFormNuevaClave()
+}
+
+class "CTR_Recovery" as CTR <<Control>> {
+  --
+  + solicitarReset(email)
+  + verificarEmailExiste()
+  + generarTokenTemporal()
+  + enviarCorreoConEnlace()
+  + validarToken(token)
+  + actualizarPasswordHash()
+  + registrarEnBitacora()
+}
+
+class "CE_Usuario" as ENT1 <<Entity>> {
+  - id_usuario : Integer
+  - email_corporativo : String
+  - password_hash : String
+  - intentos_fallidos : Integer
+}
+
+class "CE_Bitacora" as ENT2 <<Entity>> {
+  - id_log : Integer
+  - accion_sql : String
+  - fecha_hora : DateTime
+}
+
+Actor --> IU
+IU --> CTR
+CTR --> ENT1
+CTR --> ENT2
+@enduml
+```
 
-Diseño de Arquitectura
-
-El ecosistema informático integral de GRULAC S.R.L. está diseñado bajo el patrón de Arquitectura Cliente-Servidor en N-Capas (N-Tier RESTful), priorizando la escalabilidad operativa, el desacoplamiento perimetral y el rendimiento de CPU frente a concurrentes peticiones de la fábrica.
-
-La topología se define mediante las siguientes capas:
-
-Capa de Presentación (Frontend / Vistas de Planta):
-
-Naturaleza: Interfaz Web Reactiva Universal.
-
-Responsabilidad: Proveer a los actores (Ing. Industrials con tabletas, Administradores con PCs corporativas) un panel estricto con validaciones que filtre errores humanos por digitación. Cero necesidad de descargas locatarias en hardware industrial de polvo.
-
-Capa de Lógica de Negocio (Backend / API Controladores):
-
-Naturaleza: Servidor Web / Microservicios asíncronos.
-
-Responsabilidad: El cerebro del sistema (Middleware). Evalúa las matemáticas de las Fórmulas BOM, ejecuta reservas concurrentes impidiendo colisiones de stock, expide tokens JWT criptográficos, y aloja Cronjobs que dictan las Alertas Empresariales Push.
-
-Capa Analítica y Datos (Database & Storage en Nube):
-
-Naturaleza Relacional: Motor pesado de PostgreSQL (Elegido por su suprema estabilidad ante candados a nivel-fila).
-
-Naturaleza Documental: Bucket "S3 Cloud" pasivo. Recibe escaneos oficiales y dictámenes sanitarios de calidad (PDFs), para no engordar violentamente el rendimiento de Base de Datos principal.
-
-FLUJO DE TRABAJO: DISEÑO
-
-Diseño de Arquitectura
-
-Diseño Físico (Diagrama de Despliegue)
-
-Diseño Lógico (Diagrama Organizado en Capas)
-
-Diseño de datos
-
-Diseño de datos lógico
-
-Diagrama de Clase
-
-Mapeo y normalización
-
-Diseño de datos físico
-
-Script
-
--- ==============================================================================
-
--- SCHEMA DDL: SISTEMA ERP GRULAC S.R.L. (24 TABLAS COMPLETO)
-
--- PARA IMPORTAR A SUPABASE (POSTGRESQL) - ACTUALIZADO ABRIL
-
--- ==============================================================================
-
-CREATE TABLE roles (
-
-id_rol SERIAL PRIMARY KEY,
-
-nombre_rol VARCHAR(50) NOT NULL,
-
-permisos_json JSONB
-
-);
-
-CREATE TABLE empleados (
-
-id_empleado SERIAL PRIMARY KEY,
-
-ci_documento VARCHAR(20) UNIQUE NOT NULL,
-
-nombre_completo VARCHAR(150) NOT NULL,
-
-telefono VARCHAR(20)
-
-);
-
-CREATE TABLE usuarios (
-
-id_usuario SERIAL PRIMARY KEY,
-
-id_rol INT REFERENCES roles(id_rol),
-
-id_empleado INT REFERENCES empleados(id_empleado),
-
-email_corporativo VARCHAR(100) UNIQUE NOT NULL,
-
-estado_acceso BOOLEAN DEFAULT true,
-
-password_hash VARCHAR(255)
-
-);
-
-CREATE TABLE bitacora_auditoria (
-
-id_log SERIAL PRIMARY KEY,
-
-id_usuario INT REFERENCES usuarios(id_usuario),
-
-accion_sql VARCHAR(50),
-
-tabla_afectada VARCHAR(50),
-
-fecha_hora TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-
-old_data JSONB,
-
-new_data JSONB
-
-);
-
-CREATE TABLE catalogo_items (
-
-id_item SERIAL PRIMARY KEY,
-
-codigo_sku VARCHAR(50) UNIQUE NOT NULL,
-
-nombre_producto VARCHAR(150) NOT NULL,
-
-tipo_item VARCHAR(50),
-
-unidad_medida VARCHAR(20),
-
-stock_minimo DECIMAL(10,2) DEFAULT 0
-
-);
-
-CREATE TABLE proveedores (
-
-id_proveedor SERIAL PRIMARY KEY,
-
-ci_nit VARCHAR(50) UNIQUE NOT NULL,
-
-razon_social VARCHAR(150) NOT NULL,
-
-estado_reputacion VARCHAR(50)
-
-);
-
-CREATE TABLE compras_insumos (
-
-id_compra SERIAL PRIMARY KEY,
-
-id_proveedor INT REFERENCES proveedores(id_proveedor),
-
-id_usuario_recibe INT REFERENCES usuarios(id_usuario),
-
-monto_total_bs DECIMAL(10,2),
-
-fecha_compra TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-
-);
-
-CREATE TABLE detalle_compras (
-
-id_detalle_compra SERIAL PRIMARY KEY,
-
-id_compra INT REFERENCES compras_insumos(id_compra),
-
-id_item INT REFERENCES catalogo_items(id_item),
-
-cantidad DECIMAL(10,2),
-
-precio_unitario DECIMAL(10,2)
-
-);
-
-CREATE TABLE pagos_proveedores (
-
-id_pago SERIAL PRIMARY KEY,
-
-id_proveedor INT REFERENCES proveedores(id_proveedor),
-
-id_usuario_registra INT REFERENCES usuarios(id_usuario),
-
-monto_pagado_bs DECIMAL(10,2),
-
-fecha_pago TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-
-);
-
-CREATE TABLE control_temperaturas (
-
-id_registro SERIAL PRIMARY KEY,
-
-id_usuario INT REFERENCES usuarios(id_usuario),
-
-zona_monitoreada VARCHAR(100),
-
-temperatura_celsius DECIMAL(5,2),
-
-fecha_hora TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-
-);
-
-CREATE TABLE movimientos_kardex (
-
-id_movimiento SERIAL PRIMARY KEY,
-
-id_item INT REFERENCES catalogo_items(id_item),
-
-id_orden_asociada INT,
-
-id_usuario INT REFERENCES usuarios(id_usuario),
-
-tipo_operacion VARCHAR(20),
-
-cantidad_kilos DECIMAL(10,2),
-
-concepto_operacion TEXT,
-
-fecha_hora TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-
-);
-
-CREATE TABLE recepciones_leche (
-
-id_recepcion SERIAL PRIMARY KEY,
-
-id_proveedor INT REFERENCES proveedores(id_proveedor),
-
-id_laboratorista INT REFERENCES usuarios(id_usuario),
-
-litros_recibidos DECIMAL(10,2),
-
-acidez_ph DECIMAL(4,2),
-
-temperatura_celsius DECIMAL(5,2),
-
-estado_triage VARCHAR(50),
-
-fecha_registro TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-
-);
-
-CREATE TABLE recetas_bom (
-
-id_receta SERIAL PRIMARY KEY,
-
-version_receta INT,
-
-rendimiento_esperado DECIMAL(5,2),
-
-estado_activa BOOLEAN DEFAULT true
-
-);
-
-CREATE TABLE receta_ingredientes (
-
-id_detalle_receta SERIAL PRIMARY KEY,
-
-id_receta INT REFERENCES recetas_bom(id_receta),
-
-id_item_ingrediente INT REFERENCES catalogo_items(id_item),
-
-cantidad_kgs_necesaria DECIMAL(10,2)
-
-);
-
-CREATE TABLE ordenes_produccion (
-
-id_orden SERIAL PRIMARY KEY,
-
-id_jefe_produccion INT REFERENCES usuarios(id_usuario),
-
-id_receta INT REFERENCES recetas_bom(id_receta),
-
-costo_operativo_bs DECIMAL(10,2),
-
-litros_invertidos DECIMAL(10,2),
-
-kilos_obtenidos_brutos DECIMAL(10,2),
-
-estado_lote VARCHAR(50),
-
-fecha_inicio TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-
-fecha_cierre TIMESTAMP
-
-);
-
-CREATE TABLE lote_produccion (
-
-id_lote SERIAL PRIMARY KEY,
-
-id_orden INT REFERENCES ordenes_produccion(id_orden),
-
-id_item INT REFERENCES catalogo_items(id_item),
-
-codigo_lote VARCHAR(50) UNIQUE NOT NULL,
-
-cantidad_producida DECIMAL(10,2),
-
-unidad_medida VARCHAR(20),
-
-estado VARCHAR(50),
-
-observaciones TEXT,
-
-fecha_produccion DATE DEFAULT CURRENT_DATE
-
-);
-
-CREATE TABLE fichas_calidad (
-
-id_ficha SERIAL PRIMARY KEY,
-
-id_orden INT REFERENCES ordenes_produccion(id_orden),
-
-id_ingeniero_qa INT REFERENCES usuarios(id_usuario),
-
-dictamen_qa VARCHAR(50),
-
-ph_final DECIMAL(4,2),
-
-salinidad DECIMAL(4,2),
-
-observaciones_tecnicas TEXT,
-
-fecha_evaluacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-
-);
-
-CREATE TABLE clientes (
-
-id_cliente SERIAL PRIMARY KEY,
-
-nit_facturacion VARCHAR(50),
-
-razon_social VARCHAR(150),
-
-telefono VARCHAR(20)
-
-);
-
-CREATE TABLE pedidos_ventas (
-
-id_pedido SERIAL PRIMARY KEY,
-
-id_cliente INT REFERENCES clientes(id_cliente),
-
-id_vendedor INT REFERENCES usuarios(id_usuario),
-
-estado_reserva VARCHAR(50),
-
-monto_total_bs DECIMAL(10,2),
-
-fecha_reserva TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-
-);
-
-CREATE TABLE detalle_pedidos (
-
-id_detalle SERIAL PRIMARY KEY,
-
-id_pedido INT REFERENCES pedidos_ventas(id_pedido),
-
-id_item INT REFERENCES catalogo_items(id_item),
-
-cantidad_pedida DECIMAL(10,2),
-
-precio_unitario DECIMAL(10,2)
-
-);
-
-CREATE TABLE factura (
-
-id_factura SERIAL PRIMARY KEY,
-
-id_pedido INT REFERENCES pedidos_ventas(id_pedido),
-
-numero_factura VARCHAR(50),
-
-subtotal DECIMAL(10,2),
-
-impuesto DECIMAL(10,2),
-
-total_factura DECIMAL(10,2),
-
-metodo_pago VARCHAR(50),
-
-estado VARCHAR(50),
-
-fecha_emision TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-
-);
-
-CREATE TABLE despachos_logisticos (
-
-id_despacho SERIAL PRIMARY KEY,
-
-id_pedido INT REFERENCES pedidos_ventas(id_pedido),
-
-id_encargado INT REFERENCES usuarios(id_usuario),
-
-placa_camion VARCHAR(20),
-
-fecha_salida_ruta TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-
-);
-
-CREATE TABLE devoluciones_qa (
-
-id_devolucion SERIAL PRIMARY KEY,
-
-id_despacho INT REFERENCES despachos_logisticos(id_despacho),
-
-id_asesor INT REFERENCES usuarios(id_usuario),
-
-motivo_rechazo TEXT,
-
-kilos_devueltos DECIMAL(10,2),
-
-requiere_reposicion_caliente BOOLEAN DEFAULT false,
-
-fecha_registro TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-
-);
-
-CREATE TABLE respaldos_documentales (
-
-id_documento SERIAL PRIMARY KEY,
-
-entidad_afectada VARCHAR(50),
-
-id_entidad INT,
-
-url_publica_storage TEXT NOT NULL,
-
-descripcion_archivo VARCHAR(150),
-
-fecha_subida TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-
-);
-
-Población de Datos
-
--- ==============================================================================
-
--- POBLACIÓN DE DATOS CON REGISTROS REALES (EXTRAÍDOS DE FUENTES DOCUMENTALES)
-
--- PROYECTO: SISTEMA ERP GRULAC S.R.L.
-
--- FUENTES: 'control de hilado', 'ficha recepción leche', nuevos 25 CU
-
--- ==============================================================================
-
--- 1. MAESTROS GLOBALES (Roles, Empleados, Proveedores, Clientes, Catálogo)
-
-INSERT INTO roles (nombre_rol, permisos_json) VALUES
-
-('Control Calidad QA', '{"modulos":["fichas_calidad", "recepcion", "hilado"]}'),
-
-('Jefe Produccion', '{"modulos":["ordenes_produccion", "cuajada", "kardex"]}'),
-
-('Administrador', '{"modulos":["ALL"]}');
-
-INSERT INTO empleados (ci_documento, nombre_completo, telefono) VALUES
-
-('4532168', 'Ing. Rodrigo Salinas (Laboratorista)', '78901234'),
-
-('9821345', 'Lic. Carmen Telles (QA Hilado)', '71023456'),
-
-('2349081', 'Roberto Suarez (Jefe de Tinas)', '76543210');
-
-INSERT INTO proveedores (ci_nit, razon_social, estado_reputacion) VALUES
-
-('11092837', 'Granja Lechera La Vía Láctea', 'Aprobado'),
-
-('55908210', 'Acopiadora San Pedro del Norte', 'Aprobado'),
-
-('88992211', 'Química Industrial BOLIVIA', 'Aprobado');
-
-INSERT INTO clientes (nit_facturacion, razon_social, telefono) VALUES
-
-('449012301', 'Supermercado Hipermaxi S.A.', '33445566'),
-
-('112233400', 'Agencia Quesera El Buen Gusto', '33669988');
-
-INSERT INTO catalogo_items (codigo_sku, nombre_producto, tipo_item, unidad_medida, stock_minimo) VALUES
-
-('RM-LCH-001', 'Leche Cruda Fresca', 'MATERIA_PRIMA', 'Litros', 1000.00),
-
-('IN-CUAJ-01', 'Cuajo Líquido Industrial', 'INSUMO', 'Litros', 5.00),
-
-('IN-SAL-001', 'Sal Fina Yodada', 'INSUMO', 'Kilogramos', 20.00),
-
-('IN-FERM-01', 'Fermento Láctico Termófilo', 'INSUMO', 'Unidades', 10.00),
-
-('PT-MOZ-001', 'Queso Mozzarella (Barra 1Kg)', 'PRODUCTO', 'Kilogramos', 100.00),
-
-('INT-CUA-01', 'Masa Cuajada Fermentada', 'PRODUCTO', 'Kilogramos', 0.00);
-
--- 2. USUARIOS Y AUDITORÍA
-
-INSERT INTO usuarios (id_rol, id_empleado, email_corporativo, password_hash, estado_acceso) VALUES
-
-(1, 1, 'rsalinas_lab@grulac.com', '$2a$12$SecureHashLab...', TRUE),
-
-(1, 2, 'ctelles_qa@grulac.com', '$2a$12$SecureHashQA...', TRUE),
-
-(2, 3, 'rsuarez_prod@grulac.com', '$2a$12$SecureHashProd...', TRUE);
-
-INSERT INTO bitacora_auditoria (id_usuario, accion_sql, tabla_afectada, fecha_hora) VALUES
-
-(3, 'INSERT', 'catalogo_items', '2026-04-06 05:00:00');
-
--- ==============================================================================
-
--- FLUJOS DE LOS 25 CASOS DE USO NUEVOS
-
--- ==============================================================================
-
--- 3A. RECEPCIÓN DE LA LECHE Y QA
-
-INSERT INTO recepciones_leche (id_proveedor, id_laboratorista, litros_recibidos, temperatura_celsius, acidez_ph, estado_triage, fecha_registro) VALUES
-
-(1, 1, 3500.00, 3.8, 6.70, 'Aceptado', '2026-04-06 05:30:00'),
-
-(2, 1, 2100.00, 4.1, 6.65, 'Aceptado', '2026-04-06 06:15:00');
-
-INSERT INTO movimientos_kardex (id_item, id_orden_asociada, id_usuario, tipo_operacion, cantidad_kilos, concepto_operacion) VALUES
-
-(1, NULL, 1, 'INGRESO', 3500.00, 'Triage Inicial - Cisterna Via Lactea'),
-
-(1, NULL, 1, 'INGRESO', 2100.00, 'Triage Inicial - Cisterna San Pedro');
-
--- 3B. COMPRA DE INSUMOS SECUNDARIOS (CU08) Y PAGO (CU25)
-
-INSERT INTO compras_insumos (id_proveedor, id_usuario_recibe, monto_total_bs, fecha_compra) VALUES
-
-(3, 3, 2500.00, '2026-04-01 10:00:00');
-
-INSERT INTO detalle_compras (id_compra, id_item, cantidad, precio_unitario) VALUES
-
-(1, 2, 10.00, 80.00), -- 10Lts Cuajo a 80Bs
-
-(1, 3, 100.00, 17.00); -- 100Kg Sal a 17Bs
-
-INSERT INTO pagos_proveedores (id_proveedor, id_usuario_registra, monto_pagado_bs, fecha_pago) VALUES
-
-(3, 3, 2500.00, '2026-04-01 11:00:00');
-
--- 3C. CONTROL DE TEMPERATURAS (CU22)
-
-INSERT INTO control_temperaturas (id_usuario, zona_monitoreada, temperatura_celsius, fecha_hora) VALUES
-
-(1, 'Cuarto Frío A - Maduración', 4.2, '2026-04-06 10:00:00'),
-
-(2, 'Tina de Pasteurización B', 72.0, '2026-04-06 11:30:00');
-
--- 4. FORMULACIÓN BOM PARA MOZZARELLA
-
-INSERT INTO recetas_bom (version_receta, rendimiento_esperado, estado_activa) VALUES
-
-(1, 11.50, TRUE);
-
-INSERT INTO receta_ingredientes (id_receta, id_item_ingrediente, cantidad_kgs_necesaria) VALUES
-
-(1, 1, 1000.00), -- 1000 Litros Leche
-
-(1, 2, 0.045),   -- 45 ml de Cuajo
-
-(1, 3, 14.500),  -- 14.5 Kg de Sal
-
-(1, 4, 3.000);   -- 3 Unidades Fermento
-
--- 5. ELABORACIÓN Y PRODUCCIÓN
-
-INSERT INTO ordenes_produccion (id_jefe_produccion, id_receta, costo_operativo_bs, litros_invertidos, kilos_obtenidos_brutos, estado_lote, fecha_inicio, fecha_cierre) VALUES
-
-(3, 1, 450.00, 1500.00, 172.50, 'Completado', '2026-04-06 08:00:00', '2026-04-06 14:00:00');
-
-INSERT INTO lote_produccion (id_orden, id_item, codigo_lote, cantidad_producida, unidad_medida, estado, observaciones) VALUES
-
-(1, 5, 'LOTE-MOZ-060426-A', 172.50, 'Kilogramos', 'Aprobado_QA', 'Procedimiento térmico correcto. Excelente textura.');
-
-INSERT INTO movimientos_kardex (id_item, id_orden_asociada, id_usuario, tipo_operacion, cantidad_kilos, concepto_operacion) VALUES
-
-(1, 1, 3, 'EGRESO', 1500.00, 'Consumo en Tina para LOTE-MOZ-060426-A'),
-
-(5, 1, 3, 'INGRESO', 172.50, 'Ingreso Almacén Final Queso Mozzarella');
-
--- 6. CONTROL HILADO / QA FICHAS
-
-INSERT INTO fichas_calidad (id_orden, id_ingeniero_qa, dictamen_qa, ph_final, salinidad, observaciones_tecnicas, fecha_evaluacion) VALUES
-
-(1, 2, 'Aprobado', 5.15, 1.85, 'Prueba de hilado a 75°C superada. Formación de piel brillante.', '2026-04-06 14:15:00');
-
--- Respaldos Nube (CU18)
-
-INSERT INTO respaldos_documentales (entidad_afectada, id_entidad, url_publica_storage, descripcion_archivo) VALUES
-
-('fichas_calidad', 1, 'https://supabase.grulac/storage/v1/pdf/acta_qa_lote1.pdf', 'Ficha QA firmada digitalmente');
-
--- 7. VENTAS Y LOGÍSTICA
-
-INSERT INTO pedidos_ventas (id_cliente, id_vendedor, estado_reserva, monto_total_bs) VALUES
-
-(1, 3, 'Aprobado Despacho', 3850.00);
-
-INSERT INTO detalle_pedidos (id_pedido, id_item, cantidad_pedida, precio_unitario) VALUES
-
-(1, 5, 50.00, 77.00);
-
-INSERT INTO factura (id_pedido, numero_factura, subtotal, impuesto, total_factura, metodo_pago, estado) VALUES
-
-(1, 'F-00101-26', 3349.50, 500.50, 3850.00, 'Transferencia', 'Pagado');
-
-INSERT INTO despachos_logisticos (id_pedido, id_encargado, placa_camion, fecha_salida_ruta) VALUES
-
-(1, 3, '3322-AAA', '2026-04-06 16:30:00');
-
--- Merma Comercial en Transporte (CU16)
-
-INSERT INTO devoluciones_qa (id_despacho, id_asesor, motivo_rechazo, kilos_devueltos, requiere_reposicion_caliente) VALUES
-
-(1, 3, '1 Barra de mozzarella perdió el vacío por aplastamiento en camión.', 1.00, TRUE);
-
-Evidencia de Estructura SQL Implementada:
-
--- 1. Tabla Perfiles/Roles (Controlador de Permisos)
-
-CREATE TABLE roles (
-
-id_rol SERIAL PRIMARY KEY,
-
-nombre_rol VARCHAR(100) NOT NULL UNIQUE,
-
-permisos_json JSONB NOT NULL -- Define qué pantallas puede ver
-
-);
-
--- 2. Tabla de Credenciales y Sesión (Administración de Accesos)
-
-CREATE TABLE usuarios (
-
-id_usuario SERIAL PRIMARY KEY,
-
-id_rol INT NOT NULL REFERENCES roles(id_rol),
-
-id_empleado INT NOT NULL REFERENCES empleados(id_empleado),
-
-email_corporativo VARCHAR(150) NOT NULL UNIQUE,
-
-password_hash VARCHAR(255) NOT NULL,
-
-estado_acceso BOOLEAN DEFAULT TRUE -- Permite Banear Usuarios sin borrarlos
-
-);
-
-CREATE OR REPLACE PROCEDURE sp_iniciar_produccion_lote(
-
-p_id_jefe INT,
-
-p_id_receta INT,
-
-p_litros_consumo DECIMAL
-
-)
-
-LANGUAGE plpgsql
-
-AS $$
-
-BEGIN
-
--- 1. INSERTA una orden de producción bloqueándola en "Preparación"
-
-INSERT INTO ordenes_produccion (id_jefe_produccion, id_receta, estado_lote, litros_invertidos)
-
-VALUES (p_id_jefe, p_id_receta, 'En_Preparacion', p_litros_consumo);
-
--- 2. INSERTA el descuento legal matemático del Kardex
-
-INSERT INTO movimientos_kardex (id_item, tipo_operacion, cantidad_kilos, concepto_operacion)
-
-VALUES (1, 'OUT', p_litros_consumo, 'BOM SP: Consumo de Leche Cruda Manda Fábrica');
-
-COMMIT;
-
-END;
-
-$$;
-
-CREATE OR REPLACE PROCEDURE sp_castigar_proveedor(
-
-p_ci_nit VARCHAR
-
-)
-
-LANGUAGE plpgsql
-
-AS $$
-
-BEGIN
-
--- Actualiza el estado del Proveedor bloqueando futuras compras
-
-UPDATE proveedores
-
-SET estado_reputacion = 'Inhabilitado_Bacteriologico'
-
-WHERE ci_nit = p_ci_nit;
-
-COMMIT;
-
-END;
-
-$$;
-
--- 1. Creación de la Función del Disparador
-
-CREATE OR REPLACE FUNCTION fn_trigger_qa_actualiza_produccion()
-
-RETURNS TRIGGER AS $$
-
-BEGIN
-
-IF NEW.dictamen_qa = 'Aprobado' THEN
-
--- El Trigger ejecuta esta actualización por sí solo
-
-UPDATE ordenes_produccion
-
-SET estado_lote = 'Liberado_Comercial'
-
-WHERE id_orden = NEW.id_orden;
-
-ELSIF NEW.dictamen_qa = 'Reprocesar' THEN
-
--- Retorna el lote a las Tinas automáticamente
-
-UPDATE ordenes_produccion
-
-SET estado_lote = 'Cuarentena_En_Reproceso'
-
-WHERE id_orden = NEW.id_orden;
-
-END IF;
-
-RETURN NEW; -- Mantiene el guardado original de QA
-
-END;
-
-$$ LANGUAGE plpgsql;
-
--- 2. Declaración del Trigger Anclado a Inserciones Acertadas
-
-CREATE TRIGGER trg_qa_automatizador_lotes
-
-AFTER INSERT ON fichas_calidad
-
-FOR EACH ROW EXECUTE PROCEDURE fn_trigger_qa_actualiza_produccion();
-
-Consultas
-
-Consulta 1: ¿Cuáles son todos los proveedores que se encuentran en estado 'Aprobado'?
-
-SELECT ci_nit, razon_social, estado_reputacion 
-FROM proveedores 
-WHERE estado_reputacion = 'Aprobado';
-
-Consulta 2: ¿Qué empleados tienen un documento de identidad (CI) que comienza con '4' o '9'?
-
-SELECT id_empleado, nombre_completo, ci_documento 
-FROM empleados 
-WHERE ci_documento LIKE '4%' OR ci_documento LIKE '9%';
-
-Consulta 3: ¿Cuáles son las recetas activas que tienen un rendimiento estandarizado mayor al 10%?
-
-SELECT id_receta, version_receta, rendimiento_esperado_pct 
-FROM recetas_bom 
-WHERE rendimiento_esperado_pct > 10.00 AND estado_activa = TRUE;
-
-Consulta 4: ¿Cuáles fueron las recepciones de leche cruda (Triage) cuya acidez (pH) excedió el nivel de 6.6?
-
-SELECT id_recepcion, litros_recibidos, acidez_ph 
-FROM recepciones_leche 
-WHERE acidez_ph > 6.6;
-
-Consulta 5: ¿Qué insumos del inventario de catálogo no pertenecen a la categoría de PRODUCTO_TERMINADO ni INTERMEDIO?
-
-SELECT codigo_sku, nombre_producto, stock_minimo 
-FROM catalogo_items 
-WHERE tipo_item IN ('MATERIA_PRIMA', 'INSUMO');
-
-Consulta 6: ¿Qué recepciones (triage químico) fueron efectuadas operativamente durante los últimos 7 días?
-
-SELECT id_recepcion, fecha_registro, litros_recibidos 
-FROM recepciones_leche 
-WHERE fecha_registro >= CURRENT_DATE - INTERVAL '7 days';
-
-Consulta 7: ¿Cuáles son las facturas que fueron pagadas y emitidas durante el año fiscal 2026?
-
-SELECT numero_factura, metodo_pago, total, fecha_emision 
-FROM factura 
-WHERE EXTRACT(YEAR FROM fecha_emision) = 2026 AND estado = 'Pagado';
-
-Consulta 8: ¿Qué supermercado o cliente comercial incluye la palabra 'Maxi' dentro de su razón social?
-
-SELECT nit_facturacion, razon_social, telefono 
-FROM clientes 
-WHERE razon_social ILIKE '%Maxi%';
-
-Consulta 9: ¿Cuáles son los reportes de despacho logístico donde la placa del camión térmico termina con 'AAA'?
-
-SELECT id_despacho, placa_camion, fecha_salida_ruta 
-FROM despachos_logisticos 
-WHERE placa_camion LIKE '%AAA';
-
-Consulta 10: ¿Qué lotes terminados fueron generados y producidos exactamente en la fecha '2026-04-06'?
-
-SELECT codigo_lote, cantidad_producida, estado 
-FROM lote_produccion 
-WHERE fecha_produccion = '2026-04-06';
-
-Consulta 11: ¿Cuál es el Nombre del Empleado cruzado con el tipo de Rol Informático que se le ha asignado?
-
-SELECT e.nombre_completo, r.nombre_rol, u.email_corporativo 
-FROM usuarios u
-INNER JOIN empleados e ON u.id_empleado = e.id_empleado
-INNER JOIN roles r ON u.id_rol = r.id_rol;
-
-Consulta 12: (Trazabilidad B2B): ¿Qué cliente está atado a cada pedido y cuál fue el ejecutivo vendedor encargado de la transacción?
-
-SELECT pv.id_pedido, c.razon_social AS Cliente, e.nombre_completo AS Asesor, pv.estado_reserva
-FROM pedidos_ventas pv
-INNER JOIN clientes c ON pv.id_cliente = c.id_cliente
-INNER JOIN usuarios u ON pv.id_vendedor = u.id_usuario
-INNER JOIN empleados e ON u.id_empleado = e.id_empleado;
-
-Consulta 13: ¿Qué ítems o SKU exigió exactamente el cliente dentro del cuerpo detallado de su pedido?
-
-SELECT dp.id_pedido, c.codigo_sku, c.nombre_producto, dp.cantidad_pedida, dp.precio_unitario
-FROM detalle_pedidos dp
-INNER JOIN catalogo_items c ON dp.id_item = c.id_item;
-
-Consulta 14: ¿Cuál es el reporte contable final uniendo la Tabla Factura con sus respectivos Pedidos y Clientes?
-
-SELECT f.numero_factura, cli.nit_facturacion, cli.razon_social, f.total, f.estado
-FROM factura f
-INNER JOIN pedidos_ventas pv ON f.id_pedido = pv.id_pedido
-INNER JOIN clientes cli ON pv.id_cliente = cli.id_cliente;
-
-Consulta 15: (Trazabilidad de Planta): ¿Qué laboratorista o ingeniero fue el encargado de recibir la leche cruda de cada proveedor agropecuario?
-
-SELECT rl.fecha_registro, p.razon_social AS ProveedorGanadero, rl.litros_recibidos, emp.nombre_completo AS Ing_Triage
-FROM recepciones_leche rl
-INNER JOIN proveedores p ON rl.id_proveedor = p.id_proveedor
-INNER JOIN usuarios u ON rl.id_laboratorista = u.id_usuario
-INNER JOIN empleados emp ON u.id_empleado = emp.id_empleado;
-
-Consulta 16: ¿A cuánto asciende el número total de cuentas de usuario agrupadas por su estado actual de acceso al sistema?
-
-SELECT estado_acceso, COUNT(id_usuario) AS Total_Cuentas 
-FROM usuarios 
-GROUP BY estado_acceso;
-
-Consulta 17: ¿Cuál es el monto de inyección de dinero en Ventas separando su estatus operativo entre reservas liquidadas y pendientes?
-
-SELECT estado_reserva, SUM(monto_total_bs) AS Monto_Generado_BS 
-FROM pedidos_ventas 
-GROUP BY estado_reserva;
-
-Consulta 18: (Consolidado Acopiador): ¿Cuántos litros de leche cruda nos ha entregado cada proveedor en total a lo largo del tiempo?
-
-SELECT p.razon_social, SUM(rl.litros_recibidos) AS Total_Litros_Acopiados 
-FROM recepciones_leche rl
-INNER JOIN proveedores p ON rl.id_proveedor = p.id_proveedor
-GROUP BY p.razon_social;
-
-Consulta 19: ¿Cuál es el total general de movimientos volumétricos en el KARDEX separando las Entradas (IN) de las Salidas logísticas (OUT)?
-
-SELECT tipo_operacion, SUM(cantidad_kilos) AS Total_Kg_Movidos, COUNT(*) AS Numero_Registros
-FROM movimientos_kardex 
-GROUP BY tipo_operacion;
-
-Consulta 20: ¿A cuánto asciende el ingreso total y los impuestos retenidos de las Facturas clasificadas según su método y forma de pago?
-
-SELECT metodo_pago, SUM(total) AS Flujo_Caja, SUM(impuesto) AS Impuestos_Deducciones
-FROM factura 
-GROUP BY metodo_pago;
-
-Consulta 21: ¿Quiénes son nuestros Proveedores Estrella agropecuarios que nos han vendido más de 3000 Litros de Leche cruda en el historial?
-
-SELECT p.razon_social, SUM(rl.litros_recibidos) AS Total_Leche
-FROM recepciones_leche rl
-INNER JOIN proveedores p ON rl.id_proveedor = p.id_proveedor
-GROUP BY p.razon_social
-HAVING SUM(rl.litros_recibidos) > 3000.00;
-
-Consulta 22: ¿Qué órdenes de producción en las tinas de cuajada demandaron y requirieron una inversión de leche superior a los 1000 litros métricos?
-
-SELECT id_orden, SUM(litros_invertidos) AS Litros_Superiores
-FROM ordenes_produccion
-GROUP BY id_orden
-HAVING SUM(litros_invertidos) >= 1000;
-
-Consulta 23: ¿Cuáles Ítems del catálogo (Insumos) cuentan con SALIDAS (OUT) sumadas que rebasen los 50 kilos en su desgaste industrial o comercial?
-
-SELECT ci.nombre_producto, SUM(mk.cantidad_kilos) as Total_Desgaste_Kg
-FROM movimientos_kardex mk
-INNER JOIN catalogo_items ci ON mk.id_item = ci.id_item
-WHERE mk.tipo_operacion = 'OUT'
-GROUP BY ci.nombre_producto
-HAVING SUM(mk.cantidad_kilos) > 50;
-
-Consulta 24: (Clientes Leales): ¿Qué cuentas empresariales realizaron al menos un (1) pedido que de forma individual haya superado los 3000 Bs?
-
-SELECT c.razon_social, COUNT(p.id_pedido) AS Pedidos_Grandes
-FROM clientes c
-INNER JOIN pedidos_ventas p ON c.id_cliente = p.id_cliente
-WHERE p.monto_total_bs > 3000.00
-GROUP BY c.razon_social
-HAVING COUNT(p.id_pedido) >= 1;
-
-Consulta 25: ¿Qué recetas y formulaciones BOM de producción estandarizadas exigen de forma activa más de tres (3) sustancias o ingredientes diferentes?
-
-SELECT id_receta, COUNT(id_item_ingrediente) AS Sustancias_Formuladas
-FROM receta_ingredientes
-GROUP BY id_receta
-HAVING COUNT(id_item_ingrediente) > 3;
-
-Consulta 26: ¿Cuál de todas las órdenes de producción experimentó el máximo consumo de materia prima basándose lógicamente en su mayor inversión?
-
-SELECT id_orden, kilos_obtenidos_brutos, litros_invertidos
-FROM ordenes_produccion
-WHERE litros_invertidos = (SELECT MAX(litros_invertidos) FROM ordenes_produccion);
-
-Consulta 27: ¿Qué Empleados de planta NUNCA han generado un apunte o acción dentro de la tabla Bitácora de Auditoría del sistema transaccional (Subconsulta lógica inversa NOT IN)?
-
-SELECT id_empleado, nombre_completo
-FROM empleados
-WHERE id_empleado NOT IN (
-  SELECT u.id_empleado FROM usuarios u
-  INNER JOIN bitacora_auditoria b ON u.id_usuario = b.id_usuario
-);
-
-Consulta 28: (Subquery Sanitaria Láctea): ¿Qué Proveedor despachó la cisterna de leche reportando las temperaturas más elevadas o críticas detectadas durante el Triage?
-
-SELECT p.ci_nit, p.razon_social 
-FROM proveedores p
-WHERE p.id_proveedor = (SELECT id_proveedor FROM recepciones_leche WHERE temperatura_celsius = (SELECT MAX(temperatura_celsius) FROM recepciones_leche) LIMIT 1);
-
-Consulta 29: (Trazabilidad hacia Atrás): ¿Qué Lotes Físicos Empacados derivan rastreablemente de una receta o fórmula industrial que lleve la palabra 'Mozzarella'?
-
-SELECT l.codigo_lote, l.fecha_produccion, l.observaciones
-FROM lote_produccion l
-WHERE l.id_orden IN (SELECT o.id_orden FROM ordenes_produccion o
-  INNER JOIN recetas_bom rb ON o.id_receta = rb.id_receta
-  INNER JOIN catalogo_items ci ON rb.id_item_resultado = ci.id_item
-  WHERE ci.nombre_producto ILIKE '%Mozzarella%'
-);
-
-Consulta 30: ¿Cuál es el cálculo neto del Stock Final o Saldo Transaccional en las Bodegas (Entradas IN sumadas, frente a las Salidas OUT restadas) de cada código SKU?
-
-SELECT ci.codigo_sku, ci.nombre_producto, 
-COALESCE((SELECT SUM(cantidad_kilos) FROM movimientos_kardex WHERE id_item = ci.id_item AND tipo_operacion = 'IN'), 0) AS kilos_entrados,
-COALESCE((SELECT SUM(cantidad_kilos) FROM movimientos_kardex WHERE id_item = ci.id_item AND tipo_operacion = 'OUT'), 0) AS kilos_despachados,
-(COALESCE((SELECT SUM(cantidad_kilos) FROM movimientos_kardex WHERE id_item = ci.id_item AND tipo_operacion = 'IN'), 0) - COALESCE((SELECT SUM(cantidad_kilos) FROM movimientos_kardex WHERE id_item = ci.id_item AND tipo_operacion = 'OUT'), 0)) AS STOCK_FINAL
-FROM catalogo_items ci;
-
-*Con esta trigésima consulta, el equipo sustentante acredita sin reservas la maestría y comprensión total de su propia estructura de Datos cumpliendo con el índice estipulado.*
-
-4.4.4.5. Procedimientos de Almacenados
-
-4.4.4.6. Triggers(Disparadores)
-
-Los Triggers en el sistema se encargan de automatizar las reglas de negocio a nivel de base de datos interviniendo de forma automática ante ciertos eventos (Insert, Update, Delete) en tablas específicas, garantizando así la integridad y trazabilidad del módulo lácteo.
-
--- 1. Liberación Automática del Lote (Módulo de Calidad QA)
-
-Este Trigger actúa sobre la tabla "fichas_calidad". Una vez que el Ingeniero de Calidad inserta o actualiza el resultado de su prueba de laboratorio, el disparador reacciona automáticamente. Si el dictamen es 'Aprobado', el sistema libera comercialmente el registro en la tabla "lote_produccion" y finaliza la orden en "ordenes_produccion". Si es 'Rechazado', los manda a cuarentena. Evita que un operario deba actualizar manualmente los estados.
-
-CREATE OR REPLACE FUNCTION fn_qa_libera_lote()
-
-RETURNS TRIGGER AS $$
-
-BEGIN
-
-IF NEW.dictamen_qa = 'Aprobado' THEN
-
-UPDATE lote_produccion SET estado = 'Liberado_Comercial' WHERE id_orden = NEW.id_orden;
-
-UPDATE ordenes_produccion SET estado_lote = 'Completado' WHERE id_orden = NEW.id_orden;
-
-ELSIF NEW.dictamen_qa = 'Rechazado' THEN
-
-UPDATE lote_produccion SET estado = 'Cuarentena_Rechazado' WHERE id_orden = NEW.id_orden;
-
-UPDATE ordenes_produccion SET estado_lote = 'Abortado' WHERE id_orden = NEW.id_orden;
-
-END IF;
-
-RETURN NEW;
-
-END;
-
-$$ LANGUAGE plpgsql;
-
-CREATE TRIGGER trg_qa_automatizador_lotes
-
-AFTER INSERT OR UPDATE ON fichas_calidad
-
-FOR EACH ROW
-
-EXECUTE FUNCTION fn_qa_libera_lote();
-
-2. Registro Inmutable de Auditoría en Operaciones Sensibles
-
-Este conjunto de Triggers asegura el principio de no-repudio en el sistema. Actúan silenciosamente detrás de tablas críticas operativas como "pedidos_ventas" y recursos humanos como "usuarios". Si alguien intenta eliminar (DELETE) o modificar (UPDATE) una fila, el Trigger captura la información antigua y la nueva, guardándola de forma inmutable en formato JSON dentro de la estricta tabla de monitoreo "bitacora_auditoria".
-
-CREATE OR REPLACE FUNCTION fn_auditar_tabla()
-
-RETURNS TRIGGER AS $$
-
-BEGIN
-
-IF TG_OP = 'DELETE' THEN
-
-INSERT INTO bitacora_auditoria(id_usuario, accion_sql, tabla_afectada, old_data, new_data)
-
-VALUES (1, 'DELETE', TG_TABLE_NAME, row_to_json(OLD), NULL);
-
-RETURN OLD;
-
-ELSIF TG_OP = 'UPDATE' THEN
-
-INSERT INTO bitacora_auditoria(id_usuario, accion_sql, tabla_afectada, old_data, new_data)
-
-VALUES (1, 'UPDATE', TG_TABLE_NAME, row_to_json(OLD), row_to_json(NEW));
-
-RETURN NEW;
-
-END IF;
-
-RETURN NULL;
-
-END;
-
-$$ LANGUAGE plpgsql;
-
-CREATE TRIGGER trg_auditoria_pedidos
-
-AFTER UPDATE OR DELETE ON pedidos_ventas
-
-FOR EACH ROW EXECUTE FUNCTION fn_auditar_tabla();
-
-CREATE TRIGGER trg_auditoria_usuarios
-
-AFTER UPDATE OR DELETE ON usuarios
-
-FOR EACH ROW EXECUTE FUNCTION fn_auditar_tabla();
-
-Freno Matemático de Inventario (Integridad de Kardex Físico)
-
-Un Trigger de tipo PRE-Inserción (BEFORE INSERT) diseñado para blindar la tabla "movimientos_kardex". Cuando se trata de efectuar una Salida de almacén (tipo de operación 'OUT'), el disparador calcula el stock volumétrico del ítem sumando todas sus ENTRADAS históricas y restando las SALIDAS previas. Si la cantidad solicitada para el despacho supera el Stock Real del almacén, el Trigger aborta la operación y lanza un mensaje explícito de 'RAISE EXCEPTION' al backend, impidiendo stocks negativos.
-
-CREATE OR REPLACE FUNCTION fn_bloqueo_stock_negativo()
-
-RETURNS TRIGGER AS $$
-
-DECLARE
-
-stock_actual DECIMAL(10,2);
-
-BEGIN
-
-IF NEW.tipo_operacion = 'OUT' THEN
-
--- SUMA lógica previa de entradas menos salidas
-
-SELECT
-
-(COALESCE((SELECT SUM(cantidad_kilos) FROM movimientos_kardex WHERE id_item = NEW.id_item AND tipo_operacion = 'IN'), 0) -
-
-COALESCE((SELECT SUM(cantidad_kilos) FROM movimientos_kardex WHERE id_item = NEW.id_item AND tipo_operacion = 'OUT'), 0))
-
-INTO stock_actual;
-
--- Condición de Frenado Abrupto ante Stock Negativo
-
-IF NEW.cantidad_kilos > stock_actual THEN
-
-RAISE EXCEPTION 'FRENO KARDEX ABORTADO: Insuficiente inventario para el SKU ID %. Intentas despachar % Kg pero sólo hay en almacén % Kg.', NEW.id_item, NEW.cantidad_kilos, stock_actual;
-
-END IF;
-
-END IF;
-
-RETURN NEW;
-
-END;
-
-$$ LANGUAGE plpgsql;
-
-CREATE TRIGGER trg_kardex_stock
-
-BEFORE INSERT ON movimientos_kardex
-
-FOR EACH ROW
-
-EXECUTE FUNCTION fn_bloqueo_stock_negativo();
-
-Diagrama de Secuencia
-
-Ciclo #0
-
-Ciclo #1
-
-Ciclo #2
-
-Ciclo #3
-
-Ciclo #4
 
 ANEXOS
 
@@ -3885,7 +3074,7 @@ FICHA RECEPCIÓN DE LA LECHE
 
 PLANILLA DE LA ELABORACION DE LA CUAJADA
 
-LOTE #104
+LOTE
 
 QUESO PRENSADO
 

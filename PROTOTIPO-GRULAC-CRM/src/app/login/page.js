@@ -1,87 +1,110 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { toast } from 'sonner'
-import { Lock, User } from 'lucide-react'
+import { Lock, User, KeyRound } from 'lucide-react'
 
 export default function LoginPage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
+  const [attempts, setAttempts] = useState(0)
   const router = useRouter()
   const supabase = createClient()
+
+  // Read attempts from localStorage after mount (avoids hydration mismatch)
+  useEffect(() => {
+    const saved = localStorage.getItem('login_attempts')
+    if (saved) setAttempts(parseInt(saved))
+  }, [])
 
   const handleLogin = async (e) => {
     e.preventDefault()
 
-    // Excepción E3: Verificar bloqueo previo
+    // E3: Verificar bloqueo previo por 3 intentos fallidos
     const lockTime = localStorage.getItem('login_lock_until')
     if (lockTime && new Date().getTime() < parseInt(lockTime)) {
       const remainingMinutes = Math.ceil((parseInt(lockTime) - new Date().getTime()) / 60000)
       toast.error('Sistema bloqueado', {
-        description: `Demasiados intentos fallidos. Intente nuevamente en ${remainingMinutes} minutos.`
+        description: `Demasiados intentos fallidos. Intente en ${remainingMinutes} min.`
       })
       return
     }
 
     setLoading(true)
 
+    // Paso 3-4: Enviar credenciales a Supabase Auth
     const { data: authData, error } = await supabase.auth.signInWithPassword({
       email,
       password,
     })
 
     if (error) {
-      // Excepción E3: Rastreo de intentos fallidos
-      let attempts = parseInt(localStorage.getItem('login_attempts') || '0')
-      attempts += 1
-      
-      if (attempts >= 3) {
-        // Bloquear por 15 minutos (15 * 60 * 1000 ms)
+      // E1: Credenciales inválidas — limpiar password (spec CU01)
+      setPassword('')
+
+      // E3: Incrementar contador de intentos fallidos
+      const newAttempts = attempts + 1
+      setAttempts(newAttempts)
+      localStorage.setItem('login_attempts', newAttempts.toString())
+
+      if (newAttempts >= 3) {
+        // Bloquear por 15 minutos
         const lockUntil = new Date().getTime() + 15 * 60 * 1000
         localStorage.setItem('login_lock_until', lockUntil.toString())
         localStorage.setItem('login_attempts', '0')
-        
-        // Registrar en bitácora de auditoría
+        setAttempts(0)
+
+        // Registrar bloqueo en bitácora (sin usuario autenticado, se envía null)
         try {
           await supabase.from('bitacora_auditoria').insert([{
             accion_sql: 'ACCESS_LOCKED',
             tabla_afectada: 'usuarios',
-            new_data: { email_target: email, reason: '3 failed attempts' }
+            new_data: { email_target: email, reason: '3 intentos fallidos', ip: 'client' }
           }])
-        } catch(err) {
-          // Fallo silencioso si la bitácora falla
-        }
+        } catch (_) { /* silencioso */ }
 
         toast.error('Bloqueo de seguridad activado', {
-          description: 'Ha excedido el número máximo de intentos. Comuníquese con Gerencia o espere 15 minutos.'
+          description: 'Ha excedido 3 intentos. Espere 15 min o use "¿Olvidó su contraseña?"'
         })
       } else {
-        localStorage.setItem('login_attempts', attempts.toString())
         toast.error('Credenciales incorrectas', {
-          description: `Intento fallido ${attempts}/3. Reintente.`
+          description: `Intento fallido ${newAttempts}/3. Se limpió la contraseña.`
         })
       }
+
       setLoading(false)
       return
     }
 
-    // Excepción E2: Verificar si el empleado está inhabilitado por gerencia
+    // Auth exitoso — ahora verificar estado en nuestra tabla usuarios
     if (authData?.user) {
-      const { data: userData } = await supabase
+      // E2: Verificar estado_acceso (empleado inhabilitado)
+      const { data: userData, error: dbError } = await supabase
         .from('usuarios')
-        .select(`estado_acceso, roles(nombre_rol)`)
+        .select('id_usuario, estado_acceso, roles(nombre_rol)')
         .eq('auth_uid', authData.user.id)
         .single()
 
-      if (userData && userData.estado_acceso === false) {
+      if (dbError || !userData) {
         await supabase.auth.signOut()
+        toast.error('Error de configuración', {
+          description: 'Su cuenta Auth no está vinculada a un usuario del sistema. Contacte al Administrador.'
+        })
+        setLoading(false)
+        return
+      }
+
+      if (userData.estado_acceso === false) {
+        await supabase.auth.signOut()
+        setPassword('')
         toast.error('Acceso Restringido', {
           description: 'Usted no está autorizado por Gerencia.'
         })
@@ -89,14 +112,33 @@ export default function LoginPage() {
         return
       }
 
-      // Limpiar intentos si la autenticación es exitosa
+      // Paso 6: Registrar LOGIN en bitacora_auditoria
+      try {
+        await supabase.from('bitacora_auditoria').insert([{
+          id_usuario: userData.id_usuario,
+          accion_sql: 'LOGIN',
+          tabla_afectada: 'usuarios',
+          new_data: { email: email, timestamp: new Date().toISOString() }
+        }])
+      } catch (_) { /* silencioso */ }
+
+      // Paso 7: Actualizar ultimo_login
+      try {
+        await supabase
+          .from('usuarios')
+          .update({ ultimo_login: new Date().toISOString(), intentos_fallidos: 0 })
+          .eq('id_usuario', userData.id_usuario)
+      } catch (_) { /* silencioso */ }
+
+      // Limpiar contadores de intentos
       localStorage.removeItem('login_attempts')
       localStorage.removeItem('login_lock_until')
+      setAttempts(0)
 
+      // Paso 8: Redirigir según rol
       toast.success('Sesión iniciada con éxito')
       router.refresh()
 
-      // Redirección condicional (por rol)
       const rol = userData?.roles?.nombre_rol?.toLowerCase() || ''
       if (rol.includes('recepción') || rol.includes('recepcion')) {
         router.push('/recepcion')
@@ -105,12 +147,15 @@ export default function LoginPage() {
       } else if (rol.includes('almacén') || rol.includes('almacen')) {
         router.push('/kardex')
       } else {
-        router.push('/inicio') // Default dashboard
+        router.push('/inicio')
       }
     } else {
       setLoading(false)
     }
   }
+
+  // Mostrar link de recuperación siempre, pero resaltarlo tras 2+ intentos
+  const showRecoveryHighlight = attempts >= 2
 
   return (
     <div className="min-h-screen flex w-full bg-background relative overflow-hidden">
@@ -118,9 +163,8 @@ export default function LoginPage() {
       <div className="absolute -top-[20%] -left-[10%] w-[50%] h-[50%] bg-primary/20 blur-[120px] rounded-full pointer-events-none" />
       <div className="absolute -bottom-[20%] -right-[10%] w-[50%] h-[50%] bg-blue-600/10 blur-[120px] rounded-full pointer-events-none" />
 
-      {/* Pane Izquierdo (Imagen Placeholder) */}
+      {/* Pane Izquierdo (Imagen) */}
       <div className="hidden lg:flex flex-1 relative bg-zinc-900 border-r border-border/50 items-center justify-center">
-        {/* Placeholder para la fotografía elegante de tambero/quesos */}
         <div className="absolute inset-0 opacity-20 bg-[url('https://images.unsplash.com/photo-1628186105847-f378d380e557?q=80&w=2072&auto=format&fit=crop')] bg-cover bg-center mix-blend-luminosity grayscale" />
         
         <div className="relative z-10 text-center space-y-6 max-w-lg p-8">
@@ -134,8 +178,8 @@ export default function LoginPage() {
             Sistema Integrado ERP & Trazabilidad SENASAG
           </p>
           <div className="pt-8 flex gap-4 justify-center">
-            <Badge variant="outline" className="bg-background/20 backdrop-blur-md border-border/50 text-zinc-300">Planta Sur</Badge>
-            <Badge variant="outline" className="bg-background/20 backdrop-blur-md border-border/50 text-zinc-300">Km 102</Badge>
+            <BadgeLocal>Planta Sur</BadgeLocal>
+            <BadgeLocal>Km 102</BadgeLocal>
           </div>
         </div>
       </div>
@@ -163,7 +207,7 @@ export default function LoginPage() {
               <form onSubmit={handleLogin} className="space-y-6">
                 <div className="space-y-4">
                   <div className="space-y-2">
-                    <Label htmlFor="email" className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">ID Corporativo</Label>
+                    <Label htmlFor="email" className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">Email Corporativo</Label>
                     <div className="relative">
                       <User className="absolute left-3 top-2.5 h-4 w-4 text-zinc-500" />
                       <Input
@@ -178,7 +222,7 @@ export default function LoginPage() {
                     </div>
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="password" className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">Contraseña Segura</Label>
+                    <Label htmlFor="password" className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">Contraseña</Label>
                     <div className="relative">
                       <Lock className="absolute left-3 top-2.5 h-4 w-4 text-zinc-500" />
                       <Input
@@ -197,6 +241,21 @@ export default function LoginPage() {
                   {loading ? 'Verificando...' : 'AUTENTICAR'}
                 </Button>
               </form>
+
+              {/* CU32: Link de recuperación de contraseña */}
+              <div className="mt-4 text-center">
+                <Link 
+                  href="/recuperar-acceso" 
+                  className={`text-sm transition-colors inline-flex items-center gap-1.5 ${
+                    showRecoveryHighlight 
+                      ? 'text-blue-400 font-semibold animate-pulse' 
+                      : 'text-zinc-500 hover:text-zinc-300'
+                  }`}
+                >
+                  <KeyRound className="w-3.5 h-3.5" />
+                  ¿Olvidó su contraseña?
+                </Link>
+              </div>
             </CardContent>
           </Card>
           
@@ -210,11 +269,10 @@ export default function LoginPage() {
 }
 
 // Badge helper
-function Badge({ variant = "default", className, ...props }) {
-  const base = "inline-flex items-center rounded-md px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
-  const variants = {
-    default: "bg-primary text-primary-foreground hover:bg-primary/80",
-    outline: "text-foreground",
-  }
-  return <div className={`${base} ${variants[variant]} ${className}`} {...props} />
+function BadgeLocal({ children }) {
+  return (
+    <div className="inline-flex items-center rounded-md px-2.5 py-0.5 text-xs font-semibold bg-background/20 backdrop-blur-md border border-border/50 text-zinc-300">
+      {children}
+    </div>
+  )
 }
