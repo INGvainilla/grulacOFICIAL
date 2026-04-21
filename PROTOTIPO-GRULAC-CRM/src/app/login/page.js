@@ -57,7 +57,7 @@ export default function LoginPage() {
 
       if (newAttempts >= 3) {
         // Bloquear por 15 minutos
-        const lockUntil = new Date().getTime() + 15 * 60 * 1000
+        const lockUntil = new Date().getTime() + 1 * 60 * 1000
         localStorage.setItem('login_lock_until', lockUntil.toString())
         localStorage.setItem('login_attempts', '0')
         setAttempts(0)

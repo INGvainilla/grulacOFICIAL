@@ -19,11 +19,30 @@ export default function ActualizarContrasenaPage() {
   const router = useRouter()
   const supabase = createClient()
 
-  // Supabase pasa el token via hash fragment
+  // Supabase en modo SSR a veces ignora el Implicit Flow (hash fragments).
+  // Aquí forzamos la lectura del token de la URL para establecer la sesión.
   useEffect(() => {
+    const hash = window.location.hash
+    if (hash && hash.includes('access_token')) {
+      const params = new URLSearchParams(hash.substring(1))
+      const access_token = params.get('access_token')
+      const refresh_token = params.get('refresh_token')
+      
+      if (access_token && refresh_token) {
+        // Forzamos a Supabase a reconocer la sesión
+        supabase.auth.setSession({ access_token, refresh_token }).then(({ data, error }) => {
+          if (error) {
+            toast.error('Error procesando el enlace', { description: error.message })
+          } else {
+            console.log('Sesión establecida correctamente desde la URL')
+          }
+        })
+      }
+    }
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event) => {
       if (event === 'PASSWORD_RECOVERY') {
-        // Usuario llegó del link del email — autenticado temporalmente
+        // Usuario llegó del link del email
       }
     })
     return () => subscription.unsubscribe()
@@ -69,6 +88,9 @@ export default function ActualizarContrasenaPage() {
     try {
       const { data: { user } } = await supabase.auth.getUser()
       if (user) {
+        // ACTUALIZACIÓN ACADÉMICA: Sincronizar hash en tabla pública
+        await supabase.rpc('update_password_hash_direct', { p_user_id: user.id, p_raw_password: newPassword })
+
         const { data: userData } = await supabase
           .from('usuarios')
           .select('id_usuario')

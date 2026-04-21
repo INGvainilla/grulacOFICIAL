@@ -13,6 +13,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { toast } from 'sonner'
 import { UserPlus, UserMinus, ShieldAlert } from 'lucide-react'
 
+import { inviteEmpleadoAction } from './actions'
+
 export default function EmpleadosPage() {
   const [empleados, setEmpleados] = useState([])
   const [loading, setLoading] = useState(true)
@@ -78,61 +80,24 @@ export default function EmpleadosPage() {
     if (!validateForm()) return
     setSaving(true)
 
-    // Paso 4: Verificar duplicidad de CI (UNIQUE CONSTRAINT)
-    const { data: existing } = await supabase
-      .from('empleados')
-      .select('id_empleado')
-      .eq('ci_documento', form.ci_documento.trim())
-      .maybeSingle()
+    // Paso 1 a 5: Invocar Server Action para Atomicidad + Auth Invite
+    const result = await inviteEmpleadoAction(form)
 
-    if (existing) {
-      setFormErrors({ ci_documento: 'Peligro: Este CI/DNI ya pertenece a otro trabajador' })
-      setSaving(false)
-      return
-    }
-
-    // Paso 5a: INSERT empleado
-    const { data: newEmp, error: empError } = await supabase
-      .from('empleados')
-      .insert([{
-        ci_documento: form.ci_documento.trim(),
-        nombre_completo: form.nombre_completo.trim(),
-        cargo: form.cargo.trim() || null,
-        telefono: form.telefono.trim() || null,
-      }])
-      .select()
-      .single()
-
-    if (empError) {
-      toast.error('Error al crear empleado', { description: empError.message })
-      setSaving(false)
-      return
-    }
-
-    // Paso 5b: INSERT usuario con password_hash genérico
-    // NOTE: En prototipo, creamos el auth user via Supabase Auth admin o dejamos el hash como placeholder.
-    // Para el prototipo, insertamos en tabla usuarios directamente (auth_uid se llenará cuando el admin cree la cuenta Auth manualmente)
-    const { error: usrError } = await supabase
-      .from('usuarios')
-      .insert([{
-        id_empleado: newEmp.id_empleado,
-        id_rol: parseInt(form.id_rol),
-        email_corporativo: form.email_corporativo.trim(),
-        estado_acceso: true,
-        intentos_fallidos: 0,
-      }])
-
-    if (usrError) {
-      toast.error('Error al crear usuario', { description: usrError.message })
-      // Rollback: delete the employee we just created
-      await supabase.from('empleados').delete().eq('id_empleado', newEmp.id_empleado)
+    if (result.error) {
+      if (result.error.includes('CI/DNI')) {
+        setFormErrors({ ci_documento: result.error })
+      } else if (result.error.includes('correo')) {
+        setFormErrors({ email_corporativo: result.error })
+      } else {
+        toast.error('Error en el Alta', { description: result.error })
+      }
       setSaving(false)
       return
     }
 
     // Paso 6: Éxito
-    toast.success('El empleado se guardó con éxito', {
-      description: `${form.nombre_completo} fue agregado a la nómina.`
+    toast.success('Invitación enviada con éxito', {
+      description: `Se ha enviado un correo a ${form.email_corporativo} para configurar la contraseña.`
     })
     setShowAltaModal(false)
     setForm({ ci_documento: '', nombre_completo: '', cargo: '', telefono: '', email_corporativo: '', id_rol: '' })

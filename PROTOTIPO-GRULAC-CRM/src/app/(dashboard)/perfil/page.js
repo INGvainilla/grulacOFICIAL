@@ -93,6 +93,9 @@ export default function PerfilPage() {
     try {
       const { data: { user } } = await supabase.auth.getUser()
       if (user) {
+        // ACTUALIZACIÓN ACADÉMICA: Sincronizar hash en tabla pública
+        await supabase.rpc('update_password_hash_direct', { p_user_id: user.id, p_raw_password: newPassword })
+
         const { data: userData } = await supabase
           .from('usuarios')
           .select('id_usuario')
