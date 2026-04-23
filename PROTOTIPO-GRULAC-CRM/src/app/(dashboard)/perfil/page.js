@@ -107,7 +107,8 @@ export default function PerfilPage() {
             id_usuario: userData.id_usuario,
             accion_sql: 'CAMBIO_PASSWORD',
             tabla_afectada: 'usuarios',
-            new_data: { email: userEmail, timestamp: new Date().toISOString() }
+            registro_id: userData.id_usuario,
+            new_data: { email: userEmail, accion: 'Cambio de contraseña propio', timestamp: new Date().toISOString() }
           }])
         }
       }

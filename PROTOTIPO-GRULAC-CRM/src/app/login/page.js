@@ -118,7 +118,8 @@ export default function LoginPage() {
           id_usuario: userData.id_usuario,
           accion_sql: 'LOGIN',
           tabla_afectada: 'usuarios',
-          new_data: { email: email, timestamp: new Date().toISOString() }
+          registro_id: userData.id_usuario,
+          new_data: { email: email, accion: 'Inicio de sesión exitoso', timestamp: new Date().toISOString() }
         }])
       } catch (_) { /* silencioso */ }
 

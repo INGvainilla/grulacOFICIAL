@@ -1,10 +1,24 @@
 'use server'
 
 import { createAdminClient } from '@/lib/supabase/admin'
+import { createClient } from '@/lib/supabase/server'
 
 export async function inviteEmpleadoAction(formData) {
   try {
     const supabaseAdmin = createAdminClient()
+    const supabaseNormal = await createClient()
+
+    // OBTENER LA IDENTIDAD DEL ADMIN (Para la bitácora)
+    const { data: { session } } = await supabaseNormal.auth.getSession()
+    if (!session) return { error: 'Operación denegada. No hay sesión activa.' }
+
+    const { data: adminData } = await supabaseNormal
+      .from('usuarios')
+      .select('id_usuario')
+      .eq('auth_uid', session.user.id)
+      .single()
+
+    const adminId = adminData?.id_usuario
 
     const email = formData.email_corporativo.trim()
     const ci_documento = formData.ci_documento.trim()
@@ -39,8 +53,8 @@ export async function inviteEmpleadoAction(formData) {
 
     const authUid = authData.user.id
 
-    // Paso 3: Insertar en la tabla public.empleados
-    const { data: newEmp, error: empError } = await supabaseAdmin
+    // Paso 3: Insertar en la tabla public.empleados usando sesión real
+    const { data: newEmp, error: empError } = await supabaseNormal
       .from('empleados')
       .insert([{
         ci_documento: ci_documento,
@@ -58,8 +72,8 @@ export async function inviteEmpleadoAction(formData) {
       return { error: `Error DB (Empleados): ${empError.message}` }
     }
 
-    // Paso 4: Insertar en public.usuarios vinculando el auth_uid
-    const { error: usrError } = await supabaseAdmin
+    // Paso 4: Insertar en public.usuarios vinculando el auth_uid usando sesión real
+    const { error: usrError } = await supabaseNormal
       .from('usuarios')
       .insert([{
         auth_uid: authUid,
@@ -75,6 +89,23 @@ export async function inviteEmpleadoAction(formData) {
       await supabaseAdmin.from('empleados').delete().eq('id_empleado', newEmp.id_empleado)
       await supabaseAdmin.auth.admin.deleteUser(authUid)
       return { error: `Error DB (Usuarios): ${usrError.message}` }
+    }
+
+    // Paso 5: BITÁCORA (Rastro Semántico del Autor)
+    // Ya que usamos la llave maestra, los triggers guardaron 'null'.
+    // Aquí declaramos formalmente quién dio la orden.
+    if (adminId) {
+      await supabaseAdmin.from('bitacora_auditoria').insert([{
+        id_usuario: adminId,
+        accion_sql: 'INVITE_USER',
+        tabla_afectada: 'usuarios',
+        registro_id: newEmp.id_empleado,
+        new_data: { 
+          email_invitado: email, 
+          accion: 'Invitación de nuevo empleado', 
+          timestamp: new Date().toISOString() 
+        }
+      }])
     }
 
     return { success: true }

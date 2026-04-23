@@ -16,6 +16,7 @@ export default function ActualizarContrasenaPage() {
   const [confirmPassword, setConfirmPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [success, setSuccess] = useState(false)
+  const [flowType, setFlowType] = useState('recovery') // 'invite' o 'recovery'
   const router = useRouter()
   const supabase = createClient()
 
@@ -27,17 +28,50 @@ export default function ActualizarContrasenaPage() {
       const params = new URLSearchParams(hash.substring(1))
       const access_token = params.get('access_token')
       const refresh_token = params.get('refresh_token')
+      const type = params.get('type') || 'recovery' // Supabase suele enviar 'invite' o 'recovery'
       
+      setFlowType(type)
+
       if (access_token && refresh_token) {
         // Forzamos a Supabase a reconocer la sesión
-        supabase.auth.setSession({ access_token, refresh_token }).then(({ data, error }) => {
+        supabase.auth.setSession({ access_token, refresh_token }).then(async ({ data, error }) => {
           if (error) {
-            toast.error('Error procesando el enlace', { description: error.message })
+            toast.error('Enlace caducado o consumido', { 
+              description: 'Por seguridad, este enlace ya no es válido. Si necesita acceso, solicite uno nuevo.' 
+            })
+            setTimeout(() => router.push('/login'), 3000)
           } else {
-            console.log('Sesión establecida correctamente desde la URL')
+            // OPCIÓN B (Seguridad Inteligente): Verificar si esta invitación ya fue utilizada.
+            // SOLO aplicamos esta barrera si el flujo es de Invitación (CU33). 
+            // Si es Recuperación (CU32), lógicamente el usuario ya tiene un hash viejo.
+            if (type === 'invite') {
+              const user = data?.session?.user
+              if (user) {
+                const { data: userData } = await supabase
+                  .from('usuarios')
+                  .select('password_hash')
+                  .eq('auth_uid', user.id)
+                  .single()
+
+                if (userData?.password_hash) {
+                  toast.error('Este enlace de invitación ya fue utilizado.', {
+                    description: 'Tu cuenta ya está activa. Inicia sesión con tu contraseña.'
+                  })
+                  setTimeout(() => router.push('/login'), 3000)
+                  return
+                }
+              }
+            }
           }
         })
       }
+    } else {
+      // Si no hay token en la URL y no hay sesión activa, redirigir al login
+      supabase.auth.getSession().then(({ data: { session } }) => {
+        if (!session) {
+          router.push('/login')
+        }
+      })
     }
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event) => {
@@ -98,17 +132,16 @@ export default function ActualizarContrasenaPage() {
           .single()
 
         if (userData) {
-          await supabase
-            .from('usuarios')
-            .update({ intentos_fallidos: 0 })
-            .eq('id_usuario', userData.id_usuario)
+          // Paso 13: Registrar evento forense inteligente en bitácora
+          const accionLog = flowType === 'invite' ? 'ACTIVATE_ACCOUNT' : 'RESET_PASSWORD'
+          const descripcion = flowType === 'invite' ? 'Primera contraseña (Onboarding)' : 'Recuperación de contraseña olvidada'
 
-          // Paso 13: Registrar evento en bitácora
           await supabase.from('bitacora_auditoria').insert([{
             id_usuario: userData.id_usuario,
-            accion_sql: 'RESET_PASSWORD',
+            accion_sql: accionLog,
             tabla_afectada: 'usuarios',
-            new_data: { timestamp: new Date().toISOString() }
+            registro_id: userData.id_usuario,
+            new_data: { email: user.email, accion: descripcion, timestamp: new Date().toISOString() }
           }])
         }
       }
@@ -117,8 +150,12 @@ export default function ActualizarContrasenaPage() {
     setSuccess(true)
     setLoading(false)
 
+    // DESTRUCCIÓN DE SESIÓN: Evita que el usuario quede "logueado de contrabando"
+    // obligándolo a probar que conoce su nueva contraseña.
+    await supabase.auth.signOut()
+
     // Paso 14: Redirigir al login tras 3 segundos
-    toast.success('Contraseña restablecida. Inicie sesión con su nueva clave.')
+    toast.success('Contraseña restablecida.', { description: 'Por favor, inicie sesión con su nueva clave.' })
     setTimeout(() => router.push('/login'), 3000)
   }
 

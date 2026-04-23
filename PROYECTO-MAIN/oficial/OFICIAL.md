@@ -1667,6 +1667,8 @@ Derivados estrictamente del bloque de alcance del proyecto y refinados tras la r
 - **CU30**: Registrar Devolución de Queso (Logística Inversa)
 - **CU31**: Cambiar Contraseña Propia
 - **CU32**: Recuperar Contraseña Olvidada (Reset vía email)
+- **CU33**: Establecer Primera Contraseña (Onboarding de Invitación)
+- **CU34**: Rehabilitar Empleado (Alta Lógica)
 
 ## 3.3 Priorización y Planificación de Iteraciones (Ciclos RUP)
 
@@ -1687,6 +1689,8 @@ Siguiendo estrictamente las directrices del **Proceso Unificado de Desarrollo de
   - **CU26**: Registrar Cliente Comercial B2B/B2C (Prioridad: Alta)
   - **CU31**: Cambiar Contraseña Propia (Prioridad: Alta)
   - **CU32**: Recuperar Contraseña Olvidada (Prioridad: Alta)
+  - **CU33**: Establecer Primera Contraseña (Prioridad: Alta)
+  - **CU34**: Rehabilitar Empleado (Alta Lógica) (Prioridad: Media)
 
 ### Ciclo #2 Iteración — Dominio Logístico y Reglas SCM (Elaboración Temprana)
 **Justificación (RUP):** Control estricto de la entrada física, configurando pre-requisitos de manufactura como las fórmulas BOM y validando recepciones de la calle.
@@ -1761,15 +1765,15 @@ CU01 <.. Bloquear : <<extend>>
   3. El actor introduce su ID corporativo (email) y Contraseña, enviando la petición.
   4. El sistema encripta la contraseña, conecta con la BD y verifica la coincidencia del hash.
   5. El sistema detecta coincidencia, extrae el perfil de permisos.
-  6. El sistema registra automáticamente en la tabla `bitacora_auditoria` la fecha, hora e IP del ingreso (acción: `LOGIN`).
-  7. El sistema actualiza el campo `ultimo_login` del registro del usuario.
+  6. El sistema registra automáticamente en la tabla `bitacora_auditoria` la fecha, hora e IP del ingreso (acción: `LOGIN`), incluyendo el campo `registro_id` con el `id_usuario` del actor y el campo `new_data` con su email corporativo y timestamp de la acción.
+  7. El sistema actualiza el campo `ultimo_login` del registro del usuario y resetea `intentos_fallidos` a 0.
   8. El sistema redirige al actor al panel de control correspondiente a su cargo industrial.
-- **8. POST CONDICIÓN:** El usuario queda logueado, con su `id_usuario` amarrado en la sesión activa temporalmente, habilitándolo para firmar transacciones hasta que la sesión expire. La bitácora conserva el registro inmutable de la hora y fecha del ingreso.
+- **8. POST CONDICIÓN:** El usuario queda logueado, con su `id_usuario` amarrado en la sesión activa temporalmente, habilitándolo para firmar transacciones hasta que la sesión expire. La bitácora conserva el registro inmutable de la hora y fecha del ingreso, con trazabilidad bidireccional (`id_usuario` = quién actuó, `registro_id` = qué registro fue afectado).
 - **9. EXCEPCIONES (Flujo Secundario):**
   - *E1: Credenciales Inválidas.* (Paso 4 falla). El sistema detiene el flujo, limpia el password, incrementa el contador `intentos_fallidos` y notifica "Credenciales incorrectas", regresando al paso 2.
   - *E2: Empleado Inhabilitado.* (Precondición falla). El sistema halla credenciales correctas, pero nota que el empleado ha sido vetado o despedido. Detiene el acceso con la alerta: "Usted no está autorizado por Gerencia".
-  - *E3: Múltiples Fallos (3 intentos).* Tras fallar E1 repetidamente, se ejecuta el caso `<<extend>> Bloquear Acceso`: se bloquea el input por 5 a 15 minutos, se registra la IP sospechosa en bitácora y se habilita visualmente el enlace "¿Olvidó su contraseña?" que redirige al CU32.
-- **10. NOTA TÉCNICA:** La autenticación es propia del sistema (email + password_hash contra la tabla `usuarios`). No se utiliza OAuth ni inicio de sesión con proveedores externos (Google, Facebook, etc.). El email corporativo se usa exclusivamente como identificador de la cuenta, no como proveedor de autenticación.
+  - *E3: Múltiples Fallos (3 intentos).* Tras fallar E1 repetidamente, se ejecuta el caso `<<extend>> Bloquear Acceso`: se bloquea el input por 1 minuto, se registra un evento `ACCESS_LOCKED` en bitácora con el email objetivo, y se habilita visualmente el enlace "¿Olvidó su contraseña?" que redirige al CU32.
+- **10. NOTA TÉCNICA:** La autenticación es delegada a Supabase Auth (GoTrue), que gestiona el JWT y el hash de contraseñas con bcrypt internamente. Adicionalmente, se mantiene el campo `password_hash` en la tabla pública `usuarios` usando el algoritmo Blowfish (`pgcrypto`), cumpliendo con el requerimiento académico de auditoría. El email corporativo funciona como identificador único tanto en `auth.users` como en `public.usuarios`, vinculados por el campo `auth_uid` (UUID).
 
 **C. Prototipo UI (Directriz para Generador)**
 *Prompt a ingresar textual en tu IA de mockups (Google/Uizard/Figma):*
@@ -1831,23 +1835,28 @@ CU03 ..> Validar : <<include>>
 ```
 
 **B. Ficha de Especificación del Caso de Uso**
-- **1. CASO DE USO:** CU03 - Registrar Nuevo Empleado.
-- **2. PROPÓSITO:** Instanciar formalmente a un operador industrial en el ecosistema insertando atómicamente sus credenciales básicas.
-- **3. DESCRIPCIÓN:** Permite al Administrador inyectar los datos duros (DNI, Nombre, Correo) de un nuevo contrato a la base de datos maestra para que luego adquiera un Rol. No involucra manejo de bajas ni asignación de jerarquía directa.
-- **4. ACTORES:** Tablas de BD (`usuarios`).
+- **1. CASO DE USO:** CU03 - Registrar Nuevo Empleado (Alta por Invitación).
+- **2. PROPÓSITO:** Instanciar formalmente a un nuevo operador en el ecosistema de forma atómica y segura, creando simultáneamente su identidad de RRHH (`empleados`), su cuenta de sistema (`usuarios`) y enviando un correo de invitación para que el propio empleado establezca su contraseña.
+- **3. DESCRIPCIÓN:** Permite al Administrador registrar a un nuevo empleado mediante un **Server Action** que ejecuta tres operaciones en secuencia garantizada: (1) verifica la unicidad del CI/DNI, (2) crea la cuenta de autenticación en Supabase Auth vía `inviteUserByEmail` y envía automáticamente un correo de bienvenida con un enlace de onboarding de un solo uso (válido por 24 horas), y (3) inserta atómicamente los registros en `public.empleados` y `public.usuarios`. El Administrador nunca maneja ni conoce la contraseña del empleado.
+- **4. ACTORES:** Tablas de BD (`empleados`, `usuarios`, `bitacora_auditoria`), Supabase Auth (GoTrue), Servicio de correo SMTP.
 - **5. ACTOR INICIADOR:** Administrador General.
-- **6. PRECONDICIÓN:** El Administrador debe estar logueado y posicionado en la pantalla de Maestros de Organización.
+- **6. PRECONDICIÓN:** El Administrador debe estar logueado y posicionado en la pantalla de gestión de Empleados. La dirección de correo del nuevo empleado debe ser válida y accesible.
 - **7. FLUJO PRINCIPAL (Camino Feliz):**
   1. El Administrador oprime el botón "+ Añadir Trabajador".
-  2. El sistema despliega un formulario modal solicitando los Datos Personales (DNI, Nombre, Correo).
-  3. El Administrador teclea los datos y presiona "Crear Identidad y Guardar".
-  4. El sistema contrasta el disco duro (BD) para garantizar la regla de negocio de unicidad de DNI (No pueden existir trabajadores clonados).
-  5. El sistema dispara la consulta `INSERT INTO usuarios` inyectando un hash de contraseña genérica por defecto (Ej: `grulac123`).
-  6. El sistema notifica "El empleado se guardó con éxito" y cierra el modal visual.
-- **8. POST CONDICIÓN:** El empleado existe permanentemente en Disco (Persistido) y está a la espera de que el Administrador dispare el **CU05** (Asignar Rol y Permisos). Toda la transacción queda inmutablemente respaldada de forma automática en la Bitácora de Auditoría por seguridad.
+  2. El sistema despliega un formulario modal solicitando: CI/DNI, Nombre Completo, Email Corporativo, Cargo, Teléfono y Rol.
+  3. El Administrador completa los datos y presiona "Enviar Invitación".
+  4. El sistema (Server Action `inviteEmpleadoAction`) verifica que el CI no exista previamente en `public.empleados`.
+  5. El sistema llama a `supabase.auth.admin.inviteUserByEmail()` con el correo del nuevo empleado. Supabase Auth crea la cuenta en `auth.users` y envía un correo con un token de invitación de un solo uso (JWT, válido 24 horas), con enlace a `/actualizar-contrasena`.
+  6. El sistema inserta el registro en `public.empleados` (con el `email_personal` poblado) y en `public.usuarios` (vinculando el `auth_uid` retornado por Supabase).
+  7. Los Triggers de auditoría en PostgreSQL capturan automáticamente los `INSERT` en `empleados` y `usuarios` en la `bitacora_auditoria`.
+  8. El sistema notifica al Administrador "Invitación enviada con éxito" y cierra el modal.
+  9. El nuevo empleado recibe el correo, hace clic en el enlace (idealmente en modo incógnito o en su propio dispositivo) y es redirigido a `/actualizar-contrasena` donde establece su contraseña (**CU33**). Una vez establecida, el sistema popula `password_hash` en `public.usuarios` y el empleado puede iniciar sesión normalmente (**CU01**).
+- **8. POST CONDICIÓN:** El empleado existe de forma completa y consistente en tres capas: `auth.users` (identidad de autenticación), `public.empleados` (datos de RRHH) y `public.usuarios` (cuenta de sistema con rol asignado). La `bitacora_auditoria` registra los `INSERT` automáticamente vía Triggers. El enlace de invitación queda invalidado tras su primer uso exitoso.
 - **9. EXCEPCIONES (Flujo Secundario):**
-  - *E1: Conflicto de DNI (Duplicidad).* Si el DNI provisto ya pertenece a un trabajador existente, la base de datos aborta violentamente la inserción (Por UNIQUE CONSTRAINT). El sistema atrapa el error y arroja a la Interfaz: "Peligro: Este DNI ya pertenece a otro trabajador".
-  - *E2: Campos Obligatorios Vacíos.* Si el usuario deja en blanco cualquier campo marcado como NOT NULL (DNI, Nombre), el sistema bloquea el botón de guardado, resalta el campo vacío con borde rojo y muestra el mensaje inline: "Este campo es obligatorio". No se ejecuta ninguna petición al servidor hasta que se corrijan todos los campos.
+  - *E1: Conflicto de CI/DNI (Duplicidad).* Si el CI provisto ya pertenece a un trabajador existente, el sistema aborta antes de contactar Supabase Auth y muestra: "Peligro: Este CI/DNI ya pertenece a otro trabajador en la base de datos".
+  - *E2: Email ya registrado en Auth.* Si el correo ya existe en `auth.users`, Supabase Auth retorna un error 422. El sistema lo atrapa y muestra: "Este correo corporativo ya ha sido invitado o registrado previamente".
+  - *E3: Fallo en inserción de BD (Compensación Atómica).* Si la inserción en `public.empleados` o `public.usuarios` falla después de crear la cuenta en Auth, el sistema ejecuta una compensación manual eliminando el usuario de `auth.users` para evitar cuentas huérfanas.
+  - *E4: Enlace de invitación expirado.* Si el empleado intenta usar el enlace después de 24 horas, Supabase Auth lo rechaza con `InvalidToken` y el sistema redirige a `/login` con un mensaje de error.
 
 **C. Prototipo UI (Directriz para Generador)**
 *Prompt a ingresar textual en tu IA:*
@@ -1889,6 +1898,41 @@ CU04 ..> DestruirToken : <<include>>
 **C. Prototipo UI (Directriz para Generador)**
 *Prompt a ingresar textual en tu IA:*
 > "Diseño de un Pop-up (Alert Box) de estilo Material Design. Fondo oscuro desenfocado. En el centro un rectángulo blanco limpio. Arriba un ícono grande de advertencia en color naranja o rojo oscuro. Título de la alerta en negrita: 'Confirmación Crítica: Baja de Personal'. Subtítulo en texto gris: 'Está a punto de revocar todos los privilegios del operador operativo. Escriba su pin maestro para continuar'. Debajo un campo de texto simple para 'Pin de Administrador' y dos botones al final: Botón izquierdo gris que diga 'Cancelar' y un botón derecho masivo color rojo sangre que diga 'Revocar Acceso'."
+
+#### CU34: Rehabilitar Empleado (Alta Lógica)
+
+**A. Estructura del Modelo de CU (Diagrama Específico)**
+```plantuml
+@startuml
+left to right direction
+actor "Administrador General" as Admin
+rectangle "Sistema ERP GRULAC - Submódulo RRHH" {
+  usecase "CU34: Rehabilitar Empleado" as CU34
+}
+Admin --> CU34
+@enduml
+```
+
+**B. Ficha de Especificación del Caso de Uso**
+- **1. CASO DE USO:** CU34 - Rehabilitar Empleado (Alta Lógica).
+- **2. PROPÓSITO:** Devolver el acceso al sistema a un operador que había sido inhabilitado, permitiéndole retomar sus funciones con su cuenta original.
+- **3. DESCRIPCIÓN:** Permite al Administrador localizar a un empleado en estado "Inactivo" en la grilla y cambiar su estado nuevamente a "Activo" (`UPDATE estado = TRUE`), restaurando su acceso instantáneamente.
+- **4. ACTORES:** Tablas de BD (`usuarios`, `empleados`).
+- **5. ACTOR INICIADOR:** Administrador General.
+- **6. PRECONDICIÓN:** El Administrador debe estar logueado; el empleado objetivo debe existir y su estatus actual debe ser "Inactivo" o "Suspendido".
+- **7. FLUJO PRINCIPAL (Camino Feliz):**
+  1. El Administrador ubica al ex-trabajador en la tabla de Personal y hace clic en el botón verde "Rehabilitar".
+  2. El sistema despliega un mensaje crítico de advertencia: "¿Está seguro de restaurar los privilegios de este operador?".
+  3. El Administrador teclea su propia contraseña de Admin como confirmación y presiona "Restaurar Acceso".
+  4. El sistema actualiza `estado_activo` a verdadero en `empleados` y `estado_acceso` a verdadero en `usuarios`.
+  5. El sistema actualiza la lista, mostrando al empleado con un chip color verde "Operativo".
+- **8. POST CONDICIÓN:** El empleado recontratado recupera su capacidad para hacer Login (CU01) usando la misma contraseña que tenía antes de ser suspendido. La transacción queda respaldada en la Bitácora de Auditoría.
+- **9. EXCEPCIONES (Flujo Secundario):**
+  - *E1: PIN de Administrador Incorrecto.* Si la contraseña de validación falla, se bloquea la operación y se notifica al Administrador.
+
+**C. Prototipo UI (Directriz para Generador)**
+*Prompt a ingresar textual en tu IA:*
+> "Diseño de un Pop-up (Alert Box) de estilo Material Design. Fondo oscuro desenfocado. En el centro un rectángulo blanco limpio. Arriba un ícono de agregar usuario en color verde esmeralda. Título de la alerta en negrita: 'Confirmación Crítica: Rehabilitación de Personal'. Subtítulo en texto gris: 'Está a punto de restaurar todos los privilegios del operador. Escriba su pin maestro para continuar'. Debajo un campo de texto simple para 'Pin de Administrador' y dos botones al final: Botón izquierdo gris que diga 'Cancelar' y un botón derecho color verde esmeralda que diga 'Restaurar Acceso'."
 
 #### CU05: Asignar o Modificar Roles y Permisos
 
@@ -2139,7 +2183,7 @@ actor "Usuario No Autenticado" as Actor
 rectangle "Sistema ERP GRULAC - Seguridad" {
   usecase "CU32: Recuperar Contraseña" as CU32
   usecase "Enviar Token por Email" as EnviarToken
-  usecase "Validar Token Temporal" as ValidarToken
+  usecase "Validar Token (Supabase Auth)" as ValidarToken
 }
 Actor --> CU32
 CU32 ..> EnviarToken : <<include>>
@@ -2149,36 +2193,80 @@ CU32 ..> ValidarToken : <<include>>
 
 **B. Ficha de Especificación del Caso de Uso**
 - **1. CASO DE USO:** CU32 - Recuperar Contraseña Olvidada.
-- **2. PROPÓSITO:** Permitir que un usuario que olvidó sus credenciales pueda restablecer su contraseña de forma segura, sin necesidad de contactar al Administrador.
-- **3. DESCRIPCIÓN:** El usuario accede al enlace "¿Olvidó su contraseña?" desde la pantalla de Login (CU01). Ingresa su email corporativo y el sistema le envía un token temporal (de un solo uso, con expiración de 5 minutos) a su correo electrónico registrado. Al hacer clic en el enlace del correo, se despliega la pantalla para establecer una nueva contraseña.
-- **4. ACTORES:** Tablas de BD (`usuarios`, `bitacora_auditoria`), Servicio de Email (SMTP/Supabase Auth).
-- **5. ACTOR INICIADOR:** Usuario No Autenticado (el que olvidó su clave).
-- **6. PRECONDICIÓN:** El email corporativo debe existir en la tabla `usuarios` y el estado del usuario debe ser `Activo`.
+- **2. PROPÓSITO:** Permitir que un empleado activo que olvidó su clave recupere el acceso de forma segura.
+- **3. DESCRIPCIÓN:** El usuario solicita un enlace temporal de recuperación desde el Login. El sistema verifica su existencia y envía un correo con un token JWT de un solo uso que lo redirige a la pantalla para establecer una nueva contraseña.
+- **4. ACTORES:** Tablas de BD (`usuarios`, `bitacora_auditoria`), Supabase Auth (GoTrue), Servicio de Email SMTP.
+- **5. ACTOR INICIADOR:** Usuario No Autenticado (Empleado con cuenta existente).
+- **6. PRECONDICIÓN:** El email corporativo debe existir en `auth.users` y en `public.usuarios`, y el estado de la cuenta debe ser Activo.
 - **7. FLUJO PRINCIPAL (Camino Feliz):**
   1. El actor hace clic en "¿Olvidó su contraseña?" desde la pantalla de Login.
-  2. El sistema despliega un formulario simple pidiendo el "Email Corporativo".
+  2. El sistema despliega un formulario pidiendo el "Email Corporativo".
   3. El actor ingresa su email y presiona "Enviar Enlace de Recuperación".
-  4. El sistema verifica que el email exista en la tabla `usuarios` y que el estado sea Activo.
-  5. El sistema genera un token criptográfico de un solo uso con expiración de 5 minutos.
-  6. El sistema envía un correo electrónico al email corporativo con un enlace seguro que contiene el token.
-  7. El sistema muestra en pantalla: "Hemos enviado un enlace de recuperación a su correo corporativo. El enlace expira en 5 minutos".
-  8. El actor abre su correo, hace clic en el enlace.
-  9. El sistema valida el token (existencia, no expirado, no usado).
-  10. El sistema despliega un formulario con dos campos: "Nueva Contraseña" y "Confirmar Nueva Contraseña".
-  11. El actor ingresa su nueva contraseña (cumpliendo políticas de seguridad del CU31).
-  12. El sistema actualiza el hash en BD, invalida el token usado, resetea el contador `intentos_fallidos` a 0.
+  4. Supabase Auth genera un token de un solo uso y envía el correo con enlace a `/actualizar-contrasena`.
+  5. El sistema muestra el mensaje genérico (anti-enumeración): "Si tu correo está registrado, recibirás el enlace en breve".
+  6. El actor abre su correo y hace clic en el enlace.
+  7. El navegador redirige a `/actualizar-contrasena#access_token=...` y extrae la sesión.
+  8. El sistema despliega el formulario con campos: "Nueva Contraseña" y "Confirmar Nueva Contraseña", con un checklist visual de políticas.
+  9. El actor ingresa su nueva contraseña cumpliendo las reglas.
+  10. El sistema actualiza la clave en Supabase Auth (`updateUser`).
+  11. El sistema ejecuta el RPC `update_password_hash_direct()` para guardar el hash en PostgreSQL.
+  12. El sistema resetea `intentos_fallidos = 0`.
   13. El sistema registra en `bitacora_auditoria` (acción: `RESET_PASSWORD`).
-  14. El sistema redirige al CU01 (Login) con mensaje: "Contraseña restablecida. Inicie sesión con su nueva clave".
-- **8. POST CONDICIÓN:** El usuario recupera el acceso a su cuenta. El token usado queda invalidado permanentemente. La bitácora registra el evento para auditoría.
+  14. El sistema muestra el toast de éxito y redirige al Login.
+- **8. POST CONDICIÓN:** El usuario recupera el acceso. El token queda invalidado por Supabase.
 - **9. EXCEPCIONES (Flujo Secundario):**
-  - *E1: Email No Registrado.* El sistema detecta que el email no existe en `usuarios`. Por seguridad, NO revela esta información al actor. Muestra el mismo mensaje genérico del paso 7 para evitar enumeración de cuentas.
-  - *E2: Usuario Inhabilitado.* El email existe pero el estado es inactivo. El sistema responde con el mismo mensaje genérico sin enviar correo.
-  - *E3: Token Expirado.* Si el actor hace clic en el enlace después de 5 minutos, el sistema muestra: "El enlace ha expirado. Solicite uno nuevo" y redirige al paso 1.
-  - *E4: Token Ya Usado.* Si el actor intenta reutilizar un enlace ya consumido, el sistema lo rechaza: "Este enlace ya fue utilizado".
+  - *E1: Email No Registrado o Inhabilitado.* El sistema no envía el correo pero muestra el mismo mensaje de éxito por seguridad (anti-enumeración).
+  - *E2: Token Expirado.* Si el actor usa el enlace tarde, Supabase Auth lo rechaza y la página muestra: "El enlace ha expirado".
+  - *E3: Políticas no cumplidas.* El sistema bloquea el guardado si la clave no cumple requisitos de seguridad.
 
 **C. Prototipo UI (Directriz para Generador)**
 *Prompt a ingresar textual en tu IA:*
-> "Pantalla de recuperación de acceso con el mismo layout 50/50 del Login. Sobre la mitad derecha: Logo GRULAC S.R.L. pequeño arriba. Encabezado: 'Recuperar Acceso'. Subtítulo tenue: 'Ingrese su email corporativo y le enviaremos un enlace seguro'. Un solo campo de texto redondeado: 'Email Corporativo'. Botón principal azul industrial: 'Enviar Enlace de Recuperación'. Debajo, un enlace discreto: 'Volver al Inicio de Sesión'. Todo minimalista y limpio."
+> "Pantalla de recuperación de acceso con layout 50/50 del Login. Encabezado: 'Recuperar Acceso'. Un campo de texto: 'Email Corporativo'. Botón principal: 'Enviar Enlace de Recuperación'. Minimalista."
+
+#### CU33: Establecer Primera Contraseña (Onboarding de Invitación)
+
+**A. Estructura del Modelo de CU (Diagrama Específico)**
+```plantuml
+@startuml
+left to right direction
+actor "Nuevo Empleado (Invitado)" as Invitado
+rectangle "Sistema ERP GRULAC - Seguridad" {
+  usecase "CU33: Establecer Primera Contraseña" as CU33
+  usecase "Validar Token de Invitación" as ValidarToken
+  usecase "Verificar Invitación No Usada" as VerificarUso
+}
+Invitado --> CU33
+CU33 ..> ValidarToken : <<include>>
+CU33 ..> VerificarUso : <<include>>
+@enduml
+```
+
+**B. Ficha de Especificación del Caso de Uso**
+- **1. CASO DE USO:** CU33 - Establecer Primera Contraseña (Onboarding).
+- **2. PROPÓSITO:** Proveer un mecanismo seguro para que un empleado recién registrado (CU03) pueda tomar control de su cuenta estableciendo su propia contraseña por primera vez.
+- **3. DESCRIPCIÓN:** El nuevo empleado hace clic en el enlace de invitación recibido por correo. El sistema intercepta el token, ejecuta una Guardia de Seguridad (Opción B) para garantizar que la invitación no se reutilice, y le permite definir su contraseña, sincronizando los esquemas de Autenticación y Base de Datos local.
+- **4. ACTORES:** Tablas de BD (`usuarios`, `bitacora_auditoria`), Supabase Auth (GoTrue).
+- **5. ACTOR INICIADOR:** Nuevo Empleado Invitado.
+- **6. PRECONDICIÓN:** El Administrador ejecutó exitosamente el CU03. El token JWT de invitación debe estar vigente (< 24 horas) y la cuenta aún no debe tener un `password_hash` establecido.
+- **7. FLUJO PRINCIPAL (Camino Feliz):**
+  1. El nuevo empleado abre su correo y hace clic en el enlace de invitación (se recomienda modo incógnito).
+  2. El navegador redirige a `/actualizar-contrasena` con los tokens en la URL.
+  3. El sistema ejecuta `supabase.auth.setSession()` para loguear temporalmente al usuario.
+  4. **Guardia de Seguridad (Opción B):** El sistema consulta `public.usuarios` y verifica que `password_hash IS NULL`.
+  5. Al confirmarse que es una cuenta virgen, el sistema muestra el formulario de "Establecer Contraseña".
+  6. El empleado ingresa y confirma su nueva contraseña cumpliendo las políticas de seguridad.
+  7. El sistema llama a `supabase.auth.updateUser()` para anclar la credencial.
+  8. El sistema ejecuta el RPC `update_password_hash_direct()` para poblar el hash local en PostgreSQL.
+  9. El sistema registra el evento en `bitacora_auditoria` con `accion_sql: 'RESET_PASSWORD'` y la nota de "Onboarding".
+  10. El sistema redirige al CU01 (Login) informando el éxito de la operación.
+- **8. POST CONDICIÓN:** La cuenta queda plenamente activa. El enlace de invitación pierde su validez para siempre por dos vías: Supabase Auth quema el token, y la Guardia de Opción B lo rechaza porque `password_hash` ya no es NULL.
+- **9. EXCEPCIONES (Flujo Secundario):**
+  - *E1: Invitación Ya Utilizada (Guardia Opción B).* Si un empleado malicioso intenta reutilizar un enlace viejo o usar el botón "Atrás", el paso 4 detecta que `password_hash IS NOT NULL`. El sistema bloquea el formulario y muestra: "Este enlace de invitación ya fue utilizado. Tu cuenta ya está activa", redirigiendo al Login de inmediato.
+  - *E2: Token Expirado.* Si el empleado tarda más de 24 horas en hacer clic, el token caduca y el sistema le exige contactar a Gerencia para una nueva alta.
+
+**C. Prototipo UI (Directriz para Generador)**
+*Prompt a ingresar textual en tu IA:*
+> "Pantalla de bienvenida y configuración de contraseña. Encabezado: 'Bienvenido a GRULAC, establece tu credencial'. Subtítulo: 'Crea una contraseña segura para tu primer ingreso'. Dos campos de texto protegidos con ojito toggle y un checklist dinámico de seguridad abajo. Botón azul masivo 'Completar Registro'."
 
 ## 7.5. Estructurar caso de uso
 ### 7.5.1. Ciclo #1
@@ -2244,6 +2332,13 @@ NoAuth --> CU32
 CU32 .> E_Token : <<include>>
 CU32 .> V_Token : <<include>>
 
+actor "Nuevo Empleado\n(from CU33)" as Invitado
+usecase "Establecer 1ra Contraseña\n(from CU33)" as CU33
+usecase "Verificar Invitacion No Usada\n(from CU33)" as V_Inv
+Invitado --> CU33
+CU33 .> V_Token : <<include>>
+CU33 .> V_Inv : <<include>>
+
 Asesor --> CU9
 Asesor --> CU26
 Asesor --> CU12
@@ -2301,10 +2396,12 @@ usecase "Iniciar sesion\n(from CU1)" as CU1
 usecase "Cerrar Sesion\n(from CU2)" as CU2
 usecase "Cambiar Contrasena\n(from CU31)" as CU31
 usecase "Recuperar Contrasena\n(from CU32)" as CU32
+usecase "Establecer 1ra Contrasena\n(from CU33)" as CU33
 P1 ..> CU1 : <<trace>>
 P1 ..> CU2 : <<trace>>
 P1 ..> CU31 : <<trace>>
 P1 ..> CU32 : <<trace>>
+P1 ..> CU33 : <<trace>>
 
 package "Gestion de Usuario" as P2
 usecase "Asignar Rol\n(from CU5)" as CU5
@@ -2399,15 +2496,20 @@ skinparam backgroundColor transparent
 actor "Admin" as Actor
 boundary "IU_RRHH" as IU
 control "CTR_Usuario" as CTR
-entity "CE_Usuario" as ENT
-entity "CE_Bitacora" as ENT2
+entity "CE_SupabaseAuth" as AUTH
+entity "CE_Empleado" as ENT1
+entity "CE_Usuario" as ENT2
+entity "CE_Bitacora" as ENT3
 Actor --> IU : 1: Llenar formulario
 IU --> CTR : 2: registrarEmpleado(datos)
-CTR --> ENT : 3: check_dni()
-CTR --> ENT : 4: insert(usuario)
-ENT ..> ENT2 : 4.1: <<trigger DB>> insert(audit)
-ENT --> CTR : 5: Ok BD
-CTR --> IU : 6: Mensaje de éxito
+CTR --> ENT1 : 3: check_dni_existente()
+CTR --> AUTH : 4: inviteUserByEmail(correo)
+AUTH --> CTR : 5: auth_uid
+CTR --> ENT1 : 6: insert(empleado)
+CTR --> ENT2 : 7: insert(usuario, auth_uid)
+ENT1 ..> ENT3 : 6.1: <<trigger DB>> insert(audit)
+ENT2 ..> ENT3 : 7.1: <<trigger DB>> insert(audit)
+CTR --> IU : 8: Mensaje de éxito e invitación enviada
 @enduml
 ```
 
@@ -2554,17 +2656,48 @@ skinparam backgroundColor transparent
 actor "Usuario No Autenticado" as Actor
 boundary "IU_Recovery" as IU
 control "CTR_Recovery" as CTR
+entity "CE_SupabaseAuth" as AUTH
 entity "CE_Usuario" as ENT1
 entity "CE_Bitacora" as ENT2
 Actor --> IU : 1: Ingresar email corporativo
 IU --> CTR : 2: solicitarReset(email)
-CTR --> ENT1 : 3: verificarEmailExiste()
-CTR --> CTR : 4: generarTokenTemporal(5min)
-CTR --> IU : 5: Enviar email con enlace
-Actor --> IU : 6: Clic en enlace del correo
-IU --> CTR : 7: validarToken(token)
-CTR --> CTR : 8: validarNuevaPassword()
-CTR --> ENT1 : 9: update(password_hash)
+CTR --> AUTH : 3: generarTokenTemporal()
+CTR --> IU : 4: Enviar email con enlace
+Actor --> IU : 5: Clic en enlace del correo
+IU --> CTR : 6: setSession(token_url)
+CTR --> IU : 7: Desplegar form 'Nueva Contraseña'
+Actor --> IU : 8: Ingresar nueva contraseña
+IU --> CTR : 9: actualizarPassword(nueva)
+CTR --> CTR : 10: validarPoliticaSeguridad()
+CTR --> AUTH : 11: updateUser({password})
+CTR --> ENT1 : 12: update_password_hash_direct(pgcrypto)
+ENT1 ..> ENT2 : 12.1: <<trigger DB>> insert(audit)
+CTR --> ENT2 : 13: insert(RESET_PASSWORD)
+CTR --> IU : 14: Redirigir a Login
+@enduml
+```
+
+### CU33: Establecer Primera Contraseña
+```plantuml
+@startuml DCom_CU33
+left to right direction
+skinparam backgroundColor transparent
+actor "Nuevo Empleado" as Actor
+boundary "IU_Password" as IU
+control "CTR_Auth" as CTR
+entity "CE_SupabaseAuth" as AUTH
+entity "CE_Usuario" as ENT1
+entity "CE_Bitacora" as ENT2
+Actor --> IU : 1: Clic en enlace de invitación
+IU --> CTR : 2: setSession(token_url)
+CTR --> ENT1 : 3: check_password_hash_existente() [Opción B]
+CTR --> IU : 4: Desplegar form 'Establecer Contraseña'
+Actor --> IU : 5: Ingresar nueva contraseña
+IU --> CTR : 6: actualizarPassword(nueva)
+CTR --> CTR : 7: validarPoliticaSeguridad()
+CTR --> AUTH : 8: updateUser({password})
+CTR --> ENT1 : 9: update_password_hash_direct(pgcrypto)
+ENT1 ..> ENT2 : 9.1: <<trigger DB>> insert(audit)
 CTR --> ENT2 : 10: insert(RESET_PASSWORD)
 CTR --> IU : 11: Redirigir a Login
 @enduml
@@ -2681,27 +2814,38 @@ class "CTR_Usuario" as CTR <<Control>> {
   --
   + registrarEmpleado(datos)
   + verificarDuplicidadDNI()
-  + generarPasswordDefault()
-  + guardarUsuario()
+  + inviteUserByEmail(correo)
+  + insertarEmpleadoUsuarioAtomico()
 }
 
-class "CE_Usuario" as ENT <<Entity>> {
-  - id_usuario : Integer
-  - dni : String
+class "CE_SupabaseAuth" as AUTH <<Entity>> {
+  - auth_uid : UUID
   - email : String
-  - full_name : String
+}
+
+class "CE_Empleado" as ENT1 <<Entity>> {
+  - id_empleado : Integer
+  - ci : String
+}
+
+class "CE_Usuario" as ENT2 <<Entity>> {
+  - id_usuario : Integer
+  - auth_uid : UUID
   - is_active : Boolean
 }
 
-class "CE_Bitacora" as ENT2 <<Entity>> {
+class "CE_Bitacora" as ENT3 <<Entity>> {
   - accion_sql : String
   - fecha_hora : DateTime
 }
 
 Actor --> IU
 IU --> CTR
-CTR --> ENT
-ENT ..> ENT2 : <<trigger>>
+CTR --> AUTH
+CTR --> ENT1
+CTR --> ENT2
+ENT1 ..> ENT3 : <<trigger>>
+ENT2 ..> ENT3 : <<trigger>>
 @enduml
 ```
 
@@ -3028,28 +3172,34 @@ class "IU_Recovery" as IU <<Boundary>> {
   + nuevaPassword : String
   + confirmarPassword : String
   --
-  + mostrarFormEmail()
-  + enviarSolicitud()
-  + mostrarMensajeGenerico()
+  + enviarSolicitudReset()
+  + capturarFragmentoURL()
   + mostrarFormNuevaClave()
+  + validarChecklistSeguridad()
 }
 
 class "CTR_Recovery" as CTR <<Control>> {
   --
-  + solicitarReset(email)
-  + verificarEmailExiste()
-  + generarTokenTemporal()
-  + enviarCorreoConEnlace()
-  + validarToken(token)
-  + actualizarPasswordHash()
-  + registrarEnBitacora()
+  + solicitarResetEmail(email)
+  + setSessionDesdeURL(tokens)
+  + actualizarPasswordAuth(nueva)
+  + validarPoliticaSeguridad()
+  + syncPasswordHashLocal()
+}
+
+class "CE_SupabaseAuth" as AUTH <<Entity>> {
+  - auth_uid : UUID
+  --
+  + updateUser(password)
 }
 
 class "CE_Usuario" as ENT1 <<Entity>> {
   - id_usuario : Integer
-  - email_corporativo : String
+  - auth_uid : UUID
   - password_hash : String
   - intentos_fallidos : Integer
+  --
+  + update_password_hash_direct()
 }
 
 class "CE_Bitacora" as ENT2 <<Entity>> {
@@ -3060,8 +3210,64 @@ class "CE_Bitacora" as ENT2 <<Entity>> {
 
 Actor --> IU
 IU --> CTR
+CTR --> AUTH
 CTR --> ENT1
-CTR --> ENT2
+ENT1 ..> ENT2 : <<trigger>>
+@enduml
+```
+
+### CU33: Establecer Primera Contraseña
+```plantuml
+@startuml DClases_CU33
+allowmixing
+left to right direction
+skinparam classAttributeIconSize 0
+skinparam backgroundColor transparent
+actor "Nuevo Empleado" as Actor
+
+class "IU_Password" as IU <<Boundary>> {
+  + nuevaPassword : String
+  + confirmarPassword : String
+  --
+  + capturarFragmentoURL()
+  + mostrarFormNuevaClave()
+  + validarChecklistSeguridad()
+}
+
+class "CTR_Auth" as CTR <<Control>> {
+  --
+  + setSessionDesdeURL(tokens)
+  + verificarInvitacionNoUsada()
+  + actualizarPasswordAuth(nueva)
+  + validarPoliticaSeguridad()
+  + syncPasswordHashLocal()
+}
+
+class "CE_SupabaseAuth" as AUTH <<Entity>> {
+  - auth_uid : UUID
+  --
+  + updateUser(password)
+}
+
+class "CE_Usuario" as ENT1 <<Entity>> {
+  - id_usuario : Integer
+  - auth_uid : UUID
+  - password_hash : String
+  --
+  + update_password_hash_direct()
+}
+
+class "CE_Bitacora" as ENT2 <<Entity>> {
+  - id_log : Integer
+  - accion_sql : String
+  - fecha_hora : DateTime
+}
+
+Actor --> IU
+IU --> CTR
+CTR --> AUTH
+CTR --> ENT1
+ENT1 ..> ENT2 : <<trigger>>
 @enduml
 ```
 

@@ -20,6 +20,7 @@ export default function RolesPage() {
   const [targetUser, setTargetUser] = useState(null)
   const [selectedRol, setSelectedRol] = useState('')
   const [saving, setSaving] = useState(false)
+  const [currentAuthId, setCurrentAuthId] = useState(null)
   const supabase = createClient()
 
   const fetchData = async () => {
@@ -28,7 +29,7 @@ export default function RolesPage() {
     const { data: usrData } = await supabase
       .from('usuarios')
       .select(`
-        id_usuario, email_corporativo, estado_acceso, id_rol,
+        id_usuario, auth_uid, email_corporativo, estado_acceso, id_rol,
         empleados ( nombre_completo, cargo, ci_documento, estado_activo ),
         roles ( id_rol, nombre_rol )
       `)
@@ -45,7 +46,10 @@ export default function RolesPage() {
     setLoading(false)
   }
 
-  useEffect(() => { fetchData() }, [])
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => setCurrentAuthId(data?.user?.id))
+    fetchData()
+  }, [])
 
   const openAsignar = (usr) => {
     setTargetUser(usr)
@@ -56,6 +60,12 @@ export default function RolesPage() {
   const handleGuardarRol = async () => {
     if (!selectedRol || !targetUser) return
     setSaving(true)
+
+    if (targetUser.auth_uid === currentAuthId) {
+      toast.error('Operación Bloqueada', { description: 'Por seguridad, no puede modificar su propio nivel de privilegios.' })
+      setSaving(false)
+      return
+    }
 
     // Paso 4: UPDATE usuarios SET id_rol = X WHERE id_usuario = Y
     const { error } = await supabase
@@ -149,16 +159,21 @@ export default function RolesPage() {
                       }
                     </TableCell>
                     <TableCell className="text-right">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => openAsignar(usr)}
-                        disabled={!usr.estado_acceso}
-                        className="gap-1"
-                      >
-                        <UserCog className="w-3.5 h-3.5" />
-                        Asignar Puesto
-                      </Button>
+                      {(() => {
+                        const isSelf = usr.auth_uid === currentAuthId
+                        return (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => openAsignar(usr)}
+                            disabled={!usr.estado_acceso || isSelf}
+                            className="gap-1"
+                          >
+                            <UserCog className="w-3.5 h-3.5" />
+                            {isSelf ? 'Eres Tú' : 'Asignar Puesto'}
+                          </Button>
+                        )
+                      })()}
                     </TableCell>
                   </TableRow>
                 ))}

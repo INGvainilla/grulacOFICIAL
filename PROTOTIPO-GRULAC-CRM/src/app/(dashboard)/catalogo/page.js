@@ -23,7 +23,8 @@ export default function CatalogoPage() {
 
   const [form, setForm] = useState({
     codigo_sku: '', nombre_producto: '', tipo_item: '', categoria: '',
-    unidad_medida: '', precio_referencia: '', stock_minimo: '', vida_util_dias: ''
+    unidad_medida: '', precio_referencia: '', stock_minimo: '', vida_util_dias: '',
+    stock_inicial: '0'
   })
   const [formErrors, setFormErrors] = useState({})
 
@@ -51,7 +52,8 @@ export default function CatalogoPage() {
     if (!validateForm()) return
     setSaving(true)
 
-    const { error } = await supabase.from('catalogo_items').insert([{
+    // Paso 1: Crear el Item en el catálogo
+    const { data: newItem, error } = await supabase.from('catalogo_items').insert([{
       codigo_sku: form.codigo_sku.trim().toUpperCase(),
       nombre_producto: form.nombre_producto.trim(),
       tipo_item: form.tipo_item,
@@ -60,7 +62,7 @@ export default function CatalogoPage() {
       precio_referencia: parseFloat(form.precio_referencia) || 0,
       stock_minimo: parseFloat(form.stock_minimo) || 0,
       vida_util_dias: parseInt(form.vida_util_dias) || null,
-    }])
+    }]).select().single()
 
     if (error) {
       if (error.message.includes('duplicate') || error.message.includes('unique')) {
@@ -72,9 +74,29 @@ export default function CatalogoPage() {
       return
     }
 
-    toast.success('Ítem registrado en el catálogo', { description: `${form.nombre_producto} con SKU ${form.codigo_sku}` })
+    // Paso 2: Si hay stock inicial, crear el movimiento en el Kardex automáticamente
+    const sInicial = parseFloat(form.stock_inicial) || 0
+    if (sInicial > 0) {
+      const { data: { session } } = await supabase.auth.getSession()
+      const { data: userData } = await supabase.from('usuarios').select('id_usuario').eq('auth_uid', session?.user?.id).single()
+
+      await supabase.from('movimientos_kardex').insert([{
+        id_item: newItem.id_item,
+        tipo_operacion: 'IN',
+        cantidad_kilos: sInicial,
+        concepto_operacion: 'SALDO INICIAL - Apertura de Catálogo (Demo Ciclo 1)',
+        id_usuario: userData?.id_usuario
+      }])
+    }
+
+    toast.success('Ítem registrado en el catálogo', { 
+      description: sInicial > 0 
+        ? `${form.nombre_producto} creado con saldo inicial de ${sInicial}`
+        : `${form.nombre_producto} registrado correctamente` 
+    })
+    
     setShowModal(false)
-    setForm({ codigo_sku: '', nombre_producto: '', tipo_item: '', categoria: '', unidad_medida: '', precio_referencia: '', stock_minimo: '', vida_util_dias: '' })
+    setForm({ codigo_sku: '', nombre_producto: '', tipo_item: '', categoria: '', unidad_medida: '', precio_referencia: '', stock_minimo: '', vida_util_dias: '', stock_inicial: '0' })
     setFormErrors({})
     fetchItems()
     setSaving(false)
@@ -212,6 +234,18 @@ export default function CatalogoPage() {
             <div className="space-y-2">
               <Label>Precio Ref. (Bs)</Label>
               <Input type="number" step="0.01" placeholder="0.00" value={form.precio_referencia} onChange={(e) => setForm({...form, precio_referencia: e.target.value})} />
+            </div>
+            <div className="col-span-2 p-3 bg-emerald-500/5 border border-emerald-500/20 rounded-lg space-y-2">
+              <Label className="text-emerald-400 font-bold">Saldo Inicial (Opcional)</Label>
+              <Input 
+                type="number" 
+                step="0.01" 
+                placeholder="0.00" 
+                value={form.stock_inicial} 
+                onChange={(e) => setForm({...form, stock_inicial: e.target.value})}
+                className="bg-background/50 border-emerald-500/30 focus-visible:ring-emerald-500/50" 
+              />
+              <p className="text-[10px] text-emerald-500/70">Si ingresa un valor, se generará automáticamente un movimiento de entrada en el Kárdex.</p>
             </div>
           </div>
           <DialogFooter className="gap-2">

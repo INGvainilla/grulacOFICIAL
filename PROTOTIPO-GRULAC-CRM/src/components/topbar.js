@@ -27,7 +27,8 @@ export function Topbar({ user }) {
           id_usuario: user.id_usuario,
           accion_sql: 'LOGOUT',
           tabla_afectada: 'usuarios',
-          new_data: { email: user.email_corporativo, timestamp: new Date().toISOString() }
+          registro_id: user.id_usuario,
+          new_data: { email: user.email_corporativo, accion: 'Cierre de sesión', timestamp: new Date().toISOString() }
         }])
       }
 

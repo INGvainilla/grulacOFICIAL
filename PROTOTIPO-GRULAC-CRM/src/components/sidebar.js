@@ -24,7 +24,15 @@ export function Sidebar({ user }) {
   
   const filteredItems = MENU_ITEMS.filter(item => {
     if (permissions.includes('ALL')) return true
-    return permissions.includes(item.module) || item.module === 'inicio' // Everyone sees inicio
+    
+    // Mapeo de superpoderes según el SQL del usuario
+    if (item.module === 'inicio') return true
+    if (item.module === 'proveedores' && (permissions.includes('recepcion') || permissions.includes('calidad'))) return true
+    if (item.module === 'catalogo' && permissions.includes('produccion')) return true
+    if (item.module === 'kardex' && (permissions.includes('produccion') || permissions.includes('almacen'))) return true
+    if (item.module === 'clientes' && permissions.includes('ventas')) return true
+
+    return permissions.includes(item.module)
   })
 
   return (

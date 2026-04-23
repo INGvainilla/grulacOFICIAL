@@ -19,11 +19,12 @@ export default function EmpleadosPage() {
   const [empleados, setEmpleados] = useState([])
   const [loading, setLoading] = useState(true)
   const [showAltaModal, setShowAltaModal] = useState(false)
-  const [showBajaModal, setShowBajaModal] = useState(false)
+  const [showStatusModal, setShowStatusModal] = useState(false)
   const [targetEmpleado, setTargetEmpleado] = useState(null)
   const [adminPin, setAdminPin] = useState('')
   const [roles, setRoles] = useState([])
   const [saving, setSaving] = useState(false)
+  const [currentAuthId, setCurrentAuthId] = useState(null)
   const supabase = createClient()
 
   // Form state for CU03
@@ -43,7 +44,7 @@ export default function EmpleadosPage() {
       .from('empleados')
       .select(`
         *,
-        usuarios ( id_usuario, email_corporativo, estado_acceso, id_rol, roles ( nombre_rol ) )
+        usuarios ( id_usuario, auth_uid, email_corporativo, estado_acceso, id_rol, roles ( nombre_rol ) )
       `)
       .order('id_empleado', { ascending: true })
 
@@ -61,6 +62,7 @@ export default function EmpleadosPage() {
   }
 
   useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => setCurrentAuthId(data?.user?.id))
     fetchEmpleados()
     fetchRoles()
   }, [])
@@ -100,29 +102,30 @@ export default function EmpleadosPage() {
       description: `Se ha enviado un correo a ${form.email_corporativo} para configurar la contraseña.`
     })
     setShowAltaModal(false)
-    setForm({ ci_documento: '', nombre_completo: '', cargo: '', telefono: '', email_corporativo: '', id_rol: '' })
-    setFormErrors({})
     fetchEmpleados()
     setSaving(false)
   }
 
-  // ========== CU04: Inhabilitar Empleado (Baja Lógica) ==========
-  const openBajaModal = (emp) => {
+
+
+  // ========== CU04: Gestionar Estado Operativo (Alta/Baja Lógica) ==========
+  const openStatusModal = (emp) => {
     setTargetEmpleado(emp)
     setAdminPin('')
-    setShowBajaModal(true)
+    setShowStatusModal(true)
   }
 
-  const handleBajaLogica = async () => {
+  const handleToggleStatus = async () => {
     if (!adminPin.trim()) {
       toast.error('Debe ingresar su contraseña de Administrador')
       return
     }
 
     setSaving(true)
+    const isCurrentlyActive = targetEmpleado.estado_activo
 
-    // E1: Verificar que no es el único admin
-    if (targetEmpleado.usuarios?.[0]?.id_rol === 1) {
+    // E1: Verificar que no es el único admin SOLO si estamos inhabilitando
+    if (isCurrentlyActive && targetEmpleado.usuarios?.[0]?.id_rol === 1) {
       const { count } = await supabase
         .from('usuarios')
         .select('id_usuario', { count: 'exact', head: true })
@@ -158,30 +161,32 @@ export default function EmpleadosPage() {
       return
     }
 
-    // Paso 4: Soft-Delete en empleados
+    const newState = !isCurrentlyActive
+
+    // Paso 4: Actualizar en empleados
     const { error: empErr } = await supabase
       .from('empleados')
-      .update({ estado_activo: false })
+      .update({ estado_activo: newState })
       .eq('id_empleado', targetEmpleado.id_empleado)
 
     if (empErr) {
-      toast.error('Error al inhabilitar empleado')
+      toast.error(`Error al ${newState ? 'habilitar' : 'inhabilitar'} empleado`)
       setSaving(false)
       return
     }
 
-    // UPDATE usuarios.estado_acceso = false (bloquea login)
+    // UPDATE usuarios.estado_acceso = newState (bloquea o habilita login)
     if (targetEmpleado.usuarios?.[0]?.id_usuario) {
       await supabase
         .from('usuarios')
-        .update({ estado_acceso: false })
+        .update({ estado_acceso: newState })
         .eq('id_usuario', targetEmpleado.usuarios[0].id_usuario)
     }
 
-    toast.success(`Operador ${targetEmpleado.nombre_completo} inhabilitado`, {
-      description: 'Su acceso al ERP ha sido revocado.'
+    toast.success(`Operador ${targetEmpleado.nombre_completo} ${newState ? 'rehabilitado' : 'inhabilitado'}`, {
+      description: newState ? 'Su acceso al ERP ha sido restaurado exitosamente.' : 'Su acceso al ERP ha sido revocado.'
     })
-    setShowBajaModal(false)
+    setShowStatusModal(false)
     setTargetEmpleado(null)
     fetchEmpleados()
     setSaving(false)
@@ -246,17 +251,31 @@ export default function EmpleadosPage() {
                           : <Badge variant="destructive" className="bg-red-500/10 text-red-500 hover:bg-red-500/20 border-red-500/20">Inactivo</Badge>
                         }
                       </TableCell>
-                      <TableCell className="text-right">
-                        <Button 
-                          variant="ghost" 
-                          size="sm" 
-                          className="text-red-400 hover:text-red-300 hover:bg-red-950/50"
-                          disabled={!emp.estado_activo}
-                          onClick={() => openBajaModal(emp)}
-                        >
-                          {emp.estado_activo ? <UserMinus className="h-4 w-4 mr-2" /> : <ShieldAlert className="h-4 w-4 mr-2" />}
-                          {emp.estado_activo ? 'Dar de Baja' : 'Bloqueado'}
-                        </Button>
+                      <TableCell className="text-right whitespace-nowrap">
+                        {(() => {
+                          const isSelf = emp.usuarios?.[0]?.auth_uid === currentAuthId
+                          return (
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              className={`${
+                                emp.estado_activo 
+                                  ? 'text-red-400 hover:text-red-300 hover:bg-red-950/50' 
+                                  : 'text-emerald-400 hover:text-emerald-300 hover:bg-emerald-950/50'
+                              } disabled:opacity-50`}
+                              disabled={isSelf}
+                              onClick={() => openStatusModal(emp)}
+                            >
+                              {isSelf ? (
+                                <><ShieldAlert className="h-4 w-4 mr-2" /> Eres Tú</>
+                              ) : emp.estado_activo ? (
+                                <><UserMinus className="h-4 w-4 mr-2" /> Dar de Baja</>
+                              ) : (
+                                <><UserPlus className="h-4 w-4 mr-2" /> Rehabilitar</>
+                              )}
+                            </Button>
+                          )
+                        })()}
                       </TableCell>
                     </TableRow>
                   ))
@@ -353,21 +372,23 @@ export default function EmpleadosPage() {
         </DialogContent>
       </Dialog>
 
-      {/* ========== MODAL CU04: Confirmación Crítica — Baja de Personal ========== */}
-      <Dialog open={showBajaModal} onOpenChange={setShowBajaModal}>
+      {/* ========== MODAL CU04: Confirmación Crítica — Gestionar Estado ========== */}
+      <Dialog open={showStatusModal} onOpenChange={setShowStatusModal}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <div className="flex items-center gap-3 mb-2">
-              <div className="w-12 h-12 rounded-full bg-red-500/10 flex items-center justify-center">
-                <ShieldAlert className="w-6 h-6 text-red-500" />
+              <div className={`w-12 h-12 rounded-full ${targetEmpleado?.estado_activo ? 'bg-red-500/10' : 'bg-emerald-500/10'} flex items-center justify-center`}>
+                {targetEmpleado?.estado_activo ? <ShieldAlert className="w-6 h-6 text-red-500" /> : <UserPlus className="w-6 h-6 text-emerald-500" />}
               </div>
               <div>
-                <DialogTitle className="text-lg">Confirmación Crítica: Baja de Personal</DialogTitle>
+                <DialogTitle className="text-lg">
+                  Confirmación Crítica: {targetEmpleado?.estado_activo ? 'Baja' : 'Rehabilitación'} de Personal
+                </DialogTitle>
               </div>
             </div>
             <DialogDescription>
-              Está a punto de revocar todos los privilegios de <strong>{targetEmpleado?.nombre_completo}</strong>. 
-              Escriba su contraseña maestra de Administrador para continuar.
+              Está a punto de {targetEmpleado?.estado_activo ? 'revocar' : 'restaurar'} todos los privilegios de <strong>{targetEmpleado?.nombre_completo}</strong>. 
+              Escriba su contraseña maestra de Administrador para confirmar.
             </DialogDescription>
           </DialogHeader>
           <div className="py-4 space-y-3">
@@ -382,13 +403,20 @@ export default function EmpleadosPage() {
             />
           </div>
           <DialogFooter className="gap-2">
-            <Button variant="outline" onClick={() => setShowBajaModal(false)} disabled={saving}>Cancelar</Button>
-            <Button variant="destructive" onClick={handleBajaLogica} disabled={saving || !adminPin.trim()}>
-              {saving ? 'Procesando...' : 'Revocar Acceso'}
+            <Button variant="outline" onClick={() => setShowStatusModal(false)} disabled={saving}>Cancelar</Button>
+            <Button 
+              variant={targetEmpleado?.estado_activo ? "destructive" : "default"} 
+              className={!targetEmpleado?.estado_activo ? "bg-emerald-600 hover:bg-emerald-700 text-white" : ""}
+              onClick={handleToggleStatus} 
+              disabled={saving || !adminPin.trim()}
+            >
+              {saving ? 'Procesando...' : (targetEmpleado?.estado_activo ? 'Revocar Acceso' : 'Restaurar Acceso')}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+
     </div>
   )
 }

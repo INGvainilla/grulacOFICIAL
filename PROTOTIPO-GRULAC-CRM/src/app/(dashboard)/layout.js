@@ -12,6 +12,15 @@ export default async function DashboardLayout({ children }) {
     redirect('/login')
   }
 
+  // GUARDIA MAESTRA (Anti-Bypass de Magic Links):
+  // Si la sesión proviene de un enlace de recuperación o invitación, el usuario
+  // no ha pasado por el Login oficial y no ha dejado rastro en la bitácora.
+  // Lo encerramos en la pantalla de actualizar contraseña.
+  const isRecoverySession = session.user?.amr?.some(auth => auth.method === 'recovery' || auth.method === 'invite')
+  if (isRecoverySession) {
+    redirect('/actualizar-contrasena')
+  }
+
   // Get user profile from DB and VERIFY estado_acceso (CU01 E2 + CU04)
   const { data: userData } = await supabase
     .from('usuarios')
