@@ -11,7 +11,7 @@ import { Label } from '@/components/ui/label'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { toast } from 'sonner'
-import { PlusCircle } from 'lucide-react'
+import { PlusCircle, Ban } from 'lucide-react'
 
 // CU12: Registrar Proveedor / Ganadero
 export default function ProveedoresPage() {
@@ -19,6 +19,7 @@ export default function ProveedoresPage() {
   const [loading, setLoading] = useState(true)
   const [showModal, setShowModal] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [providerToDisable, setProviderToDisable] = useState(null)
   const supabase = createClient()
 
   const [form, setForm] = useState({
@@ -86,6 +87,49 @@ export default function ProveedoresPage() {
     setSaving(false)
   }
 
+  // CU13: Inhabilitar Proveedor
+  const handleInhabilitar = async () => {
+    if (!providerToDisable) return
+    setSaving(true)
+
+    // 1. Check pending orders
+    const { count, error: countError } = await supabase
+      .from('compras_insumos')
+      .select('*', { count: 'exact', head: true })
+      .eq('id_proveedor', providerToDisable.id_proveedor)
+      .in('estado_compra', ['Pendiente', 'Parcial'])
+
+    if (countError) {
+      toast.error('Error al verificar órdenes', { description: countError.message })
+      setSaving(false)
+      return
+    }
+
+    if (count > 0) {
+      toast.error('No se puede inhabilitar', { description: `El proveedor tiene ${count} orden(es) de compra pendientes.` })
+      setSaving(false)
+      setProviderToDisable(null)
+      return
+    }
+
+    // 2. Update status
+    const { error: updateError } = await supabase
+      .from('proveedores')
+      .update({ estado_reputacion: 'Suspendido' })
+      .eq('id_proveedor', providerToDisable.id_proveedor)
+
+    if (updateError) {
+      toast.error('Error al inhabilitar', { description: updateError.message })
+      setSaving(false)
+      return
+    }
+
+    toast.success('Proveedor inhabilitado', { description: 'El proveedor ha sido suspendido exitosamente.' })
+    setProviderToDisable(null)
+    setSaving(false)
+    fetchProv()
+  }
+
   const ESTADO_BADGES = {
     'Activo': 'bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20',
     'Observado': 'bg-yellow-500/10 text-yellow-500 hover:bg-yellow-500/20',
@@ -121,6 +165,7 @@ export default function ProveedoresPage() {
                   <TableHead>Tipo Suministro</TableHead>
                   <TableHead>Colonia/Ruta</TableHead>
                   <TableHead>Reputación</TableHead>
+                  <TableHead className="text-right">Acciones</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -139,6 +184,19 @@ export default function ProveedoresPage() {
                         {prov.estado_reputacion}
                       </Badge>
                     </TableCell>
+                    <TableCell className="text-right">
+                      {prov.estado_reputacion !== 'Suspendido' && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="text-red-500 hover:bg-red-500/10 hover:text-red-600"
+                          onClick={() => setProviderToDisable(prov)}
+                        >
+                          <Ban className="w-4 h-4 mr-1" />
+                          Inhabilitar
+                        </Button>
+                      )}
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -155,7 +213,7 @@ export default function ProveedoresPage() {
             <DialogDescription>Registre un nuevo origen de materia prima o insumos agrarios.</DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>NIT / Carnet de Identidad *</Label>
                 <Input 
@@ -191,7 +249,7 @@ export default function ProveedoresPage() {
               />
               {formErrors.razon_social && <p className="text-xs text-red-500">{formErrors.razon_social}</p>}
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Teléfono</Label>
                 <Input placeholder="Ej: 76543210" value={form.telefono} onChange={(e) => setForm({...form, telefono: e.target.value})} />
@@ -210,6 +268,25 @@ export default function ProveedoresPage() {
             <Button variant="outline" onClick={() => setShowModal(false)} disabled={saving}>Descartar</Button>
             <Button onClick={handleCrearProveedor} className="bg-emerald-600 hover:bg-emerald-700" disabled={saving}>
               {saving ? 'Registrando...' : 'Registrar Origen'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ========== MODAL CU13: Confirmar Inhabilitación ========== */}
+      <Dialog open={!!providerToDisable} onOpenChange={(open) => !open && setProviderToDisable(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-red-500">Inhabilitar Proveedor</DialogTitle>
+            <DialogDescription>
+              ¿Está seguro que desea suspender a <strong>{providerToDisable?.razon_social}</strong>? 
+              Se verificarán órdenes de compra pendientes antes de proceder.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2 mt-4">
+            <Button variant="outline" onClick={() => setProviderToDisable(null)} disabled={saving}>Cancelar</Button>
+            <Button variant="destructive" onClick={handleInhabilitar} disabled={saving}>
+              {saving ? 'Verificando...' : 'Confirmar Suspensión'}
             </Button>
           </DialogFooter>
         </DialogContent>

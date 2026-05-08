@@ -4,18 +4,21 @@ import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { LogOut, User, KeyRound, Bell } from 'lucide-react'
+import { LogOut, User, KeyRound, Bell, Menu } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet'
 import { toast } from 'sonner'
+import { SidebarContent } from './sidebar'
 
 export function Topbar({ user }) {
   const router = useRouter()
   const supabase = createClient()
   const [showLogoutDialog, setShowLogoutDialog] = useState(false)
   const [loggingOut, setLoggingOut] = useState(false)
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
 
   // CU02: Cerrar Sesión — con Diálogo de Confirmación (Paso 3)
   const handleLogout = async () => {
@@ -54,7 +57,15 @@ export function Topbar({ user }) {
       <header className="h-16 border-b border-border/50 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 flex items-center justify-between px-4 md:px-6 sticky top-0 z-40">
         
         <div className="flex items-center md:hidden">
-           {/* Mobile menu trigger */}
+          <Sheet open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
+            <SheetTrigger render={<Button variant="ghost" size="icon" className="mr-2" />}>
+              <Menu className="h-5 w-5" />
+              <span className="sr-only">Toggle mobile menu</span>
+            </SheetTrigger>
+            <SheetContent side="left" className="w-64 p-0 flex flex-col">
+              <SidebarContent user={user} onItemClick={() => setIsMobileMenuOpen(false)} />
+            </SheetContent>
+          </Sheet>
         </div>
         
         {/* Spacer / Left side */}

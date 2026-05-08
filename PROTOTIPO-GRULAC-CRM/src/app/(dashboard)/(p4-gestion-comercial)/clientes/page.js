@@ -45,7 +45,8 @@ export default function ClientesPage() {
     return Object.keys(errors).length === 0
   }
 
-  const handleCrearCliente = async () => {
+  const handleCrearCliente = async (e) => {
+    e.preventDefault();
     if (!validateForm()) return
     setSaving(true)
 
@@ -149,13 +150,15 @@ export default function ClientesPage() {
             <DialogTitle>Registro de Nuevo Cliente</DialogTitle>
             <DialogDescription>Integre un comprador al sistema para habilitar pedidos y facturación.</DialogDescription>
           </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>NIT de Facturación *</Label>
-                <Input
-                  placeholder="Ej: 1023456789"
-                  value={form.nit_facturacion}
+          <form onSubmit={handleCrearCliente}>
+            <div className="space-y-4 py-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>NIT de Facturación *</Label>
+                  <Input
+                    required
+                    placeholder="Ej: 1023456789"
+                    value={form.nit_facturacion}
                   onChange={(e) => { setForm({...form, nit_facturacion: e.target.value}); setFormErrors({...formErrors, nit_facturacion: ''}) }}
                   className={formErrors.nit_facturacion ? 'border-red-500' : ''}
                 />
@@ -163,7 +166,7 @@ export default function ClientesPage() {
               </div>
               <div className="space-y-2">
                 <Label>Categoría Comercial *</Label>
-                <Select value={form.tipo_cliente} onValueChange={(val) => { setForm({...form, tipo_cliente: val}); setFormErrors({...formErrors, tipo_cliente: ''}) }}>
+                <Select required value={form.tipo_cliente} onValueChange={(val) => { setForm({...form, tipo_cliente: val}); setFormErrors({...formErrors, tipo_cliente: ''}) }}>
                   <SelectTrigger className={formErrors.tipo_cliente ? 'border-red-500' : ''}>
                     <SelectValue placeholder="Seleccione..." />
                   </SelectTrigger>
@@ -178,6 +181,7 @@ export default function ClientesPage() {
             <div className="space-y-2">
               <Label>Razón Social *</Label>
               <Input
+                required
                 placeholder="Ej: Supermercados Hipermaxi S.A."
                 value={form.razon_social}
                 onChange={(e) => { setForm({...form, razon_social: e.target.value}); setFormErrors({...formErrors, razon_social: ''}) }}
@@ -185,7 +189,7 @@ export default function ClientesPage() {
               />
               {formErrors.razon_social && <p className="text-xs text-red-500">{formErrors.razon_social}</p>}
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Teléfono</Label>
                 <Input placeholder="Ej: 33445566" value={form.telefono} onChange={(e) => setForm({...form, telefono: e.target.value})} />
@@ -195,7 +199,7 @@ export default function ClientesPage() {
                 <Input type="email" placeholder="ventas@empresa.com" value={form.email} onChange={(e) => setForm({...form, email: e.target.value})} />
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Ciudad</Label>
                 <Input placeholder="Ej: Santa Cruz" value={form.ciudad} onChange={(e) => setForm({...form, ciudad: e.target.value})} />
@@ -204,14 +208,15 @@ export default function ClientesPage() {
                 <Label>Dirección</Label>
                 <Input placeholder="Ej: Av. Cañoto 3er anillo" value={form.direccion} onChange={(e) => setForm({...form, direccion: e.target.value})} />
               </div>
+              </div>
             </div>
-          </div>
-          <DialogFooter className="gap-2">
-            <Button variant="outline" onClick={() => setShowModal(false)} disabled={saving}>Cancelar</Button>
-            <Button onClick={handleCrearCliente} className="bg-blue-600 hover:bg-blue-700" disabled={saving}>
-              {saving ? 'Guardando...' : 'Confirmar y Guardar'}
-            </Button>
-          </DialogFooter>
+            <DialogFooter className="gap-2">
+              <Button type="button" variant="outline" onClick={() => setShowModal(false)} disabled={saving}>Cancelar</Button>
+              <Button type="submit" className="bg-blue-600 hover:bg-blue-700" disabled={saving}>
+                {saving ? 'Guardando...' : 'Confirmar y Guardar'}
+              </Button>
+            </DialogFooter>
+          </form>
         </DialogContent>
       </Dialog>
     </div>

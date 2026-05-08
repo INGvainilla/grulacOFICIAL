@@ -172,7 +172,7 @@ export default function CatalogoPage() {
             <DialogTitle>Crear Nueva Identidad de Ítem</DialogTitle>
             <DialogDescription>Registre un insumo, materia prima o producto terminado en el catálogo maestro.</DialogDescription>
           </DialogHeader>
-          <div className="grid grid-cols-2 gap-4 py-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 py-4">
             <div className="space-y-2">
               <Label>Código SKU *</Label>
               <Input 
@@ -198,7 +198,7 @@ export default function CatalogoPage() {
               </Select>
               {formErrors.tipo_item && <p className="text-xs text-red-500">{formErrors.tipo_item}</p>}
             </div>
-            <div className="col-span-2 space-y-2">
+            <div className="sm:col-span-2 space-y-2">
               <Label>Nombre del Producto *</Label>
               <Input 
                 placeholder="Ej: Cloruro de Calcio Industrial"
@@ -235,7 +235,7 @@ export default function CatalogoPage() {
               <Label>Precio Ref. (Bs)</Label>
               <Input type="number" step="0.01" placeholder="0.00" value={form.precio_referencia} onChange={(e) => setForm({...form, precio_referencia: e.target.value})} />
             </div>
-            <div className="col-span-2 p-3 bg-emerald-500/5 border border-emerald-500/20 rounded-lg space-y-2">
+            <div className="sm:col-span-2 p-3 bg-emerald-500/5 border border-emerald-500/20 rounded-lg space-y-2">
               <Label className="text-emerald-400 font-bold">Saldo Inicial (Opcional)</Label>
               <Input 
                 type="number" 
