@@ -1,22 +1,13 @@
-/****************************************
-# SCHEMA DDL: SISTEMA ERP GRULAC S.R.L.
-**Versión:** 2.0 — Completa (26 Tablas)
-**Base de Datos:** PostgreSQL / Supabase
-**Actualizado:** Abril 2026
-
-**Cobertura:**
-- 26 tablas (16 existentes + 10 nuevas)
-- 15 módulos funcionales completos
-- 25 casos de uso cubiertos
-- Trazabilidad SENASAG extremo a extremo
-- FEFO, RBAC, Kardex, QA, Logística Inversa
-- NOT NULLs, CHECKs, FKs validadas
-****************************************/
+-- =====================================================
+-- SCHEMA COMPLETO ERP GRULAC S.R.L. — 26 TABLAS
+-- Base: NuevaBase (Ciclo 1) + Tablas Oficiales Faltantes
+-- PostgreSQL / Supabase — Gestión: 1-2026
+-- =====================================================
 
 
 -- =====================================================================
--- BLOQUE A: SEGURIDAD, AUDITORÍA Y RRHH (Módulo 1 + 14)
--- CU01, CU02, CU03, CU04, CU05
+-- BLOQUE A: SEGURIDAD, AUDITORÍA Y RRHH
+-- CU01, CU02, CU03, CU04, CU05, CU31, CU32, CU33, CU34
 -- =====================================================================
 
 CREATE TABLE roles (
@@ -44,13 +35,19 @@ CREATE TABLE empleados (
 
 CREATE TABLE usuarios (
     id_usuario SERIAL PRIMARY KEY,
+    -- VINCULACIÓN CON SUPABASE AUTH (Crucial para que el código Next.js funcione)
+    auth_uid UUID UNIQUE,
+
     id_rol INT NOT NULL REFERENCES roles(id_rol),
     id_empleado INT NOT NULL REFERENCES empleados(id_empleado),
     email_corporativo VARCHAR(100) UNIQUE NOT NULL,
     estado_acceso BOOLEAN DEFAULT true,
-    password_hash VARCHAR(255) NOT NULL,
+
+    -- SEGURIDAD ADICIONAL (Para CU01, CU04, CU31)
+    password_hash VARCHAR(255), -- Hash para validación manual (nullable para flujo de invitación)
     ultimo_login TIMESTAMPTZ,
     intentos_fallidos INT DEFAULT 0,
+
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -70,8 +67,7 @@ CREATE TABLE bitacora_auditoria (
 
 -- =====================================================================
 -- BLOQUE B: DATOS MAESTROS — Catálogo, Proveedores, Compras
--- (Módulo 2 + 4 + 5)
--- CU06, CU07, CU08, CU25
+-- CU08, CU09, CU12, CU13, CU14, CU15, CU16
 -- =====================================================================
 
 CREATE TABLE catalogo_items (
@@ -86,9 +82,9 @@ CREATE TABLE catalogo_items (
     precio_referencia DECIMAL(10,2) DEFAULT 0,
     vida_util_dias INT,
     stock_minimo DECIMAL(10,2) DEFAULT 0,
-    created_at TIMESTAMPTZ DEFAULT NOW(), --fecha y hora de creacion del producto
-    updated_at TIMESTAMPTZ DEFAULT NOW()  --fecha y hora de modificacion   
-);    -- todas aquellas tablas que contengan el created_at y updated_at son para la tabla de auditoria
+    created_at TIMESTAMPTZ DEFAULT NOW(), -- fecha y hora de creación del producto
+    updated_at TIMESTAMPTZ DEFAULT NOW()  -- fecha y hora de modificación
+);    -- todas aquellas tablas que contengan created_at y updated_at son para la bitácora de auditoría
 
 CREATE TABLE proveedores (
     id_proveedor SERIAL PRIMARY KEY,
@@ -108,18 +104,20 @@ CREATE TABLE proveedores (
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- CU14: Elaborar Orden de Compra de Insumos
 CREATE TABLE compras_insumos (
     id_compra SERIAL PRIMARY KEY,
     id_proveedor INT NOT NULL REFERENCES proveedores(id_proveedor),
     id_usuario_recibe INT NOT NULL REFERENCES usuarios(id_usuario),
     numero_factura_compra VARCHAR(50),
-    estado_compra VARCHAR(30) DEFAULT 'Recibida' CHECK (
+    estado_compra VARCHAR(30) DEFAULT 'Pendiente' CHECK (
         estado_compra IN ('Pendiente','Recibida','Parcial','Anulada')
     ),
     monto_total_bs DECIMAL(10,2),
     fecha_compra TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- CU14 / CU15: Detalle de los ítems de cada orden de compra
 CREATE TABLE detalle_compras (
     id_detalle_compra SERIAL PRIMARY KEY,
     id_compra INT NOT NULL REFERENCES compras_insumos(id_compra),
@@ -130,9 +128,11 @@ CREATE TABLE detalle_compras (
     fecha_vencimiento DATE
 );
 
+-- CU16: Registrar Pago a Proveedor
 CREATE TABLE pagos_proveedores (
     id_pago SERIAL PRIMARY KEY,
     id_proveedor INT NOT NULL REFERENCES proveedores(id_proveedor),
+    id_compra INT REFERENCES compras_insumos(id_compra), -- CU16: vincula el pago a la compra específica que se está cancelando
     id_usuario_registra INT NOT NULL REFERENCES usuarios(id_usuario),
     monto_pagado_bs DECIMAL(10,2) NOT NULL,
     metodo_pago VARCHAR(30),
@@ -142,8 +142,8 @@ CREATE TABLE pagos_proveedores (
 
 
 -- =====================================================================
--- BLOQUE C: RECEPCIÓN DE LECHE Y MONITOREO AMBIENTAL (Módulo 3)
--- CU10, CU22
+-- BLOQUE C: RECEPCIÓN DE LECHE Y MONITOREO AMBIENTAL
+-- CU17, CU18
 -- =====================================================================
 
 CREATE TABLE zonas_almacen (
@@ -166,7 +166,7 @@ CREATE TABLE control_temperaturas (
     fecha_hora TIMESTAMPTZ DEFAULT NOW()
 );
 
--- *** TABLA NUEVA: Recepción de Leche Cruda y Triage ***
+-- CU17 + CU18: Ticket de ingreso de cisterna y Triage Bioquímico
 CREATE TABLE recepciones_leche (
     id_recepcion SERIAL PRIMARY KEY,
     id_proveedor INT NOT NULL REFERENCES proveedores(id_proveedor),
@@ -190,17 +190,18 @@ CREATE TABLE recepciones_leche (
 
 
 -- =====================================================================
--- BLOQUE D: INVENTARIO KARDEX (Módulo 4 + 8)
--- CU07, CU13
+-- BLOQUE D: INVENTARIO KARDEX
+-- CU09, CU10, CU11
 -- =====================================================================
 
 -- Nota: id_lote e id_orden_asociada se referencian DESPUÉS de crear
--- las tablas lote_produccion y ordenes_produccion (ALTER TABLE al final)
+-- lote_produccion y ordenes_produccion (las FKs son deferidas)
 CREATE TABLE movimientos_kardex (
     id_movimiento SERIAL PRIMARY KEY,
     id_item INT NOT NULL REFERENCES catalogo_items(id_item),
-    id_lote INT,
-    id_orden_asociada INT,
+    id_lote INT,           -- FK diferida, se agrega con ALTER TABLE al final
+    id_orden_asociada INT, -- FK diferida → ordenes_produccion (producción)
+    id_compra_origen INT,  -- FK diferida → compras_insumos (CU15: trazabilidad de recepción de insumos)
     id_usuario INT NOT NULL REFERENCES usuarios(id_usuario),
     tipo_operacion VARCHAR(20) NOT NULL CHECK (
         tipo_operacion IN ('IN','OUT','AJUSTE')
@@ -212,10 +213,11 @@ CREATE TABLE movimientos_kardex (
 
 
 -- =====================================================================
--- BLOQUE E: PRODUCCIÓN Y CALIDAD (Módulo 5 + 6 + 7)
--- CU09, CU11, CU12, CU13, CU23, CU24
+-- BLOQUE E: PRODUCCIÓN Y CONTROL DE CALIDAD
+-- CU19, CU20, CU21, CU22, CU23, CU24, CU25
 -- =====================================================================
 
+-- CU19: Registrar Receta Base BOM
 CREATE TABLE recetas_bom (
     id_receta SERIAL PRIMARY KEY,
     id_item_resultado INT NOT NULL REFERENCES catalogo_items(id_item),
@@ -228,7 +230,7 @@ CREATE TABLE recetas_bom (
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- *** TABLA NUEVA: Detalle de Ingredientes de cada Receta BOM ***
+-- CU19: Detalle de ingredientes de cada receta BOM
 CREATE TABLE receta_ingredientes (
     id_detalle_receta SERIAL PRIMARY KEY,
     id_receta INT NOT NULL REFERENCES recetas_bom(id_receta),
@@ -240,7 +242,7 @@ CREATE TABLE receta_ingredientes (
     observaciones VARCHAR(255)
 );
 
--- *** TABLA NUEVA: Órdenes de Producción ***
+-- CU20 + CU21: Aperturar y registrar parámetros de una orden de producción
 CREATE TABLE ordenes_produccion (
     id_orden SERIAL PRIMARY KEY,
     id_jefe_produccion INT NOT NULL REFERENCES usuarios(id_usuario),
@@ -261,7 +263,7 @@ CREATE TABLE ordenes_produccion (
     observaciones TEXT
 );
 
--- *** TABLA NUEVA: Lotes de Producción Físicos ***
+-- CU22: Codificar Lote Físico Terminado
 CREATE TABLE lote_produccion (
     id_lote SERIAL PRIMARY KEY,
     id_orden INT NOT NULL REFERENCES ordenes_produccion(id_orden),
@@ -281,7 +283,7 @@ CREATE TABLE lote_produccion (
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- *** TABLA NUEVA: Fichas de Control de Calidad QA ***
+-- CU23 + CU24 + CU25: Ficha de Control de Calidad QA
 CREATE TABLE fichas_calidad (
     id_ficha SERIAL PRIMARY KEY,
     id_orden INT NOT NULL REFERENCES ordenes_produccion(id_orden),
@@ -301,8 +303,8 @@ CREATE TABLE fichas_calidad (
 
 
 -- =====================================================================
--- BLOQUE F: COMERCIAL Y LOGÍSTICA (Módulo 9 + 10 + 11)
--- CU14, CU15, CU16, CU20, CU21
+-- BLOQUE F: COMERCIAL Y LOGÍSTICA
+-- CU26, CU27, CU28, CU29, CU30
 -- =====================================================================
 
 CREATE TABLE clientes (
@@ -320,7 +322,7 @@ CREATE TABLE clientes (
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- *** TABLA NUEVA: Pedidos y Reservas Comerciales ***
+-- CU27: Generar Pedido de Venta / Reserva de stock
 CREATE TABLE pedidos_ventas (
     id_pedido SERIAL PRIMARY KEY,
     id_cliente INT NOT NULL REFERENCES clientes(id_cliente),
@@ -340,7 +342,7 @@ CREATE TABLE pedidos_ventas (
     observaciones TEXT
 );
 
--- *** TABLA NUEVA: Detalle de cada Pedido ***
+-- CU27: Detalle de cada pedido
 CREATE TABLE detalle_pedidos (
     id_detalle SERIAL PRIMARY KEY,
     id_pedido INT NOT NULL REFERENCES pedidos_ventas(id_pedido),
@@ -349,7 +351,7 @@ CREATE TABLE detalle_pedidos (
     precio_unitario DECIMAL(10,2) NOT NULL
 );
 
--- *** TABLA NUEVA: Facturación ***
+-- CU28: Emitir Factura Comercial
 CREATE TABLE factura (
     id_factura SERIAL PRIMARY KEY,
     id_pedido INT NOT NULL REFERENCES pedidos_ventas(id_pedido),
@@ -364,7 +366,7 @@ CREATE TABLE factura (
     fecha_emision TIMESTAMPTZ DEFAULT NOW()
 );
 
--- *** TABLA NUEVA: Despachos Logísticos ***
+-- CU29: Ejecutar Despacho Físico por FEFO
 CREATE TABLE despachos_logisticos (
     id_despacho SERIAL PRIMARY KEY,
     id_pedido INT NOT NULL REFERENCES pedidos_ventas(id_pedido),
@@ -376,7 +378,7 @@ CREATE TABLE despachos_logisticos (
     observaciones TEXT
 );
 
--- *** TABLA NUEVA: Devoluciones y Logística Inversa ***
+-- CU30: Registrar Devolución de Queso (Logística Inversa)
 CREATE TABLE devoluciones_qa (
     id_devolucion SERIAL PRIMARY KEY,
     id_despacho INT NOT NULL REFERENCES despachos_logisticos(id_despacho),
@@ -393,10 +395,11 @@ CREATE TABLE devoluciones_qa (
 
 
 -- =====================================================================
--- BLOQUE G: SOPORTE DOCUMENTAL Y ALERTAS (Módulo 13 + 15)
--- CU18, CU19
+-- BLOQUE G: SOPORTE DOCUMENTAL Y ALERTAS
+-- CU06, CU07
 -- =====================================================================
 
+-- CU07: Respaldar Fichas a Storage Externo
 CREATE TABLE respaldos_documentales (
     id_documento SERIAL PRIMARY KEY,
     entidad_afectada VARCHAR(50) NOT NULL,
@@ -411,6 +414,7 @@ CREATE TABLE respaldos_documentales (
     fecha_subida TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- CU11: Configurar Alertas de Stock Mínimo y otros eventos
 CREATE TABLE config_alertas (
     id_alerta SERIAL PRIMARY KEY,
     nombre_alerta VARCHAR(100) NOT NULL,
@@ -427,3 +431,35 @@ CREATE TABLE config_alertas (
     cron_expresion VARCHAR(50) DEFAULT '0 7 * * *',
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+
+-- =====================================================================
+-- BLOQUE H: FOREIGN KEYS DIFERIDAS
+-- Se agregan después de crear todas las tablas para evitar
+-- referencias circulares entre movimientos_kardex, lote_produccion
+-- y ordenes_produccion
+-- =====================================================================
+
+ALTER TABLE movimientos_kardex
+    ADD CONSTRAINT fk_kardex_lote
+    FOREIGN KEY (id_lote) REFERENCES lote_produccion(id_lote);
+
+ALTER TABLE movimientos_kardex
+    ADD CONSTRAINT fk_kardex_orden
+    FOREIGN KEY (id_orden_asociada) REFERENCES ordenes_produccion(id_orden);
+
+-- CU15: Trazabilidad de movimientos de Kardex originados por una recepción de insumos comprados
+ALTER TABLE movimientos_kardex
+    ADD CONSTRAINT fk_kardex_compra_origen
+    FOREIGN KEY (id_compra_origen) REFERENCES compras_insumos(id_compra);
+    
+
+
+INSERT INTO roles (nombre_rol, descripcion, permisos_json) VALUES
+  ('Administrador', 'Acceso total al sistema ERP', '{"modulos": ["ALL"]}'),
+  ('Jefe Produccion', 'Control de órdenes, recetas y kardex', '{"modulos": ["produccion","kardex","catalogo"]}'),
+  ('Control Calidad QA', 'Fichas de calidad, recepción, laboratorio', '{"modulos": ["calidad","recepcion"]}'),
+  ('Recepcionista', 'Acopio de leche y triage bioquímico', '{"modulos": ["recepcion","compras"]}'),
+  ('Almacenero', 'Despacho, temperaturas y kardex', '{"modulos": ["almacen","kardex","despacho"]}'),
+  ('Asesor Comercial', 'Ventas, compras, clientes, pedidos y facturación', '{"modulos": ["ventas","clientes","pedidos","compras","proveedores"]}')
+ON CONFLICT (nombre_rol) DO NOTHING;

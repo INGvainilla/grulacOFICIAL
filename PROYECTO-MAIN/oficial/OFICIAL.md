@@ -2268,6 +2268,327 @@ CU33 ..> VerificarUso : <<include>>
 *Prompt a ingresar textual en tu IA:*
 > "Pantalla de bienvenida y configuración de contraseña. Encabezado: 'Bienvenido a GRULAC, establece tu credencial'. Subtítulo: 'Crea una contraseña segura para tu primer ingreso'. Dos campos de texto protegidos con ojito toggle y un checklist dinámico de seguridad abajo. Botón azul masivo 'Completar Registro'."
 
+
+### CICLO 2: Dominio Logístico y Reglas SCM
+
+#### CU13: Inhabilitar Proveedor (Bloqueo)
+
+**Descripción del diagrama:** Muestra la relación entre el Administrador General y la acción de bloquear a un proveedor, incluyendo la verificación obligatoria de que no existan órdenes de compra pendientes antes de proceder.
+
+**A. Estructura del Modelo de CU (Diagrama Específico)**
+```plantuml
+@startuml
+left to right direction
+actor "Administrador General" as Admin
+rectangle "Sistema ERP GRULAC - Submódulo SCM" {
+  usecase "CU13: Inhabilitar Proveedor" as CU13
+  usecase "Verificar Órdenes Pendientes" as Verificar
+}
+Admin --> CU13
+CU13 ..> Verificar : <<include>>
+@enduml
+```
+
+**B. Ficha de Especificación del Caso de Uso**
+- **1. CASO DE USO:** CU13 - Inhabilitar Proveedor (Bloqueo Comercial).
+- **2. PROPÓSITO:** Restringir toda relación comercial con un ganadero o empresa proveedora que haya incurrido en faltas sanitarias, incumplimientos contractuales o adulteración de materia prima, preservando intacto el historial de transacciones pasadas.
+- **3. DESCRIPCIÓN:** Permite al Administrador localizar un proveedor activo en la grilla del módulo SCM y cambiar su estado algorítmico a `'Inhabilitado'` (`UPDATE is_activo = FALSE`), impidiendo que el Ing. Industrial lo seleccione en futuras recepciones de leche o insumos.
+- **4. ACTORES:** Tablas de BD (`proveedores`, `bitacora_auditoria`).
+- **5. ACTOR INICIADOR:** Administrador General.
+- **6. PRECONDICIÓN:** El Administrador debe estar logueado; el proveedor objetivo debe existir y su estatus actual debe ser `'Activo'`.
+- **7. FLUJO PRINCIPAL (Camino Feliz):**
+  1. El Administrador ingresa al módulo "Compras y Ganaderos" → "Maestro Proveedores".
+  2. El Administrador ubica al proveedor en la tabla y hace clic en el botón de acción "Inhabilitar".
+  3. El sistema despliega un mensaje crítico: "¿Está seguro de bloquear comercialmente a este proveedor? No podrá recibir mercadería de esta fuente.".
+  4. El Administrador confirma la operación.
+  5. El sistema verifica que no existan Órdenes de Compra (`ordenes_compra`) en estado `'Pendiente'` o `'En Tránsito'` asociadas a este proveedor.
+  6. El sistema ejecuta el `UPDATE proveedores SET is_activo = FALSE WHERE id_proveedor = X`.
+  7. El sistema actualiza la grilla, mostrando al proveedor con un chip rojo "Inhabilitado".
+- **8. POST CONDICIÓN:** El proveedor bloqueado desaparece de todos los selectores de recepción (CU15, CU17). Las transacciones históricas (recepciones, pagos) firmadas por este proveedor permanecen auditables. Toda la transacción queda inmutablemente respaldada en la Bitácora de Auditoría.
+- **9. EXCEPCIONES (Flujo Secundario):**
+  - *E1: Órdenes de Compra Pendientes.* Si existen órdenes activas vinculadas al proveedor, el sistema aborta la inhabilitación mostrando: "Este proveedor tiene N orden(es) pendiente(s). Ciérrelas antes de proceder al bloqueo".
+  - *E2: Proveedor ya Inhabilitado.* Si el proveedor ya está inactivo, el botón se muestra deshabilitado visualmente.
+
+**C. Prototipo UI (Directriz para Generador)**
+*Prompt a ingresar textual en tu IA:*
+> "Diseño de un Pop-up (Alert Box) de estilo Material Design. Fondo oscuro desenfocado. En el centro un rectángulo blanco limpio. Arriba un ícono grande de advertencia triangular en color naranja. Título en negrita: 'Bloqueo Comercial de Proveedor'. Subtítulo gris: 'Esta acción impedirá cualquier recepción futura de mercadería desde esta fuente'. Información del proveedor afectado (Razón Social, NIT) en un recuadro gris claro. Dos botones: 'Cancelar' gris y 'Confirmar Bloqueo' rojo."
+
+#### CU14: Elaborar Orden de Compra de Insumos
+
+**Descripción del diagrama:** Representa la interacción del Administrador General con el sistema para generar una solicitud formal de compra, incluyendo la validación cruzada obligatoria contra el stock actual del Kardex para calcular cantidades óptimas de reposición.
+
+**A. Estructura del Modelo de CU (Diagrama Específico)**
+```plantuml
+@startuml
+left to right direction
+actor "Administrador General" as Admin
+rectangle "Sistema ERP GRULAC - Submódulo SCM" {
+  usecase "CU14: Elaborar Orden de Compra" as CU14
+  usecase "Cruzar Stock Kardex Actual" as Cruzar
+}
+Admin --> CU14
+CU14 ..> Cruzar : <<include>>
+@enduml
+```
+
+**B. Ficha de Especificación del Caso de Uso**
+- **1. CASO DE USO:** CU14 - Elaborar Orden de Compra de Insumos.
+- **2. PROPÓSITO:** Formalizar y digitalizar las solicitudes de reposición de insumos químicos y materias primas que actualmente se realizan informalmente por teléfono cada viernes, eliminando el riesgo de desabastecimiento por olvido.
+- **3. DESCRIPCIÓN:** Permite al Administrador seleccionar uno o más ítems del catálogo maestro (`catalogo_items`), definir las cantidades requeridas y asociar la orden a un proveedor habilitado. El sistema cruza automáticamente contra el stock actual del Kardex para sugerir cantidades óptimas basadas en el consumo promedio semanal.
+- **4. ACTORES:** Tablas de BD (`ordenes_compra`, `detalle_orden_compra`, `catalogo_items`, `proveedores`).
+- **5. ACTOR INICIADOR:** Administrador General.
+- **6. PRECONDICIÓN:** El Administrador debe estar logueado. Debe existir al menos un proveedor activo (CU12) y los ítems a comprar deben estar registrados en el catálogo (CU08).
+- **7. FLUJO PRINCIPAL (Camino Feliz):**
+  1. El Administrador ingresa al módulo "Compras y Ganaderos" → "Órdenes de Compra".
+  2. Presiona el botón "+ Nueva Orden de Compra".
+  3. El sistema despliega un formulario con un selector de Proveedor (solo activos) y una tabla dinámica de ítems.
+  4. El Administrador selecciona al proveedor "Distribuidora Química del Oriente".
+  5. El Administrador agrega ítems: selecciona "Cuajo Albamax" del catálogo, el sistema muestra automáticamente el stock actual (ej. 2.5 L) y el stock mínimo configurado (ej. 5 L).
+  6. El Administrador define la cantidad a comprar (ej. 10 L) y el precio unitario pactado.
+  7. Repite el paso 5-6 para cada insumo requerido.
+  8. El sistema calcula el subtotal por línea y el total general de la orden.
+  9. El Administrador presiona "Emitir Orden de Compra".
+  10. El sistema genera un `INSERT` en `ordenes_compra` con estado `'Pendiente'` y sus respectivos registros en `detalle_orden_compra`.
+  11. El sistema muestra la orden generada con un número correlativo único.
+- **8. POST CONDICIÓN:** La orden queda registrada formalmente como referencia para la recepción futura (CU15). El proveedor asignado queda vinculado a la transacción. Toda la operación queda respaldada en la Bitácora de Auditoría.
+- **9. EXCEPCIONES (Flujo Secundario):**
+  - *E1: Proveedor Sin Ítems Compatibles.* Si el proveedor seleccionado no suministra los ítems del catálogo elegidos, el sistema emite una advertencia informativa.
+  - *E2: Cantidad Cero o Negativa.* El sistema bloquea el guardado si alguna línea tiene cantidad ≤ 0.
+  - *E3: Campos Obligatorios Vacíos.* Si el usuario no selecciona proveedor o no agrega ningún ítem, el sistema bloquea el botón de emisión.
+
+**C. Prototipo UI (Directriz para Generador)**
+*Prompt a ingresar textual en tu IA:*
+> "Pantalla de creación de Orden de Compra tipo ERP. Encabezado con selector de Proveedor (dropdown con búsqueda). Debajo una tabla editable con columnas: 'Ítem', 'Stock Actual (solo lectura)', 'Stock Mínimo', 'Cantidad a Comprar', 'Precio Unitario', 'Subtotal'. Botón '+Agregar Línea' debajo de la tabla. En la esquina inferior derecha, un resumen financiero con el Total General. Botón principal azul industrial: 'Emitir Orden'. Estilo SaaS ultra limpio."
+
+#### CU15: Registrar Recepción Física de Insumos
+
+**Descripción del diagrama:** Ilustra cómo el Ing. Industrial (Receptor) registra la llegada física de insumos al almacén, con la actualización automática y obligatoria del Kardex que impacta directamente el stock disponible del sistema.
+
+**A. Estructura del Modelo de CU (Diagrama Específico)**
+```plantuml
+@startuml
+left to right direction
+actor "Ing. Industrial\n(Receptor)" as Receptor
+rectangle "Sistema ERP GRULAC - Submódulo SCM" {
+  usecase "CU15: Registrar Recepción\nde Insumos" as CU15
+  usecase "Actualizar Kardex\nAutomáticamente" as Kardex
+}
+Receptor --> CU15
+CU15 ..> Kardex : <<include>>
+@enduml
+```
+
+**B. Ficha de Especificación del Caso de Uso**
+- **1. CASO DE USO:** CU15 - Registrar Recepción Física de Insumos.
+- **2. PROPÓSITO:** Documentar formalmente la llegada física de mercadería al almacén de la planta, actualizando el Kardex en tiempo real para que el Jefe de Producción tenga visibilidad inmediata sobre los insumos disponibles.
+- **3. DESCRIPCIÓN:** Permite al Ing. Industrial confirmar la recepción de una Orden de Compra previamente emitida (CU14), verificando cantidades y estado de los insumos. Al confirmar, el sistema genera automáticamente movimientos de tipo `INGRESO` en la tabla `movimientos_kardex`, incrementando el stock disponible.
+- **4. ACTORES:** Tablas de BD (`ordenes_compra`, `detalle_orden_compra`, `movimientos_kardex`, `catalogo_items`).
+- **5. ACTOR INICIADOR:** Ing. Industrial (Receptor).
+- **6. PRECONDICIÓN:** Debe existir al menos una Orden de Compra en estado `'Pendiente'` (CU14 ejecutado). El usuario debe estar logueado con rol de Recepción.
+- **7. FLUJO PRINCIPAL (Camino Feliz):**
+  1. El Receptor ingresa al módulo "Compras y Ganaderos" → "Recepciones Pendientes".
+  2. El sistema lista las Órdenes de Compra con estado `'Pendiente'`.
+  3. El Receptor selecciona la orden correspondiente a la mercadería que acaba de llegar.
+  4. El sistema despliega el detalle de la orden: proveedor, ítems solicitados y cantidades esperadas.
+  5. El Receptor verifica físicamente cada ítem y confirma las cantidades realmente recibidas (puede diferir de lo solicitado).
+  6. El Receptor registra observaciones (ej. "Envase dañado", "Fecha vencimiento cercana").
+  7. El Receptor presiona "Confirmar Recepción".
+  8. El sistema genera un `INSERT` en `movimientos_kardex` por cada ítem recibido (tipo: `INGRESO_COMPRA`), incrementando el stock dinámico.
+  9. El sistema actualiza el estado de la Orden de Compra a `'Recibida'`.
+  10. El sistema muestra un resumen de la recepción con el nuevo stock actualizado.
+- **8. POST CONDICIÓN:** El inventario del Kardex refleja instantáneamente las nuevas existencias. Los ítems recibidos están disponibles para producción. Toda la operación queda respaldada en la Bitácora de Auditoría.
+- **9. EXCEPCIONES (Flujo Secundario):**
+  - *E1: Recepción Parcial.* Si la cantidad recibida es menor a la solicitada, el sistema permite confirmar la recepción parcial y mantiene la orden en estado `'Parcialmente Recibida'` para una futura entrega complementaria.
+  - *E2: Insumo No Solicitado.* Si llega mercadería que no corresponde a ninguna orden, el sistema permite crear una recepción extraordinaria vinculada directamente al catálogo.
+
+**C. Prototipo UI (Directriz para Generador)**
+*Prompt a ingresar textual en tu IA:*
+> "Pantalla de recepción de mercadería. Encabezado mostrando datos de la Orden de Compra (N° Orden, Proveedor, Fecha). Una tabla comparativa con columnas: 'Ítem', 'Cantidad Solicitada', 'Cantidad Recibida (editable)', 'Observaciones'. Cada fila tiene un indicador visual verde/amarillo/rojo según la coincidencia. Botón principal verde: 'Confirmar Recepción'. Estilo Dashboard corporativo."
+
+#### CU16: Registrar Pago a Proveedor
+
+**Descripción del diagrama:** Modela la acción del Administrador General para registrar el pago financiero asociado a una orden de compra recibida, generando el asiento contable correspondiente que cierra el ciclo comercial con el proveedor.
+
+**A. Estructura del Modelo de CU (Diagrama Específico)**
+```plantuml
+@startuml
+left to right direction
+actor "Administrador General" as Admin
+rectangle "Sistema ERP GRULAC - Submódulo Finanzas" {
+  usecase "CU16: Registrar Pago\na Proveedor" as CU16
+  usecase "Generar Asiento Contable" as Asiento
+}
+Admin --> CU16
+CU16 ..> Asiento : <<include>>
+@enduml
+```
+
+**B. Ficha de Especificación del Caso de Uso**
+- **1. CASO DE USO:** CU16 - Registrar Pago a Proveedor.
+- **2. PROPÓSITO:** Cerrar el ciclo financiero de una Orden de Compra registrando el desembolso monetario efectuado al proveedor, manteniendo trazabilidad contable completa entre la orden, la recepción física y el pago.
+- **3. DESCRIPCIÓN:** Permite al Administrador vincular un pago (efectivo, transferencia o QR) a una Orden de Compra previamente recibida (CU15). El sistema registra el movimiento financiero en la tabla `pagos_proveedores` y actualiza el estado de la deuda.
+- **4. ACTORES:** Tablas de BD (`pagos_proveedores`, `ordenes_compra`).
+- **5. ACTOR INICIADOR:** Administrador General.
+- **6. PRECONDICIÓN:** Debe existir una Orden de Compra en estado `'Recibida'` o `'Parcialmente Pagada'`. El Administrador debe estar logueado.
+- **7. FLUJO PRINCIPAL (Camino Feliz):**
+  1. El Administrador ingresa al módulo "Compras y Ganaderos" → "Cuentas por Pagar".
+  2. El sistema lista las órdenes con saldo pendiente, mostrando: Proveedor, Monto Total, Monto Pagado y Saldo.
+  3. El Administrador selecciona la orden a pagar.
+  4. El sistema despliega un formulario de pago: Monto a Abonar, Método de Pago (Efectivo/Transferencia/QR), Referencia Bancaria y Fecha del Pago.
+  5. El Administrador llena los datos y presiona "Registrar Pago".
+  6. El sistema valida que el monto no exceda el saldo pendiente.
+  7. El sistema genera un `INSERT` en `pagos_proveedores` vinculado a la orden.
+  8. Si el pago cubre el total, el sistema actualiza la orden a estado `'Pagada'`. Si es parcial, la marca como `'Parcialmente Pagada'`.
+  9. El sistema muestra un recibo digital del pago realizado.
+- **8. POST CONDICIÓN:** El historial financiero del proveedor queda actualizado. La trazabilidad Orden→Recepción→Pago queda cerrada. Toda la operación queda respaldada en la Bitácora de Auditoría.
+- **9. EXCEPCIONES (Flujo Secundario):**
+  - *E1: Monto Excedido.* Si el monto ingresado supera el saldo pendiente, el sistema bloquea la transacción: "El monto ingresado excede la deuda pendiente de X Bs".
+  - *E2: Orden Ya Pagada.* Si la orden ya fue liquidada en su totalidad, el botón de pago se muestra deshabilitado.
+
+**C. Prototipo UI (Directriz para Generador)**
+*Prompt a ingresar textual en tu IA:*
+> "Pantalla de registro de pagos a proveedores. Encabezado con datos de la orden (N° Orden, Proveedor, Total, Saldo). Formulario de pago con campos: 'Monto a Abonar (Bs)', selector 'Método de Pago' con íconos (billete para Efectivo, banco para Transferencia, QR para código QR), 'Referencia Bancaria' y 'Fecha'. Un indicador visual de progreso tipo barra que muestra el porcentaje pagado vs pendiente. Botón principal verde: 'Confirmar Pago'. Estilo contable profesional."
+
+
+#### CU17: Registrar Ticket de Ingreso de Cisterna (Volumen)
+
+**Descripción del diagrama:** Modela la interacción del Ing. Industrial al registrar la llegada física de una cisterna de leche cruda, incluyendo la vinculación obligatoria con un proveedor ganadero previamente registrado que garantiza la trazabilidad desde el kilómetro cero.
+
+**A. Estructura del Modelo de CU (Diagrama Específico)**
+```plantuml
+@startuml
+left to right direction
+actor "Ing. Industrial\n(Receptor)" as Receptor
+rectangle "Sistema ERP GRULAC - Submódulo Acopio" {
+  usecase "CU17: Registrar Ticket\nde Cisterna" as CU17
+  usecase "Vincular Proveedor\nGanadero" as Vincular
+}
+Receptor --> CU17
+CU17 ..> Vincular : <<include>>
+@enduml
+```
+
+**B. Ficha de Especificación del Caso de Uso**
+- **1. CASO DE USO:** CU17 - Registrar Ticket de Ingreso de Cisterna (Volumen).
+- **2. PROPÓSITO:** Documentar formalmente cada recepción diaria de leche cruda acopiada desde las colonias ganaderas, eliminando el 60% de recepciones anónimas detectadas en el diagnóstico (PF-02) y estableciendo el punto de entrada a la cadena de trazabilidad SENASAG.
+- **3. DESCRIPCIÓN:** Permite al Ing. Industrial crear un ticket de recepción vinculando obligatoriamente al ganadero proveedor, registrando el volumen en litros de la cisterna y la hora exacta de llegada. Este ticket se convierte en la llave primaria a la que se anclará el dictamen de triage bioquímico (CU18).
+- **4. ACTORES:** Tablas de BD (`recepciones_leche`, `proveedores`).
+- **5. ACTOR INICIADOR:** Ing. Industrial (Receptor).
+- **6. PRECONDICIÓN:** El Ing. Industrial debe estar logueado con rol de Recepción. El ganadero proveedor debe existir como activo en el sistema (CU12 ejecutado).
+- **7. FLUJO PRINCIPAL (Camino Feliz):**
+  1. El Receptor ingresa al módulo "Acopio de Leche" → "Nueva Recepción".
+  2. El sistema despliega el formulario de ticket con la fecha y hora actuales pre-pobladas.
+  3. El Receptor selecciona al ganadero proveedor de un dropdown (solo proveedores activos con clasificación "Productor de Leche").
+  4. El Receptor ingresa el volumen en litros medido en la cisterna (ej. 3,200 L).
+  5. El Receptor registra la temperatura de llegada de la leche (°C).
+  6. El Receptor presiona "Registrar Ticket de Ingreso".
+  7. El sistema valida que el volumen sea > 0 y que la temperatura esté dentro de un rango plausible (0°C - 40°C).
+  8. El sistema genera un `INSERT` en `recepciones_leche` con estado inicial `'Pendiente de Triage'`.
+  9. El sistema muestra el ticket generado con un número correlativo único y habilita el botón "Iniciar Triage Bioquímico" (CU18).
+- **8. POST CONDICIÓN:** La recepción queda vinculada al proveedor ganadero con identificación obligatoria, resolviendo el PF-02. El ticket espera la ejecución del CU18 para determinar la aceptación o rechazo de la leche. Toda la operación queda respaldada en la Bitácora de Auditoría.
+- **9. EXCEPCIONES (Flujo Secundario):**
+  - *E1: Proveedor No Registrado.* Si el ganadero que llega con la cisterna no está en el sistema, el Receptor debe escalar al Administrador para ejecutar primero el CU12.
+  - *E2: Volumen Fuera de Rango.* Si el volumen ingresado es ≤ 0 o excede la capacidad máxima configurada (ej. 10,000 L), el sistema bloquea el registro con mensaje de validación.
+  - *E3: Proveedor Inhabilitado.* Si el ganadero fue bloqueado (CU13), el dropdown no lo muestra y el sistema impide la recepción.
+
+**C. Prototipo UI (Directriz para Generador)**
+*Prompt a ingresar textual en tu IA:*
+> "Pantalla de registro de recepción de leche cruda. Estética industrial limpia. Encabezado: 'Ticket de Ingreso de Cisterna'. Campos: Selector de Proveedor/Ganadero con búsqueda, campo numérico grande 'Volumen (Litros)' con ícono de tanque, campo 'Temperatura de Llegada (°C)' con indicador visual de rango aceptable, fecha y hora auto-pobladas en modo solo lectura. Un badge de estado 'Pendiente de Triage' en amarillo. Botón principal azul industrial: 'Registrar Ticket'. Diseño responsivo para tablet industrial."
+
+#### CU18: Registrar Dictamen de Triage Bioquímico (Aceptación/Rechazo)
+
+**Descripción del diagrama:** Representa el flujo de decisión del Ing. Industrial al evaluar la calidad bioquímica de la leche recibida, con la validación automática de parámetros contra umbrales SENASAG que puede resultar en la aceptación (ingreso al inventario) o el rechazo (bloqueo de la cisterna).
+
+**A. Estructura del Modelo de CU (Diagrama Específico)**
+```plantuml
+@startuml
+left to right direction
+actor "Ing. Industrial\n(Laboratorista)" as Lab
+rectangle "Sistema ERP GRULAC - Submódulo Acopio" {
+  usecase "CU18: Registrar Dictamen\nde Triage" as CU18
+  usecase "Validar Parámetros vs\nUmbrales SENASAG" as Validar
+  usecase "Actualizar Kardex\nLeche Cruda" as Kardex
+}
+Lab --> CU18
+CU18 ..> Validar : <<include>>
+CU18 <.. Kardex : <<extend>>
+@enduml
+```
+
+**B. Ficha de Especificación del Caso de Uso**
+- **1. CASO DE USO:** CU18 - Registrar Dictamen de Triage Bioquímico.
+- **2. PROPÓSITO:** Implementar la barrera sanitaria digital que impide sistémicamente el ingreso de leche contaminada al proceso productivo, resolviendo el PF-04 donde parámetros fuera de rango no generaban ninguna alerta ni rechazo automático.
+- **3. DESCRIPCIÓN:** Permite al Ing. Industrial capturar los resultados del análisis de laboratorio (pH, acidez Dornic, células somáticas, porcentaje de grasa, presencia de antibióticos) sobre un ticket de cisterna previamente registrado (CU17). El sistema compara automáticamente cada parámetro contra los umbrales configurados; si alguno resulta letal, fuerza el rechazo. Si todos son conformes, la leche se acepta y el Kardex se incrementa.
+- **4. ACTORES:** Tablas de BD (`recepciones_leche`, `movimientos_kardex`, `catalogo_items`).
+- **5. ACTOR INICIADOR:** Ing. Industrial (Laboratorista).
+- **6. PRECONDICIÓN:** Debe existir un ticket de cisterna en estado `'Pendiente de Triage'` (CU17 ejecutado). El Ing. Industrial debe estar logueado con rol de Laboratorio/Recepción.
+- **7. FLUJO PRINCIPAL (Camino Feliz):**
+  1. El Laboratorista ingresa al módulo "Acopio de Leche" → "Triage Pendientes".
+  2. El sistema muestra los tickets de cisterna pendientes de dictamen.
+  3. El Laboratorista selecciona el ticket a evaluar.
+  4. El sistema despliega el formulario de triage con los campos bioquímicos: pH (rango 6.6-6.8), Acidez Dornic (14-18°D), Células Somáticas (< 400,000/mL), % Grasa (≥ 3.0%), % Agua (≤ 8.5%), Punto de Congelamiento, Presencia de Antibióticos (Positivo/Negativo).
+  5. El Laboratorista ingresa los valores obtenidos del análisis de la muestra.
+  6. El sistema ejecuta la validación automática: compara cada valor contra los umbrales SENASAG configurados y colorea cada campo (verde: conforme, rojo: fuera de rango).
+  7. Todos los parámetros son conformes. El sistema sugiere el dictamen "ACEPTADA".
+  8. El Laboratorista confirma la aceptación presionando "Aprobar Recepción".
+  9. El sistema actualiza `recepciones_leche` con estado `'Aceptada'` y los valores bioquímicos.
+  10. El sistema genera automáticamente un movimiento de tipo `INGRESO_LECHE` en `movimientos_kardex`, sumando el volumen de litros al stock de materia prima.
+  11. El sistema muestra el resumen del dictamen con el nuevo stock de leche disponible.
+- **8. POST CONDICIÓN:** La leche queda incorporada al inventario de materia prima disponible para producción. El dictamen queda vinculado al proveedor ganadero, alimentando su historial de calidad. Toda la operación queda respaldada en la Bitácora de Auditoría.
+- **9. EXCEPCIONES (Flujo Secundario):**
+  - *E1: Parámetro Letal Detectado.* Si las células somáticas superan 400,000/mL o si la presencia de antibióticos es positiva, el sistema fuerza el dictamen a "RECHAZADA" sin posibilidad de sobreescritura manual, bloquea el ingreso al Kardex, y registra un incidente en el historial del proveedor ganadero.
+  - *E2: Parámetros en Zona de Advertencia.* Si un valor está fuera de rango pero no es letal (ej. pH 6.5), el sistema permite la aceptación con observación obligatoria y marca la recepción como "Aceptada con Observaciones".
+
+**C. Prototipo UI (Directriz para Generador)**
+*Prompt a ingresar textual en tu IA:*
+> "Pantalla de laboratorio digital para análisis de leche. Estética científica limpia con fondo claro. Encabezado: 'Dictamen de Triage Bioquímico'. Datos del ticket (Proveedor, Volumen, Hora). Formulario con campos numéricos para cada parámetro, cada uno con un indicador visual tipo semáforo (verde/amarillo/rojo) al costado derecho que se activa dinámicamente. Parámetros: pH, Acidez, Células Somáticas, % Grasa, % Agua, Antibióticos (toggle Positivo/Negativo en rojo). Un badge grande de dictamen final que cambia entre 'ACEPTADA' (verde) y 'RECHAZADA' (rojo). Dos botones: 'Rechazar Cisterna' rojo y 'Aprobar Recepción' verde."
+
+#### CU19: Registrar Receta Base BOM (Ingeniería de Formulación)
+
+**Descripción del diagrama:** Muestra la relación entre el Jefe de Producción y la configuración de las fórmulas estándar de cada producto lácteo, con la validación obligatoria de que la suma total de insumos sea coherente con las proporciones químicas de la receta.
+
+**A. Estructura del Modelo de CU (Diagrama Específico)**
+```plantuml
+@startuml
+left to right direction
+actor "Jefe de Producción" as JefeProd
+rectangle "Sistema ERP GRULAC - Submódulo BOM" {
+  usecase "CU19: Registrar Receta\nBase (BOM)" as CU19
+  usecase "Vincular Insumos del\nCatálogo Maestro" as Vincular
+}
+JefeProd --> CU19
+CU19 ..> Vincular : <<include>>
+@enduml
+```
+
+**B. Ficha de Especificación del Caso de Uso**
+- **1. CASO DE USO:** CU19 - Registrar Receta Base BOM (Ingeniería de Formulación).
+- **2. PROPÓSITO:** Digitalizar las fórmulas maestras de cada línea de producto (Queso Mozzarella, Cheddar, Dulce de Leche Repostero, Dulce de Leche Familiar) que actualmente existen solo como valores estáticos en hojas Excel sin vinculación al consumo real (PF-04), permitiendo la deducción automática de insumos cuando se aperture una orden de producción (CU20).
+- **3. DESCRIPCIÓN:** Permite al Jefe de Producción definir la lista de insumos (Bill of Materials) de un producto terminado, especificando las proporciones exactas por cada 100 litros de leche procesada. Cada ingrediente se vincula directamente al catálogo maestro (`catalogo_items`), habilitando la futura deducción automática del Kardex durante la producción.
+- **4. ACTORES:** Tablas de BD (`recetas_bom`, `detalle_receta`, `catalogo_items`).
+- **5. ACTOR INICIADOR:** Jefe de Producción.
+- **6. PRECONDICIÓN:** El Jefe de Producción debe estar logueado. Los insumos que componen la receta deben existir previamente en el catálogo maestro (CU08).
+- **7. FLUJO PRINCIPAL (Camino Feliz):**
+  1. El Jefe de Producción ingresa al módulo "Producción" → "Recetas y Formulación".
+  2. Presiona "+ Nueva Receta".
+  3. El sistema despliega un formulario maestro: Nombre de la Receta (ej. "Queso Cheddar Estándar"), Producto Final asociado (seleccionado del catálogo), Volumen Base de Referencia (ej. 100 L de leche).
+  4. El Jefe de Producción agrega líneas de ingredientes: selecciona "Cuajo Albamax" del catálogo, define la cantidad (ej. 0.035 L por cada 100 L de leche), y la tolerancia permitida (ej. ± 5%).
+  5. Repite el paso 4 para cada ingrediente: Fermento Hansen, Cloruro de Calcio, Sal Industrial, Ácido Láctico, etc.
+  6. El sistema calcula y muestra en tiempo real el porcentaje total de la mezcla.
+  7. El Jefe de Producción presiona "Guardar Receta".
+  8. El sistema genera un `INSERT` en `recetas_bom` y sus respectivos registros en `detalle_receta`.
+  9. El sistema muestra la receta guardada con un badge "Activa" y la lista completa de ingredientes.
+- **8. POST CONDICIÓN:** La receta queda disponible como plantilla para la apertura de órdenes de producción (CU20). Cuando se inicie un lote, el sistema podrá calcular automáticamente las cantidades necesarias según el volumen de leche procesada y deducirlas del Kardex. Toda la operación queda respaldada en la Bitácora de Auditoría.
+- **9. EXCEPCIONES (Flujo Secundario):**
+  - *E1: Insumo No Registrado.* Si el Jefe de Producción intenta agregar un ingrediente que no existe en el catálogo, el sistema impide la selección e indica: "Registre primero el insumo en el Catálogo Maestro (CU08)".
+  - *E2: Receta Duplicada.* Si ya existe una receta activa con el mismo nombre de producto, el sistema advierte y sugiere editar la existente o crear una versión nueva.
+  - *E3: Porcentaje Excedido.* Si la suma de proporciones supera un umbral configurado (ej. 105%), el sistema emite una advertencia de incoherencia química.
+
+**C. Prototipo UI (Directriz para Generador)**
+*Prompt a ingresar textual en tu IA:*
+> "Pantalla de configuración de Receta tipo BOM (Bill of Materials). Encabezado con campo 'Nombre de Receta' y selector de Producto Final. Un badge 'Base: 100 L de Leche'. Tabla de ingredientes con columnas: 'Insumo (dropdown del catálogo)', 'Cantidad', 'Unidad', 'Tolerancia (%)', 'Proporción'. Botón '+Agregar Ingrediente'. Un indicador circular tipo gauge que muestra el porcentaje total de la mezcla en tiempo real. Estilo técnico-científico con tipografía monoespaciada para los valores numéricos. Botón principal azul: 'Guardar Receta'."
+
+
 ## 7.5. Estructurar caso de uso
 ### 7.5.1. Ciclo #1
 
@@ -2285,6 +2606,7 @@ usecase "Registrar Empleado\n(from CU3)" as CU3
 usecase "Validar Duplicado de DNI\n(from CU3)" as V_DNI
 usecase "Inhabilitar Empleado\n(from CU4)" as CU4
 usecase "Destruir Token de Inmediato\n(from CU4)" as D_Token_Inm
+usecase "Rehabilitar Empleado\n(from CU34)" as CU34
 usecase "Asignar Rol\n(from CU5)" as CU5
 usecase "Configurar Catalogo\n(from CU8)" as CU8
 usecase "Categoria Item-Subfamilia\n(from CU8)" as C_Item
@@ -2309,6 +2631,7 @@ usecase "Verificar Clínica-NIT\n(from CU12)" as V_Nit
 
 Admin --> CU3
 Admin --> CU4
+Admin --> CU34
 Admin --> CU5
 Admin --> CU8
 CU3 .> V_DNI : <<include>>
@@ -2348,6 +2671,70 @@ CU26 .> A_Precio : <<include>>
 JefeProd --> CU9
 JefeProd --> CU12
 CU12 .> V_Nit : <<include>>
+
+@enduml
+```
+
+
+### 7.5.2. Ciclo #2
+
+**Descripción del diagrama:** Diagrama unificado de Casos de Uso del Ciclo 2 que integra los 7 casos de uso del dominio logístico y de reglas SCM. Muestra las interacciones de los actores internos (Administrador General, Ing. Industrial, Jefe de Producción) con las funcionalidades de gestión de proveedores, compras, recepción de materia prima, acopio de leche y formulación de recetas. Los actores externos (Proveedor) aparecen como entidades que originan los eventos de la cadena de suministro.
+
+```plantuml
+@startuml UC_Ciclo2
+left to right direction
+skinparam packageStyle rectangle
+
+actor "Administrador General\n(from CU14)" as Admin
+actor "Ing. Industrial\n(Receptor/Lab)\n(from CU17)" as Receptor
+actor "Jefe de Produccion\n(from CU19)" as JefeProd
+
+usecase "Inhabilitar Proveedor\n(from CU13)" as CU13
+usecase "Verificar Ordenes Pendientes\n(from CU13)" as V_OrdPend
+
+usecase "Elaborar Orden de Compra\n(from CU14)" as CU14
+usecase "Cruzar Stock Kardex Actual\n(from CU14)" as C_Stock
+
+usecase "Registrar Recepcion\nde Insumos\n(from CU15)" as CU15
+usecase "Actualizar Kardex\nAutomaticamente\n(from CU15)" as A_Kardex_Ins
+
+usecase "Registrar Pago\na Proveedor\n(from CU16)" as CU16
+usecase "Generar Asiento Contable\n(from CU16)" as G_Asiento
+
+usecase "Registrar Ticket\nde Cisterna\n(from CU17)" as CU17
+usecase "Vincular Proveedor\nGanadero\n(from CU17)" as V_Prov
+
+usecase "Registrar Dictamen\nde Triage\n(from CU18)" as CU18
+usecase "Validar Parametros vs\nUmbrales SENASAG\n(from CU18)" as V_SENASAG
+usecase "Actualizar Kardex\nLeche Cruda\n(from CU18)" as A_Kardex_Leche
+
+usecase "Registrar Receta\nBase BOM\n(from CU19)" as CU19
+usecase "Vincular Insumos del\nCatalogo Maestro\n(from CU19)" as V_Insumos
+
+Admin --> CU13
+Admin --> CU14
+Admin --> CU16
+CU13 .> V_OrdPend : <<include>>
+CU14 .> C_Stock : <<include>>
+CU16 .> G_Asiento : <<include>>
+
+Receptor --> CU15
+Receptor --> CU17
+Receptor --> CU18
+CU15 .> A_Kardex_Ins : <<include>>
+CU17 .> V_Prov : <<include>>
+CU18 .> V_SENASAG : <<include>>
+CU18 <. A_Kardex_Leche : <<extend>>
+
+JefeProd --> CU19
+CU19 .> V_Insumos : <<include>>
+
+actor "Proveedor\n(Ganadero/Insumos)\n(from CU17)" as ProvExt
+note right of ProvExt
+  Actor externo: no tiene login.
+  Origina eventos de suministro
+  de leche e insumos.
+end note
 
 @enduml
 ```
@@ -2407,9 +2794,11 @@ package "Gestion de Usuario" as P2
 usecase "Asignar Rol\n(from CU5)" as CU5
 usecase "Registrar Empleado\n(from CU3)" as CU3
 usecase "Inhabilitar Empleado\n(from CU4)" as CU4
+usecase "Rehabilitar Empleado\n(from CU34)" as CU34
 P2 ..> CU5 : <<trace>>
 P2 ..> CU3 : <<trace>>
 P2 ..> CU4 : <<trace>>
+P2 ..> CU34 : <<trace>>
 
 package "Gestion de Inventario" as P3
 usecase "Configurar Catalogo\n(from CU8)" as CU8
@@ -2529,6 +2918,30 @@ CTR --> ENT : 3: update(is_active=false)
 ENT ..> ENT2 : 3.1: <<trigger DB>> insert(audit)
 ENT --> CTR : 4: Confirmación BD
 CTR --> IU : 5: Actualizar lista visual
+@enduml
+```
+
+### CU34: Rehabilitar Empleado (Alta Lógica)
+
+**Descripción del diagrama:** Secuencia de mensajes para la reactivación de un empleado previamente inhabilitado. El controlador actualiza el estado activo tanto en la tabla `empleados` como en `usuarios`, restaurando el acceso al sistema. El trigger de base de datos registra automáticamente la operación en la bitácora.
+
+```plantuml
+@startuml DCom_CU34
+left to right direction
+skinparam backgroundColor transparent
+actor "Admin" as Actor
+boundary "IU_RRHH" as IU
+control "CTR_Usuario" as CTR
+entity "CE_Usuario" as ENT
+entity "CE_Empleado" as ENT_EMP
+entity "CE_Bitacora" as ENT2
+Actor --> IU : 1: Clic 'Rehabilitar'
+IU --> CTR : 2: rehabilitarEmpleado(id)
+CTR --> ENT_EMP : 3: update(estado_activo=true)
+CTR --> ENT : 4: update(is_active=true)
+ENT ..> ENT2 : 4.1: <<trigger DB>> insert(audit)
+ENT --> CTR : 5: Confirmación BD
+CTR --> IU : 6: Actualizar lista visual
 @enduml
 ```
 
@@ -2885,6 +3298,55 @@ class "CE_Bitacora" as ENT2 <<Entity>> {
 
 Actor --> IU
 IU --> CTR
+CTR --> ENT
+ENT ..> ENT2 : <<trigger>>
+@enduml
+```
+
+### CU34: Rehabilitar Empleado (Alta Lógica)
+
+**Descripción del diagrama:** Define la clase frontera con el selector de empleado inactivo, el controlador que orquesta la reactivación del acceso y la actualización de estados en ambas tablas, y las entidades de Empleado, Usuario y Bitácora que persisten la transacción.
+
+```plantuml
+@startuml DClases_CU34
+allowmixing
+left to right direction
+skinparam classAttributeIconSize 0
+skinparam backgroundColor transparent
+actor "Administrador" as Actor
+
+class "IU_RRHH" as IU <<Boundary>> {
+  + idEmpleadoSeleccionado : Integer
+  --
+  + seleccionarFilaInactiva()
+  + confirmarAltaLogica()
+  + actualizarGrillaVisual()
+}
+
+class "CTR_Usuario" as CTR <<Control>> {
+  --
+  + rehabilitarEmpleado(id_empleado)
+  + actualizarEstadoUsuario()
+}
+
+class "CE_Empleado" as ENT_EMP <<Entity>> {
+  - id_empleado : Integer
+  - estado_activo : Boolean
+}
+
+class "CE_Usuario" as ENT <<Entity>> {
+  - id_usuario : Integer
+  - is_active : Boolean
+}
+
+class "CE_Bitacora" as ENT2 <<Entity>> {
+  - accion_sql : String
+  - fecha_hora : DateTime
+}
+
+Actor --> IU
+IU --> CTR
+CTR --> ENT_EMP
 CTR --> ENT
 ENT ..> ENT2 : <<trigger>>
 @enduml
@@ -3270,6 +3732,696 @@ CTR --> ENT1
 ENT1 ..> ENT2 : <<trigger>>
 @enduml
 ```
+
+
+
+
+## 8B. CAPITULO 4: FLUJO DE TRABAJO: ANALISIS — CICLO 2
+
+### 8B.1. Análisis de Arquitectura
+
+#### 8B.1.1. Identificar Paquetes
+
+**Descripción del diagrama:** Se identifican 2 paquetes arquitectónicos para el Ciclo 2, agrupando los casos de uso por dominio funcional dentro de la cadena de suministro y pre-producción. La separación obedece al principio de **cohesión funcional**: cada paquete agrupa operaciones que comparten las mismas entidades de datos y reglas de negocio.
+
+```plantuml
+@startuml Paquetes_Ciclo2_Arquitectura
+skinparam packageStyle folder
+skinparam backgroundColor transparent
+
+package "Gestion de Proveedores y Compras" as P5
+package "Acopio de Leche y Formulacion" as P6
+
+@enduml
+```
+
+- **Gestión de Proveedores y Compras**: Agrupa las operaciones del ciclo comercial de entrada: la inhabilitación de proveedores problemáticos, la emisión formal de órdenes de compra de insumos, la recepción física de mercadería en almacén y el registro de pagos. Se empaquetaron juntos porque comparten las mismas entidades transaccionales (`proveedores`, `ordenes_compra`, `pagos_proveedores`) y representan el flujo completo de la relación empresa-proveedor, desde la solicitud hasta la liquidación financiera. Separarlos rompería la trazabilidad Orden→Recepción→Pago.
+
+- **Acopio de Leche y Formulación**: Encapsula las operaciones pre-productivas esenciales: por un lado, el punto de entrada de la materia prima principal (recepción de cisternas y triage bioquímico irrevocable); y por otro, la configuración de las recetas maestras (BOM) que dictarán cómo se transformará esa leche. Se agruparon en un solo paquete para evitar fragmentación (paquetes de un solo caso de uso) y porque ambos representan los prerrequisitos obligatorios antes de poder iniciar la manufactura en el Ciclo 3.
+
+#### 8B.1.2. Relacionar paquetes y casos de uso
+
+**Descripción del diagrama:** Establece la trazabilidad formal entre cada paquete arquitectónico del Ciclo 2 y los Casos de Uso específicos que contiene, utilizando estereotipos `<<trace>>` conformes a UML 2.5.
+
+```plantuml
+@startuml Paquetes_CU_Ciclo2
+left to right direction
+skinparam packageStyle folder
+skinparam backgroundColor transparent
+
+package "Gestion de Proveedores y Compras" as P5
+usecase "Inhabilitar Proveedor\n(from CU13)" as CU13
+usecase "Elaborar Orden de Compra\n(from CU14)" as CU14
+usecase "Registrar Recepcion\nde Insumos\n(from CU15)" as CU15
+usecase "Registrar Pago\na Proveedor\n(from CU16)" as CU16
+P5 ..> CU13 : <<trace>>
+P5 ..> CU14 : <<trace>>
+P5 ..> CU15 : <<trace>>
+P5 ..> CU16 : <<trace>>
+
+package "Acopio de Leche y Formulacion" as P6
+usecase "Registrar Ticket\nde Cisterna\n(from CU17)" as CU17
+usecase "Registrar Dictamen\nde Triage\n(from CU18)" as CU18
+usecase "Registrar Receta\nBase BOM\n(from CU19)" as CU19
+P6 ..> CU17 : <<trace>>
+P6 ..> CU18 : <<trace>>
+P6 ..> CU19 : <<trace>>
+
+@enduml
+```
+
+#### 8B.1.3. Dependencias de Paquetes Arquitectónicos
+
+**Descripción del diagrama:** Esquematiza las dependencias direccionadas entre los paquetes del Ciclo 2 y su relación con los paquetes heredados del Ciclo 1. Se evidencia que todos los paquetes del Ciclo 2 dependen del paquete de Seguridad (autenticación obligatoria), el cual a su vez importa la Gestión de Usuario. Además, tanto "Gestión de Proveedores" como "Acopio de Leche y Formulación" dependen de "Gestión Comercial" (para resolver la entidad Proveedor) y de "Gestión de Inventario" (para vincular insumos del catálogo maestro).
+
+```plantuml
+@startuml Paquetes_Dependencias_Ciclo2
+skinparam packageStyle folder
+skinparam backgroundColor transparent
+top to bottom direction
+
+package "SEGURIDAD\n(Ciclo 1)" as P1
+package "Gestion de Usuario\n(Ciclo 1)" as P2
+package "Gestion de Inventario\n(Ciclo 1)" as P3
+package "Gestion Comercial\n(Ciclo 1)" as P4
+
+package "Gestion de Proveedores\ny Compras" as P5
+package "Acopio de Leche\ny Formulacion" as P6
+
+P1 ..> P2 : <<import>>
+
+P5 ..> P1 : <<use>>
+P5 ..> P4 : <<use>>
+P5 ..> P3 : <<use>>
+
+P6 ..> P1 : <<use>>
+P6 ..> P4 : <<use>>
+P6 ..> P3 : <<use>>
+
+@enduml
+```
+
+
+### 8B.2. Diagramas de Comunicación — Ciclo 2
+
+A continuación se presentan los diagramas de comunicación del Ciclo 2 bajo el patrón arquitectónico MVC, mapeados a los elementos de Análisis: Frontera (IU), Control (CTR) y Entidad (CE).
+
+#### CU13: Inhabilitar Proveedor
+
+**Descripción del diagrama:** Secuencia de mensajes para el bloqueo comercial de un proveedor. El controlador verifica primero la existencia de órdenes pendientes antes de ejecutar la actualización de estado, y el trigger de base de datos registra automáticamente la acción en la bitácora.
+
+```plantuml
+@startuml DCom_CU13
+left to right direction
+skinparam backgroundColor transparent
+actor "Admin" as Actor
+boundary "IU_Proveedores" as IU
+control "CTR_Proveedor" as CTR
+entity "CE_Proveedor" as ENT
+entity "CE_OrdenCompra" as ENT_OC
+entity "CE_Bitacora" as ENT2
+Actor --> IU : 1: Clic 'Inhabilitar'
+IU --> CTR : 2: inhabilitarProveedor(id)
+CTR --> ENT_OC : 3: checkOrdenesPendientes(id)
+ENT_OC --> CTR : 4: count = 0
+CTR --> ENT : 5: update(is_activo=false)
+ENT ..> ENT2 : 5.1: <<trigger DB>> insert(audit)
+ENT --> CTR : 6: Confirmación BD
+CTR --> IU : 7: Actualizar lista visual
+@enduml
+```
+
+#### CU14: Elaborar Orden de Compra de Insumos
+
+**Descripción del diagrama:** Flujo de comunicación para la emisión de una orden de compra. El controlador consulta el stock actual del Kardex para sugerir cantidades y luego inserta atómicamente la orden con todas sus líneas de detalle.
+
+```plantuml
+@startuml DCom_CU14
+left to right direction
+skinparam backgroundColor transparent
+actor "Admin" as Actor
+boundary "IU_OrdenCompra" as IU
+control "CTR_Compra" as CTR
+entity "CE_Kardex" as ENT_K
+entity "CE_OrdenCompra" as ENT_OC
+entity "CE_DetalleOrden" as ENT_DET
+entity "CE_Bitacora" as ENT2
+Actor --> IU : 1: Seleccionar proveedor e ítems
+IU --> CTR : 2: emitirOrden(proveedor, items[])
+CTR --> ENT_K : 3: consultarStockActual(items[])
+ENT_K --> CTR : 4: Array de stocks
+CTR --> ENT_OC : 5: insert(orden, estado='Pendiente')
+CTR --> ENT_DET : 6: insert(detalles[])
+ENT_OC ..> ENT2 : 5.1: <<trigger DB>> insert(audit)
+CTR --> IU : 7: Mostrar N° Orden generado
+@enduml
+```
+
+#### CU15: Registrar Recepción Física de Insumos
+
+**Descripción del diagrama:** Secuencia de comunicación que documenta la llegada física de mercadería. El controlador compara cantidades recibidas contra las solicitadas, actualiza el Kardex con movimientos de ingreso y modifica el estado de la orden de compra correspondiente.
+
+```plantuml
+@startuml DCom_CU15
+left to right direction
+skinparam backgroundColor transparent
+actor "Receptor" as Actor
+boundary "IU_Recepcion" as IU
+control "CTR_Recepcion" as CTR
+entity "CE_OrdenCompra" as ENT_OC
+entity "CE_Kardex" as ENT_K
+entity "CE_Bitacora" as ENT2
+Actor --> IU : 1: Confirmar cantidades recibidas
+IU --> CTR : 2: registrarRecepcion(orden, cantidades[])
+CTR --> ENT_OC : 3: obtenerDetalle(orden)
+CTR --> ENT_K : 4: insert(INGRESO_COMPRA, items[])
+ENT_K ..> ENT2 : 4.1: <<trigger DB>> insert(audit)
+CTR --> ENT_OC : 5: update(estado='Recibida')
+CTR --> IU : 6: Mostrar resumen con nuevo stock
+@enduml
+```
+
+#### CU16: Registrar Pago a Proveedor
+
+**Descripción del diagrama:** Flujo de comunicación para el cierre financiero de una orden de compra. El controlador valida que el monto no exceda el saldo pendiente, registra el pago y actualiza el estado financiero de la orden.
+
+```plantuml
+@startuml DCom_CU16
+left to right direction
+skinparam backgroundColor transparent
+actor "Admin" as Actor
+boundary "IU_Pagos" as IU
+control "CTR_Pago" as CTR
+entity "CE_OrdenCompra" as ENT_OC
+entity "CE_PagoProveedor" as ENT_PAGO
+entity "CE_Bitacora" as ENT2
+Actor --> IU : 1: Ingresar datos de pago
+IU --> CTR : 2: registrarPago(orden, monto, metodo)
+CTR --> ENT_OC : 3: getSaldoPendiente(orden)
+ENT_OC --> CTR : 4: saldo restante
+CTR --> ENT_PAGO : 5: insert(pago)
+ENT_PAGO ..> ENT2 : 5.1: <<trigger DB>> insert(audit)
+CTR --> ENT_OC : 6: update(estado='Pagada')
+CTR --> IU : 7: Mostrar recibo digital
+@enduml
+```
+
+#### CU17: Registrar Ticket de Ingreso de Cisterna
+
+**Descripción del diagrama:** Secuencia de comunicación para el registro de una cisterna de leche cruda. El controlador valida la existencia y estado activo del proveedor ganadero antes de crear el ticket, dejándolo en estado pendiente de triage bioquímico.
+
+```plantuml
+@startuml DCom_CU17
+left to right direction
+skinparam backgroundColor transparent
+actor "Receptor" as Actor
+boundary "IU_Acopio" as IU
+control "CTR_Acopio" as CTR
+entity "CE_Proveedor" as ENT_PROV
+entity "CE_RecepcionLeche" as ENT_REC
+entity "CE_Bitacora" as ENT2
+Actor --> IU : 1: Seleccionar ganadero y volumen
+IU --> CTR : 2: registrarTicket(proveedor, litros, temp)
+CTR --> ENT_PROV : 3: verificarActivo(id_proveedor)
+ENT_PROV --> CTR : 4: proveedor válido
+CTR --> ENT_REC : 5: insert(ticket, estado='Pendiente Triage')
+ENT_REC ..> ENT2 : 5.1: <<trigger DB>> insert(audit)
+CTR --> IU : 6: Mostrar ticket con N° y habilitar Triage
+@enduml
+```
+
+#### CU18: Registrar Dictamen de Triage Bioquímico
+
+**Descripción del diagrama:** Flujo de comunicación más complejo del Ciclo 2. El controlador recibe los parámetros bioquímicos, los compara contra umbrales SENASAG, emite el dictamen y, solo en caso de aceptación, extiende el flujo actualizando el Kardex de materia prima.
+
+```plantuml
+@startuml DCom_CU18
+left to right direction
+skinparam backgroundColor transparent
+actor "Laboratorista" as Actor
+boundary "IU_Triage" as IU
+control "CTR_Triage" as CTR
+entity "CE_RecepcionLeche" as ENT_REC
+entity "CE_Kardex" as ENT_K
+entity "CE_Bitacora" as ENT2
+Actor --> IU : 1: Ingresar parámetros bioquímicos
+IU --> CTR : 2: registrarTriage(ticket, parametros)
+CTR --> CTR : 3: validarVsUmbrales(parametros)
+CTR --> ENT_REC : 4: update(estado='Aceptada', valores)
+ENT_REC ..> ENT2 : 4.1: <<trigger DB>> insert(audit)
+CTR --> ENT_K : 5: insert(INGRESO_LECHE, litros)
+ENT_K ..> ENT2 : 5.1: <<trigger DB>> insert(audit)
+CTR --> IU : 6: Mostrar dictamen y nuevo stock
+@enduml
+```
+
+#### CU19: Registrar Receta Base BOM
+
+**Descripción del diagrama:** Secuencia de comunicación para la configuración de una receta de formulación. El controlador vincula cada ingrediente con el catálogo maestro del Ciclo 1, insertando atómicamente la receta con todas sus líneas de detalle.
+
+```plantuml
+@startuml DCom_CU19
+left to right direction
+skinparam backgroundColor transparent
+actor "Jefe Producción" as Actor
+boundary "IU_Recetas" as IU
+control "CTR_BOM" as CTR
+entity "CE_Catalogo" as ENT_CAT
+entity "CE_RecetaBOM" as ENT_REC
+entity "CE_DetalleReceta" as ENT_DET
+entity "CE_Bitacora" as ENT2
+Actor --> IU : 1: Definir receta e ingredientes
+IU --> CTR : 2: guardarReceta(producto, ingredientes[])
+CTR --> ENT_CAT : 3: verificarInsumosExisten(ids[])
+ENT_CAT --> CTR : 4: ítems validados
+CTR --> ENT_REC : 5: insert(receta)
+CTR --> ENT_DET : 6: insert(ingredientes[])
+ENT_REC ..> ENT2 : 5.1: <<trigger DB>> insert(audit)
+CTR --> IU : 7: Mostrar receta guardada
+@enduml
+```
+
+
+### 8B.3. Análisis de Clases — Ciclo 2
+
+A continuación se presentan los Diagramas de Clases de Análisis (MVC) del Ciclo 2, los cuales definen de manera estática los prototipos de atributos y métodos abstractos para todas las fronteras, controladores y entidades del dominio logístico y de reglas SCM.
+
+#### CU13: Inhabilitar Proveedor
+
+**Descripción del diagrama:** Define la clase frontera con el selector de proveedor, el controlador que orquesta la verificación de órdenes pendientes y la actualización de estado, y las entidades de Proveedor y Bitácora que persisten la transacción.
+
+```plantuml
+@startuml DClases_CU13
+allowmixing
+left to right direction
+skinparam classAttributeIconSize 0
+skinparam backgroundColor transparent
+actor "Administrador" as Actor
+
+class "IU_Proveedores" as IU <<Boundary>> {
+  + idProveedorSeleccionado : Integer
+  --
+  + seleccionarFila()
+  + confirmarInhabilitacion()
+  + actualizarGrillaVisual()
+}
+
+class "CTR_Proveedor" as CTR <<Control>> {
+  --
+  + inhabilitarProveedor(id)
+  + verificarOrdenesPendientes()
+  + actualizarEstadoProveedor()
+}
+
+class "CE_Proveedor" as ENT <<Entity>> {
+  - id_proveedor : Integer
+  - nit_ci : String
+  - razon_social : String
+  - is_activo : Boolean
+}
+
+class "CE_OrdenCompra" as ENT_OC <<Entity>> {
+  - id_orden : Integer
+  - estado : String
+}
+
+class "CE_Bitacora" as ENT2 <<Entity>> {
+  - accion_sql : String
+  - fecha_hora : DateTime
+}
+
+Actor --> IU
+IU --> CTR
+CTR --> ENT
+CTR --> ENT_OC
+ENT ..> ENT2 : <<trigger>>
+@enduml
+```
+
+#### CU14: Elaborar Orden de Compra de Insumos
+
+**Descripción del diagrama:** Modela la clase frontera con la tabla dinámica de ítems, el controlador que cruza stocks y emite la orden, y las entidades que almacenan la orden maestra con sus líneas de detalle.
+
+```plantuml
+@startuml DClases_CU14
+allowmixing
+left to right direction
+skinparam classAttributeIconSize 0
+skinparam backgroundColor transparent
+actor "Administrador" as Actor
+
+class "IU_OrdenCompra" as IU <<Boundary>> {
+  + idProveedor : Integer
+  + lineasOrden : Array
+  --
+  + agregarLineaItem()
+  + calcularTotales()
+  + emitirOrden()
+}
+
+class "CTR_Compra" as CTR <<Control>> {
+  --
+  + emitirOrdenCompra(prov, items[])
+  + cruzarStockKardex()
+  + insertarOrdenConDetalle()
+}
+
+class "CE_OrdenCompra" as ENT_OC <<Entity>> {
+  - id_orden : Integer
+  - id_proveedor : Integer
+  - fecha_emision : DateTime
+  - total : Decimal
+  - estado : String
+}
+
+class "CE_DetalleOrden" as ENT_DET <<Entity>> {
+  - id_detalle : Integer
+  - id_orden : Integer
+  - id_item : Integer
+  - cantidad : Decimal
+  - precio_unitario : Decimal
+}
+
+class "CE_Kardex_Movimientos" as ENT_K <<Entity>> {
+  - id_item : Integer
+  - cantidad : Decimal
+}
+
+class "CE_Bitacora" as ENT2 <<Entity>> {
+  - accion_sql : String
+  - fecha_hora : DateTime
+}
+
+Actor --> IU
+IU --> CTR
+CTR --> ENT_OC
+CTR --> ENT_DET
+CTR --> ENT_K
+ENT_OC ..> ENT2 : <<trigger>>
+@enduml
+```
+
+#### CU15: Registrar Recepción Física de Insumos
+
+**Descripción del diagrama:** Define la clase frontera comparativa (solicitado vs recibido), el controlador que gestiona recepciones totales y parciales, y las entidades de Kardex y Orden de Compra que se actualizan atómicamente.
+
+```plantuml
+@startuml DClases_CU15
+allowmixing
+left to right direction
+skinparam classAttributeIconSize 0
+skinparam backgroundColor transparent
+actor "Receptor" as Actor
+
+class "IU_Recepcion" as IU <<Boundary>> {
+  + idOrden : Integer
+  + cantidadesRecibidas : Array
+  + observaciones : String
+  --
+  + cargarDetalleOrden()
+  + verificarCantidades()
+  + confirmarRecepcion()
+}
+
+class "CTR_Recepcion" as CTR <<Control>> {
+  --
+  + registrarRecepcion(orden, cantidades[])
+  + actualizarKardexIngreso()
+  + actualizarEstadoOrden()
+}
+
+class "CE_OrdenCompra" as ENT_OC <<Entity>> {
+  - id_orden : Integer
+  - estado : String
+}
+
+class "CE_Kardex_Movimientos" as ENT_K <<Entity>> {
+  - id_movimiento : Integer
+  - id_item : Integer
+  - tipo_transaccion : String
+  - cantidad : Decimal
+  - fecha_registro : DateTime
+}
+
+class "CE_Bitacora" as ENT2 <<Entity>> {
+  - accion_sql : String
+  - fecha_hora : DateTime
+}
+
+Actor --> IU
+IU --> CTR
+CTR --> ENT_OC
+CTR --> ENT_K
+ENT_K ..> ENT2 : <<trigger>>
+@enduml
+```
+
+#### CU16: Registrar Pago a Proveedor
+
+**Descripción del diagrama:** Modela la clase frontera con el formulario financiero, el controlador que valida saldos y registra pagos, y las entidades de Pago y Orden de Compra que cierran el ciclo contable.
+
+```plantuml
+@startuml DClases_CU16
+allowmixing
+left to right direction
+skinparam classAttributeIconSize 0
+skinparam backgroundColor transparent
+actor "Administrador" as Actor
+
+class "IU_Pagos" as IU <<Boundary>> {
+  + idOrden : Integer
+  + montoAbonar : Decimal
+  + metodoPago : String
+  + referencia : String
+  --
+  + cargarSaldoPendiente()
+  + ingresarDatosPago()
+  + confirmarPago()
+}
+
+class "CTR_Pago" as CTR <<Control>> {
+  --
+  + registrarPago(orden, monto, metodo)
+  + validarMontoNoExcede()
+  + actualizarEstadoOrden()
+}
+
+class "CE_PagoProveedor" as ENT_PAGO <<Entity>> {
+  - id_pago : Integer
+  - id_orden : Integer
+  - monto : Decimal
+  - metodo_pago : String
+  - fecha_pago : DateTime
+}
+
+class "CE_OrdenCompra" as ENT_OC <<Entity>> {
+  - id_orden : Integer
+  - total : Decimal
+  - estado : String
+}
+
+class "CE_Bitacora" as ENT2 <<Entity>> {
+  - accion_sql : String
+  - fecha_hora : DateTime
+}
+
+Actor --> IU
+IU --> CTR
+CTR --> ENT_PAGO
+CTR --> ENT_OC
+ENT_PAGO ..> ENT2 : <<trigger>>
+@enduml
+```
+
+#### CU17: Registrar Ticket de Ingreso de Cisterna
+
+**Descripción del diagrama:** Define la clase frontera optimizada para tablet industrial, el controlador que valida el proveedor ganadero y crea el ticket, y la entidad de Recepción de Leche con sus atributos de volumen y temperatura.
+
+```plantuml
+@startuml DClases_CU17
+allowmixing
+left to right direction
+skinparam classAttributeIconSize 0
+skinparam backgroundColor transparent
+actor "Ing. Industrial" as Actor
+
+class "IU_Acopio" as IU <<Boundary>> {
+  + idProveedor : Integer
+  + volumenLitros : Decimal
+  + temperaturaLlegada : Decimal
+  --
+  + seleccionarGanadero()
+  + ingresarVolumen()
+  + registrarTicket()
+}
+
+class "CTR_Acopio" as CTR <<Control>> {
+  --
+  + registrarTicketCisterna(prov, litros, temp)
+  + verificarProveedorActivo()
+  + validarRangosEntrada()
+}
+
+class "CE_Proveedor" as ENT_PROV <<Entity>> {
+  - id_proveedor : Integer
+  - razon_social : String
+  - is_activo : Boolean
+}
+
+class "CE_RecepcionLeche" as ENT_REC <<Entity>> {
+  - id_recepcion : Integer
+  - id_proveedor : Integer
+  - volumen_litros : Decimal
+  - temperatura : Decimal
+  - fecha_hora : DateTime
+  - estado : String
+}
+
+class "CE_Bitacora" as ENT2 <<Entity>> {
+  - accion_sql : String
+  - fecha_hora : DateTime
+}
+
+Actor --> IU
+IU --> CTR
+CTR --> ENT_PROV
+CTR --> ENT_REC
+ENT_REC ..> ENT2 : <<trigger>>
+@enduml
+```
+
+#### CU18: Registrar Dictamen de Triage Bioquímico
+
+**Descripción del diagrama:** Diagrama de clases más complejo del Ciclo 2. La frontera incluye indicadores visuales tipo semáforo para cada parámetro. El controlador implementa la lógica de validación contra umbrales SENASAG y la decisión de aceptación/rechazo. Las entidades abarcan la Recepción de Leche (actualización de estado) y el Kardex (ingreso condicional de materia prima).
+
+```plantuml
+@startuml DClases_CU18
+allowmixing
+left to right direction
+skinparam classAttributeIconSize 0
+skinparam backgroundColor transparent
+actor "Laboratorista" as Actor
+
+class "IU_Triage" as IU <<Boundary>> {
+  + ph : Decimal
+  + acidezDornic : Decimal
+  + celulasSomaticas : Integer
+  + porcentajeGrasa : Decimal
+  + porcentajeAgua : Decimal
+  + antibioticos : Boolean
+  --
+  + ingresarParametros()
+  + mostrarSemaforosValidacion()
+  + mostrarDictamenFinal()
+}
+
+class "CTR_Triage" as CTR <<Control>> {
+  --
+  + registrarTriage(ticket, params)
+  + validarVsUmbralesSENASAG()
+  + determinarDictamen()
+  + actualizarKardexSiAcepta()
+}
+
+class "CE_RecepcionLeche" as ENT_REC <<Entity>> {
+  - id_recepcion : Integer
+  - ph : Decimal
+  - acidez_dornic : Decimal
+  - celulas_somaticas : Integer
+  - grasa : Decimal
+  - agua : Decimal
+  - antibioticos : Boolean
+  - estado : String
+}
+
+class "CE_Kardex_Movimientos" as ENT_K <<Entity>> {
+  - id_movimiento : Integer
+  - id_item : Integer
+  - tipo_transaccion : String
+  - cantidad : Decimal
+}
+
+class "CE_Bitacora" as ENT2 <<Entity>> {
+  - accion_sql : String
+  - fecha_hora : DateTime
+}
+
+Actor --> IU
+IU --> CTR
+CTR --> ENT_REC
+CTR --> ENT_K
+ENT_REC ..> ENT2 : <<trigger>>
+ENT_K ..> ENT2 : <<trigger>>
+@enduml
+```
+
+#### CU19: Registrar Receta Base BOM
+
+**Descripción del diagrama:** Define la clase frontera con la tabla dinámica de ingredientes y el indicador de proporción, el controlador que valida la existencia de insumos en el catálogo y la coherencia química, y las entidades de Receta BOM con sus líneas de detalle.
+
+```plantuml
+@startuml DClases_CU19
+allowmixing
+left to right direction
+skinparam classAttributeIconSize 0
+skinparam backgroundColor transparent
+actor "Jefe Producción" as Actor
+
+class "IU_Recetas" as IU <<Boundary>> {
+  + nombreReceta : String
+  + productoFinal : Integer
+  + volumenBase : Decimal
+  + ingredientes : Array
+  --
+  + agregarIngrediente()
+  + calcularProporcionTotal()
+  + guardarReceta()
+}
+
+class "CTR_BOM" as CTR <<Control>> {
+  --
+  + guardarReceta(producto, ingredientes[])
+  + verificarInsumosEnCatalogo()
+  + validarCoherenciaQuimica()
+  + insertarRecetaConDetalle()
+}
+
+class "CE_RecetaBOM" as ENT_REC <<Entity>> {
+  - id_receta : Integer
+  - nombre : String
+  - id_producto_final : Integer
+  - volumen_base_litros : Decimal
+  - is_activa : Boolean
+}
+
+class "CE_DetalleReceta" as ENT_DET <<Entity>> {
+  - id_detalle : Integer
+  - id_receta : Integer
+  - id_insumo : Integer
+  - cantidad : Decimal
+  - tolerancia_pct : Decimal
+}
+
+class "CE_Catalogo_Items" as ENT_CAT <<Entity>> {
+  - id_item : Integer
+  - nombre_articulo : String
+  - unidad_medida : String
+}
+
+class "CE_Bitacora" as ENT2 <<Entity>> {
+  - accion_sql : String
+  - fecha_hora : DateTime
+}
+
+Actor --> IU
+IU --> CTR
+CTR --> ENT_REC
+CTR --> ENT_DET
+CTR --> ENT_CAT
+ENT_REC ..> ENT2 : <<trigger>>
+@enduml
+```
+
 
 
 ANEXOS
