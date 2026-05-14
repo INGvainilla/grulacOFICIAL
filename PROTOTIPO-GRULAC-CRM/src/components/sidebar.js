@@ -57,8 +57,8 @@ export const PACKAGES = [
 export function SidebarContent({ user, onItemClick }) {
   const pathname = usePathname()
   
-  // Basic RBAC filtering for the prototype based on user's role JSON
-  // If no user context or permissions are provided, default to full access for demo.
+  // Módulo de Seguridad (Capa de Control PUDS): Filtro Básico RBAC
+  // Se evalúan los privilegios de la sesión; si no existen, se asume un rol de demostración.
   const permissions = user?.roles?.permisos_json?.modulos || []
   
   const isAllowed = (item) => {
@@ -75,8 +75,8 @@ export function SidebarContent({ user, onItemClick }) {
     return permissions.includes(item.module)
   }
 
-  // Filtrar cada paquete y quedarse solo con los ítems permitidos,
-  // y omitir paquetes enteros si quedan vacíos.
+  // Capa de Presentación (Boundary Layer): 
+  // Filtrar los módulos y mostrar únicamente aquellos autorizados, omitiendo los vacíos.
   const filteredPackages = PACKAGES.map(pkg => ({
     ...pkg,
     items: pkg.items.filter(isAllowed)

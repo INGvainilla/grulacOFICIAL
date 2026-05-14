@@ -7,7 +7,8 @@ export default async function DashboardLayout({ children }) {
   const supabase = await createClient()
   const { data: { session } } = await supabase.auth.getSession()
 
-  // Protect all dashboard routes — redirect to login if no session
+  // Módulo de Seguridad PUDS: Protección de Rutas
+  // Verificamos si existe una sesión; si no, el actor es redirigido a la frontera de autenticación
   if (!session) {
     redirect('/login')
   }
@@ -21,7 +22,8 @@ export default async function DashboardLayout({ children }) {
     redirect('/actualizar-contrasena')
   }
 
-  // Get user profile from DB and VERIFY estado_acceso (CU01 E2 + CU04)
+  // Consulta a Base de Datos (Entity Layer): Obtención del perfil de usuario y 
+  // VERIFICACIÓN DEL ESTADO DE ACCESO (Flujo Alterno E2 del Caso de Uso 01 y CU04).
   const { data: userData } = await supabase
     .from('usuarios')
     .select(`
@@ -34,10 +36,10 @@ export default async function DashboardLayout({ children }) {
     .eq('auth_uid', session.user.id)
     .single()
 
-  // If user was disabled by admin (CU04), force logout and redirect
+  // Validación de Regla de Negocio: Si el administrador inhabilitó al usuario (CU04),
+  // se deniega el acceso y se redirige a la página de inicio de sesión.
+  // La página de login se encargará de purgar la sesión al detectar estado_acceso=false.
   if (!userData || userData.estado_acceso === false) {
-    // Can't call signOut from server component reliably, so redirect to login
-    // The login page will handle the signOut when it detects estado_acceso=false
     redirect('/login')
   }
 

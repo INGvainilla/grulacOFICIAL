@@ -74,27 +74,40 @@ export default function CatalogoPage() {
       return
     }
 
-    // Paso 2: Si hay stock inicial, crear el movimiento en el Kardex automáticamente
+    const { data: { session } } = await supabase.auth.getSession()
+    let idUsuario = null
+    if (session?.user?.id) {
+      const { data: userData } = await supabase.from('usuarios').select('id_usuario').eq('auth_uid', session.user.id).single()
+      if (userData?.id_usuario) idUsuario = userData.id_usuario
+    }
+
+    const { error: bitaError } = await supabase.from('bitacora_auditoria').insert([{
+      id_usuario: idUsuario,
+      accion_sql: 'INSERT',
+      tabla_afectada: 'catalogo_items',
+      registro_id: newItem.id_item,
+      new_data: newItem
+    }])
+    if (bitaError) console.error("Error bitacora:", bitaError)
+
     const sInicial = parseFloat(form.stock_inicial) || 0
     if (sInicial > 0) {
-      const { data: { session } } = await supabase.auth.getSession()
-      const { data: userData } = await supabase.from('usuarios').select('id_usuario').eq('auth_uid', session?.user?.id).single()
 
       await supabase.from('movimientos_kardex').insert([{
         id_item: newItem.id_item,
         tipo_operacion: 'IN',
         cantidad_kilos: sInicial,
         concepto_operacion: 'SALDO INICIAL - Apertura de Catálogo (Demo Ciclo 1)',
-        id_usuario: userData?.id_usuario
+        id_usuario: idUsuario
       }])
     }
 
-    toast.success('Ítem registrado en el catálogo', { 
-      description: sInicial > 0 
+    toast.success('Ítem registrado en el catálogo', {
+      description: sInicial > 0
         ? `${form.nombre_producto} creado con saldo inicial de ${sInicial}`
-        : `${form.nombre_producto} registrado correctamente` 
+        : `${form.nombre_producto} registrado correctamente`
     })
-    
+
     setShowModal(false)
     setForm({ codigo_sku: '', nombre_producto: '', tipo_item: '', categoria: '', unidad_medida: '', precio_referencia: '', stock_minimo: '', vida_util_dias: '', stock_inicial: '0' })
     setFormErrors({})
@@ -175,17 +188,17 @@ export default function CatalogoPage() {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 py-4">
             <div className="space-y-2">
               <Label>Código SKU *</Label>
-              <Input 
+              <Input
                 placeholder="Ej: INS-CUAJO-01"
                 value={form.codigo_sku}
-                onChange={(e) => { setForm({...form, codigo_sku: e.target.value}); setFormErrors({...formErrors, codigo_sku: ''}) }}
+                onChange={(e) => { setForm({ ...form, codigo_sku: e.target.value }); setFormErrors({ ...formErrors, codigo_sku: '' }) }}
                 className={formErrors.codigo_sku ? 'border-red-500' : ''}
               />
               {formErrors.codigo_sku && <p className="text-xs text-red-500">{formErrors.codigo_sku}</p>}
             </div>
             <div className="space-y-2">
               <Label>Tipo de Ítem *</Label>
-              <Select value={form.tipo_item} onValueChange={(val) => { setForm({...form, tipo_item: val}); setFormErrors({...formErrors, tipo_item: ''}) }}>
+              <Select value={form.tipo_item} onValueChange={(val) => { setForm({ ...form, tipo_item: val }); setFormErrors({ ...formErrors, tipo_item: '' }) }}>
                 <SelectTrigger className={formErrors.tipo_item ? 'border-red-500' : ''}>
                   <SelectValue placeholder="Seleccione..." />
                 </SelectTrigger>
@@ -200,17 +213,17 @@ export default function CatalogoPage() {
             </div>
             <div className="sm:col-span-2 space-y-2">
               <Label>Nombre del Producto *</Label>
-              <Input 
+              <Input
                 placeholder="Ej: Cloruro de Calcio Industrial"
                 value={form.nombre_producto}
-                onChange={(e) => { setForm({...form, nombre_producto: e.target.value}); setFormErrors({...formErrors, nombre_producto: ''}) }}
+                onChange={(e) => { setForm({ ...form, nombre_producto: e.target.value }); setFormErrors({ ...formErrors, nombre_producto: '' }) }}
                 className={formErrors.nombre_producto ? 'border-red-500' : ''}
               />
               {formErrors.nombre_producto && <p className="text-xs text-red-500">{formErrors.nombre_producto}</p>}
             </div>
             <div className="space-y-2">
               <Label>Unidad de Medida *</Label>
-              <Select value={form.unidad_medida} onValueChange={(val) => { setForm({...form, unidad_medida: val}); setFormErrors({...formErrors, unidad_medida: ''}) }}>
+              <Select value={form.unidad_medida} onValueChange={(val) => { setForm({ ...form, unidad_medida: val }); setFormErrors({ ...formErrors, unidad_medida: '' }) }}>
                 <SelectTrigger className={formErrors.unidad_medida ? 'border-red-500' : ''}>
                   <SelectValue placeholder="Seleccione..." />
                 </SelectTrigger>
@@ -225,25 +238,25 @@ export default function CatalogoPage() {
             </div>
             <div className="space-y-2">
               <Label>Categoría</Label>
-              <Input placeholder="Ej: Producción" value={form.categoria} onChange={(e) => setForm({...form, categoria: e.target.value})} />
+              <Input placeholder="Ej: Producción" value={form.categoria} onChange={(e) => setForm({ ...form, categoria: e.target.value })} />
             </div>
             <div className="space-y-2">
               <Label>Stock Mínimo Alerta</Label>
-              <Input type="number" step="0.01" placeholder="0.00" value={form.stock_minimo} onChange={(e) => setForm({...form, stock_minimo: e.target.value})} />
+              <Input type="number" step="0.01" placeholder="0.00" value={form.stock_minimo} onChange={(e) => setForm({ ...form, stock_minimo: e.target.value })} />
             </div>
             <div className="space-y-2">
               <Label>Precio Ref. (Bs)</Label>
-              <Input type="number" step="0.01" placeholder="0.00" value={form.precio_referencia} onChange={(e) => setForm({...form, precio_referencia: e.target.value})} />
+              <Input type="number" step="0.01" placeholder="0.00" value={form.precio_referencia} onChange={(e) => setForm({ ...form, precio_referencia: e.target.value })} />
             </div>
             <div className="sm:col-span-2 p-3 bg-emerald-500/5 border border-emerald-500/20 rounded-lg space-y-2">
               <Label className="text-emerald-400 font-bold">Saldo Inicial (Opcional)</Label>
-              <Input 
-                type="number" 
-                step="0.01" 
-                placeholder="0.00" 
-                value={form.stock_inicial} 
-                onChange={(e) => setForm({...form, stock_inicial: e.target.value})}
-                className="bg-background/50 border-emerald-500/30 focus-visible:ring-emerald-500/50" 
+              <Input
+                type="number"
+                step="0.01"
+                placeholder="0.00"
+                value={form.stock_inicial}
+                onChange={(e) => setForm({ ...form, stock_inicial: e.target.value })}
+                className="bg-background/50 border-emerald-500/30 focus-visible:ring-emerald-500/50"
               />
               <p className="text-[10px] text-emerald-500/70">Si ingresa un valor, se generará automáticamente un movimiento de entrada en el Kárdex.</p>
             </div>

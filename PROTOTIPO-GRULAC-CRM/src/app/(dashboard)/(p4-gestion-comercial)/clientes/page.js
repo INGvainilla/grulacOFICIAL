@@ -63,7 +63,7 @@ export default function ClientesPage() {
       return
     }
 
-    const { error } = await supabase.from('clientes').insert([{
+    const { data: newCliente, error } = await supabase.from('clientes').insert([{
       nit_facturacion: form.nit_facturacion.trim(),
       razon_social: form.razon_social.trim(),
       tipo_cliente: form.tipo_cliente,
@@ -71,13 +71,28 @@ export default function ClientesPage() {
       email: form.email.trim() || null,
       direccion: form.direccion.trim() || null,
       ciudad: form.ciudad.trim() || null,
-    }])
+    }]).select().single()
 
     if (error) {
       toast.error('Error al registrar cliente', { description: error.message })
       setSaving(false)
       return
     }
+
+    const { data: { session } } = await supabase.auth.getSession()
+    let idUsuario = 1
+    if (session?.user?.id) {
+      const { data: userData } = await supabase.from('usuarios').select('id_usuario').eq('auth_uid', session.user.id).single()
+      if (userData?.id_usuario) idUsuario = userData.id_usuario
+    }
+
+    await supabase.from('bitacora_auditoria').insert([{
+      id_usuario: idUsuario,
+      accion_sql: 'INSERT',
+      tabla_afectada: 'clientes',
+      registro_id: newCliente.id_cliente,
+      new_data: newCliente
+    }])
 
     toast.success('Cliente apto para despachos', { description: `${form.razon_social} integrado al CRM.` })
     setShowModal(false)

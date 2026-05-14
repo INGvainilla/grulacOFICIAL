@@ -19,7 +19,8 @@ export default function LoginPage() {
   const router = useRouter()
   const supabase = createClient()
 
-  // Read attempts from localStorage after mount (avoids hydration mismatch)
+  // Restauramos los intentos previos desde el almacenamiento local del navegador al cargar.
+  // Esto previene inconsistencias de hidratación (Hydration mismatch) en Next.js.
   useEffect(() => {
     const saved = localStorage.getItem('login_attempts')
     if (saved) setAttempts(parseInt(saved))
@@ -84,7 +85,8 @@ export default function LoginPage() {
       return
     }
 
-    // Auth exitoso — ahora verificar estado en nuestra tabla usuarios
+    // Autenticación primaria exitosa (Identity verified) 
+    // Ahora validamos el perfil del actor en nuestra tabla interna de usuarios.
     if (authData?.user) {
       // E2: Verificar estado_acceso (empleado inhabilitado)
       const { data: userData, error: dbError } = await supabase
@@ -131,7 +133,7 @@ export default function LoginPage() {
           .eq('id_usuario', userData.id_usuario)
       } catch (_) { /* silencioso */ }
 
-      // Limpiar contadores de intentos
+      // Limpieza de memoria (Storage local): Eliminamos variables de bloqueo tras éxito.
       localStorage.removeItem('login_attempts')
       localStorage.removeItem('login_lock_until')
       setAttempts(0)
@@ -155,7 +157,8 @@ export default function LoginPage() {
     }
   }
 
-  // Mostrar link de recuperación siempre, pero resaltarlo tras 2+ intentos
+  // Interfaz de Usuario (Boundary): Mostrar hipervínculo de recuperación.
+  // Se resalta visualmente (animate-pulse) si el usuario ya falló 2 o más veces.
   const showRecoveryHighlight = attempts >= 2
 
   return (

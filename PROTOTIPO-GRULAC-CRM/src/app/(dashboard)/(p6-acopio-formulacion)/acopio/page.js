@@ -68,8 +68,11 @@ export default function AcopioPage() {
     }
 
     const { data: { user } } = await supabase.auth.getUser()
-    const { data: usuario } = await supabase.from('usuarios').select('id_usuario').eq('auth_uid', user.id).single()
-    const idUsuario = usuario?.id_usuario || 1
+    let idUsuario = 1
+    if (user?.id) {
+      const { data: usuario } = await supabase.from('usuarios').select('id_usuario').eq('auth_uid', user.id).single()
+      if (usuario?.id_usuario) idUsuario = usuario.id_usuario
+    }
 
     const { error } = await supabase.from('recepciones_leche').insert([{
       id_proveedor: formTicket.id_proveedor,
@@ -115,8 +118,11 @@ export default function AcopioPage() {
   const handleTriage = async () => {
     setSaving(true)
     const { data: { user } } = await supabase.auth.getUser()
-    const { data: usuario } = await supabase.from('usuarios').select('id_usuario').eq('auth_uid', user.id).single()
-    const idUsuario = usuario?.id_usuario || 1
+    let idUsuario = 1
+    if (user?.id) {
+      const { data: usuario } = await supabase.from('usuarios').select('id_usuario').eq('auth_uid', user.id).single()
+      if (usuario?.id_usuario) idUsuario = usuario.id_usuario
+    }
 
     // 1. Update Recepcion
     const { error: updError } = await supabase.from('recepciones_leche').update({

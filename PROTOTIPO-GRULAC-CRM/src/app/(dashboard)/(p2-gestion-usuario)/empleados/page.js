@@ -183,6 +183,20 @@ export default function EmpleadosPage() {
         .eq('id_usuario', targetEmpleado.usuarios[0].id_usuario)
     }
 
+    let idUsuario = 1
+    if (currentUser?.id) {
+      const { data: userData } = await supabase.from('usuarios').select('id_usuario').eq('auth_uid', currentUser.id).single()
+      if (userData?.id_usuario) idUsuario = userData.id_usuario
+    }
+
+    await supabase.from('bitacora_auditoria').insert([{
+      id_usuario: idUsuario,
+      accion_sql: 'UPDATE',
+      tabla_afectada: 'empleados',
+      registro_id: targetEmpleado.id_empleado,
+      new_data: { estado_activo: newState }
+    }])
+
     toast.success(`Operador ${targetEmpleado.nombre_completo} ${newState ? 'rehabilitado' : 'inhabilitado'}`, {
       description: newState ? 'Su acceso al ERP ha sido restaurado exitosamente.' : 'Su acceso al ERP ha sido revocado.'
     })

@@ -68,10 +68,10 @@ export function Topbar({ user }) {
           </Sheet>
         </div>
         
-        {/* Spacer / Left side */}
+        {/* Espaciador central para alinear elementos a los extremos */}
         <div className="flex-1" />
         
-        {/* Right Actions */}
+        {/* Acciones Rápidas (Boundary): Menú de Usuario y Notificaciones */}
         <div className="flex items-center gap-4">
           
           <Button variant="ghost" size="icon" className="text-muted-foreground hidden sm:flex">

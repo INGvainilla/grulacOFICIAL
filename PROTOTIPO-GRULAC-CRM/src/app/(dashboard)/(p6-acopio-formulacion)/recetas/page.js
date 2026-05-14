@@ -119,10 +119,14 @@ export default function RecetasPage() {
     } else {
       // Auditoría: Creación de Receta BOM
       const { data: { user } } = await supabase.auth.getUser()
-      const { data: usuario } = await supabase.from('usuarios').select('id_usuario').eq('auth_uid', user.id).single()
+      let idUsuario = 1
+      if (user?.id) {
+        const { data: usuario } = await supabase.from('usuarios').select('id_usuario').eq('auth_uid', user.id).single()
+        if (usuario?.id_usuario) idUsuario = usuario.id_usuario
+      }
       
       await supabase.from('bitacora_auditoria').insert([{
-        id_usuario: usuario?.id_usuario || 1,
+        id_usuario: idUsuario,
         accion_sql: 'INSERT',
         tabla_afectada: 'recetas_bom',
         registro_id: nuevaReceta.id_receta,

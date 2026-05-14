@@ -64,20 +64,36 @@ export default function ProveedoresPage() {
     }
 
     // INSERT con estado_reputacion='Activo' automático (por DEFAULT)
-    const { error } = await supabase.from('proveedores').insert([{
+    const { data: newProv, error } = await supabase.from('proveedores').insert([{
       ci_nit: form.ci_nit.trim(),
       razon_social: form.razon_social.trim(),
       tipo_proveedor: form.tipo_proveedor,
       telefono: form.telefono.trim() || null,
       direccion: form.direccion.trim() || null,
       colonia_origen: form.colonia_origen.trim() || null,
-    }])
+    }]).select().single()
 
     if (error) {
       toast.error('Error al registrar proveedor', { description: error.message })
       setSaving(false)
       return
     }
+
+    const { data: { session } } = await supabase.auth.getSession()
+    let idUsuario = null
+    if (session?.user?.id) {
+      const { data: userData } = await supabase.from('usuarios').select('id_usuario').eq('auth_uid', session.user.id).single()
+      if (userData?.id_usuario) idUsuario = userData.id_usuario
+    }
+
+    const { error: bitaError } = await supabase.from('bitacora_auditoria').insert([{
+      id_usuario: idUsuario,
+      accion_sql: 'INSERT',
+      tabla_afectada: 'proveedores',
+      registro_id: newProv.id_proveedor,
+      new_data: newProv
+    }])
+    if (bitaError) console.error("Error bitacora:", bitaError)
 
     toast.success('Proveedor registrado exitosamente', { description: `${form.razon_social} está apto para negocios.` })
     setShowModal(false)
@@ -123,6 +139,21 @@ export default function ProveedoresPage() {
       setSaving(false)
       return
     }
+
+    const { data: { session } } = await supabase.auth.getSession()
+    let idUsuario = 1
+    if (session?.user?.id) {
+      const { data: userData } = await supabase.from('usuarios').select('id_usuario').eq('auth_uid', session.user.id).single()
+      if (userData?.id_usuario) idUsuario = userData.id_usuario
+    }
+
+    await supabase.from('bitacora_auditoria').insert([{
+      id_usuario: idUsuario,
+      accion_sql: 'UPDATE',
+      tabla_afectada: 'proveedores',
+      registro_id: providerToDisable.id_proveedor,
+      new_data: { estado_reputacion: 'Suspendido' }
+    }])
 
     toast.success('Proveedor inhabilitado', { description: 'El proveedor ha sido suspendido exitosamente.' })
     setProviderToDisable(null)

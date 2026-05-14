@@ -79,6 +79,20 @@ export default function RolesPage() {
       return
     }
 
+    let idUsuario = 1
+    if (currentAuthId) {
+      const { data: userData } = await supabase.from('usuarios').select('id_usuario').eq('auth_uid', currentAuthId).single()
+      if (userData?.id_usuario) idUsuario = userData.id_usuario
+    }
+
+    await supabase.from('bitacora_auditoria').insert([{
+      id_usuario: idUsuario,
+      accion_sql: 'UPDATE',
+      tabla_afectada: 'usuarios',
+      registro_id: targetUser.id_usuario,
+      new_data: { id_rol: parseInt(selectedRol) }
+    }])
+
     const rolName = roles.find(r => r.id_rol === parseInt(selectedRol))?.nombre_rol || 'Desconocido'
     toast.success('Rol actualizado', {
       description: `${targetUser.empleados?.nombre_completo} ahora es "${rolName}".`

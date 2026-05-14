@@ -30,7 +30,7 @@ export default function ComprasPage() {
   // Formularios
   const [formOrden, setFormOrden] = useState({ id_proveedor: '', numero_factura_compra: '', items: [] })
   const [itemTemporal, setItemTemporal] = useState({ id_item: '', cantidad: '', precio_unitario: '' })
-  
+
   const [formRecepcion, setFormRecepcion] = useState({ lotes: [], observaciones: '' }) // Para CU15
   const [formPago, setFormPago] = useState({ monto_pagado_bs: '', metodo_pago: '', referencia_comprobante: '' }) // Para CU16
 
@@ -40,13 +40,13 @@ export default function ComprasPage() {
       .from('compras_insumos')
       .select('*, proveedores(razon_social), usuarios!compras_insumos_id_usuario_recibe_fkey(email_corporativo), detalle_compras(*, catalogo_items(nombre_producto, unidad_medida)), pagos_proveedores(monto_pagado_bs)')
       .order('fecha_compra', { ascending: false })
-    
+
     const { data: pData } = await supabase.from('proveedores').select('*').eq('estado_reputacion', 'Activo')
     const { data: cData } = await supabase.from('catalogo_items').select('*').in('tipo_item', ['MATERIA_PRIMA', 'INSUMO', 'EMPAQUE'])
 
     if (oError) toast.error('Error al cargar órdenes', { description: oError.message })
     else setOrdenes(oData || [])
-    
+
     setProveedores(pData || [])
     setCatalogo(cData || [])
     setLoading(false)
@@ -76,8 +76,11 @@ export default function ComprasPage() {
 
     // Obtener usuario actual (para auditoria y foreign keys)
     const { data: { user } } = await supabase.auth.getUser()
-    const { data: usuario } = await supabase.from('usuarios').select('id_usuario').eq('auth_uid', user.id).single()
-    const idUsuario = usuario?.id_usuario || 1 // Fallback para desarrollo si es necesario
+    let idUsuario = 1
+    if (user?.id) {
+      const { data: usuario } = await supabase.from('usuarios').select('id_usuario').eq('auth_uid', user.id).single()
+      if (usuario?.id_usuario) idUsuario = usuario.id_usuario
+    }
 
     const totalCalculado = formOrden.items.reduce((acc, it) => acc + (parseFloat(it.cantidad) * parseFloat(it.precio_unitario)), 0)
 
@@ -105,7 +108,7 @@ export default function ComprasPage() {
     }))
 
     const { error: detError } = await supabase.from('detalle_compras').insert(detallesToInsert)
-    
+
     if (detError) {
       toast.error('Error al registrar detalles', { description: detError.message })
     } else {
@@ -149,12 +152,15 @@ export default function ComprasPage() {
   const handleRecepcion = async () => {
     setSaving(true)
     const { data: { user } } = await supabase.auth.getUser()
-    const { data: usuario } = await supabase.from('usuarios').select('id_usuario').eq('auth_uid', user.id).single()
-    const idUsuario = usuario?.id_usuario || 1
+    let idUsuario = 1
+    if (user?.id) {
+      const { data: usuario } = await supabase.from('usuarios').select('id_usuario').eq('auth_uid', user.id).single()
+      if (usuario?.id_usuario) idUsuario = usuario.id_usuario
+    }
 
     // 1. Actualizar estado de la compra a Recibida
     const { error: updError } = await supabase.from('compras_insumos').update({ estado_compra: 'Recibida' }).eq('id_compra', ordenSeleccionada.id_compra)
-    
+
     if (updError) {
       toast.error('Error al actualizar orden', { description: updError.message }); setSaving(false); return
     }
@@ -169,7 +175,7 @@ export default function ComprasPage() {
           lote_proveedor: item.lote_proveedor || null,
           fecha_vencimiento: item.fecha_vencimiento || null
         }).eq('id_detalle_compra', item.id_detalle_compra)
-  
+
         // Insertar Kardex
         await supabase.from('movimientos_kardex').insert([{
           id_item: item.id_item,
@@ -215,7 +221,7 @@ export default function ComprasPage() {
   const handlePago = async () => {
     const montoIngresado = parseFloat(formPago.monto_pagado_bs)
     if (!montoIngresado || !formPago.metodo_pago) return
-    
+
     // Validar Monto No Excede
     if (montoIngresado > saldoActual) {
       toast.error('Monto Inválido', { description: `El pago no puede exceder el saldo pendiente de Bs. ${saldoActual.toFixed(2)}` })
@@ -224,8 +230,11 @@ export default function ComprasPage() {
 
     setSaving(true)
     const { data: { user } } = await supabase.auth.getUser()
-    const { data: usuario } = await supabase.from('usuarios').select('id_usuario').eq('auth_uid', user.id).single()
-    const idUsuario = usuario?.id_usuario || 1
+    let idUsuario = 1
+    if (user?.id) {
+      const { data: usuario } = await supabase.from('usuarios').select('id_usuario').eq('auth_uid', user.id).single()
+      if (usuario?.id_usuario) idUsuario = usuario.id_usuario
+    }
 
     const { error } = await supabase.from('pagos_proveedores').insert([{
       id_proveedor: ordenSeleccionada.id_proveedor,
@@ -309,9 +318,9 @@ export default function ComprasPage() {
                       </Button>
                     )}
                     {ord.estado_compra === 'Recibida' && (
-                       <Button variant="outline" size="sm" onClick={() => abrirPago(ord)} className="text-blue-500 border-blue-500/50 hover:bg-blue-500/10">
-                       <Banknote className="w-4 h-4 mr-1" /> Pagar / Abonar
-                     </Button>
+                      <Button variant="outline" size="sm" onClick={() => abrirPago(ord)} className="text-blue-500 border-blue-500/50 hover:bg-blue-500/10">
+                        <Banknote className="w-4 h-4 mr-1" /> Pagar / Abonar
+                      </Button>
                     )}
                   </TableCell>
                 </TableRow>
@@ -331,7 +340,7 @@ export default function ComprasPage() {
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Proveedor</Label>
-                <Select value={formOrden.id_proveedor} onValueChange={(val) => setFormOrden({...formOrden, id_proveedor: val})}>
+                <Select value={formOrden.id_proveedor} onValueChange={(val) => setFormOrden({ ...formOrden, id_proveedor: val })}>
                   <SelectTrigger><SelectValue placeholder="Seleccionar proveedor..." /></SelectTrigger>
                   <SelectContent>
                     {proveedores.map(p => <SelectItem key={p.id_proveedor} value={p.id_proveedor.toString()}>{p.razon_social}</SelectItem>)}
@@ -340,7 +349,7 @@ export default function ComprasPage() {
               </div>
               <div className="space-y-2">
                 <Label>Factura Proforma (Opcional)</Label>
-                <Input value={formOrden.numero_factura_compra} onChange={(e) => setFormOrden({...formOrden, numero_factura_compra: e.target.value})} placeholder="Nº Documento..." />
+                <Input value={formOrden.numero_factura_compra} onChange={(e) => setFormOrden({ ...formOrden, numero_factura_compra: e.target.value })} placeholder="Nº Documento..." />
               </div>
             </div>
 
@@ -348,7 +357,7 @@ export default function ComprasPage() {
               <h4 className="font-medium">Agregar Ítems</h4>
               <div className="grid grid-cols-12 gap-2">
                 <div className="col-span-5">
-                  <Select value={itemTemporal.id_item} onValueChange={(val) => setItemTemporal({...itemTemporal, id_item: val})}>
+                  <Select value={itemTemporal.id_item} onValueChange={(val) => setItemTemporal({ ...itemTemporal, id_item: val })}>
                     <SelectTrigger><SelectValue placeholder="Ítem del catálogo" /></SelectTrigger>
                     <SelectContent>
                       {catalogo.map(c => <SelectItem key={c.id_item} value={c.id_item.toString()}>{c.nombre_producto} ({c.unidad_medida})</SelectItem>)}
@@ -356,10 +365,10 @@ export default function ComprasPage() {
                   </Select>
                 </div>
                 <div className="col-span-3">
-                  <Input type="number" placeholder="Cantidad" value={itemTemporal.cantidad} onChange={(e) => setItemTemporal({...itemTemporal, cantidad: e.target.value})} />
+                  <Input type="number" placeholder="Cantidad" value={itemTemporal.cantidad} onChange={(e) => setItemTemporal({ ...itemTemporal, cantidad: e.target.value })} />
                 </div>
                 <div className="col-span-3">
-                  <Input type="number" placeholder="Precio Unit. Bs" value={itemTemporal.precio_unitario} onChange={(e) => setItemTemporal({...itemTemporal, precio_unitario: e.target.value})} />
+                  <Input type="number" placeholder="Precio Unit. Bs" value={itemTemporal.precio_unitario} onChange={(e) => setItemTemporal({ ...itemTemporal, precio_unitario: e.target.value })} />
                 </div>
                 <div className="col-span-1">
                   <Button onClick={handleAgregarItem} size="icon" className="w-full"><PlusCircle className="w-4 h-4" /></Button>
@@ -375,7 +384,7 @@ export default function ComprasPage() {
                         <TableCell>{it.nombre}</TableCell>
                         <TableCell>{it.cantidad} {it.unidad}</TableCell>
                         <TableCell>Bs. {it.precio_unitario}</TableCell>
-                        <TableCell>Bs. {(parseFloat(it.cantidad)*parseFloat(it.precio_unitario)).toFixed(2)}</TableCell>
+                        <TableCell>Bs. {(parseFloat(it.cantidad) * parseFloat(it.precio_unitario)).toFixed(2)}</TableCell>
                       </TableRow>
                     ))}
                     <TableRow className="font-bold">
@@ -402,49 +411,49 @@ export default function ComprasPage() {
             <DialogDescription>Confirme la llegada de los ítems para registrarlos en el Kardex.</DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
-             {formRecepcion.lotes.map((lote, index) => (
-               <div key={index} className="grid grid-cols-12 gap-2 items-center border-b border-border/50 pb-2">
-                 <div className="col-span-4 font-medium">
-                   {lote.nombre}
-                   <div className="text-xs text-muted-foreground mt-0.5">Pedido: {lote.cantidad_pedida} uds</div>
-                 </div>
-                 <div className="col-span-2">
-                   <Input 
+            {formRecepcion.lotes.map((lote, index) => (
+              <div key={index} className="grid grid-cols-12 gap-2 items-center border-b border-border/50 pb-2">
+                <div className="col-span-4 font-medium">
+                  {lote.nombre}
+                  <div className="text-xs text-muted-foreground mt-0.5">Pedido: {lote.cantidad_pedida} uds</div>
+                </div>
+                <div className="col-span-2">
+                  <Input
                     type="number"
                     step="0.01"
                     placeholder="Recibido"
-                    value={lote.cantidad_recibida} 
+                    value={lote.cantidad_recibida}
                     onChange={(e) => {
-                      const nl = [...formRecepcion.lotes]; nl[index].cantidad_recibida = e.target.value; setFormRecepcion({...formRecepcion, lotes: nl})
+                      const nl = [...formRecepcion.lotes]; nl[index].cantidad_recibida = e.target.value; setFormRecepcion({ ...formRecepcion, lotes: nl })
                     }} />
-                 </div>
-                 <div className="col-span-3">
-                   <Input 
-                    placeholder="Lote Prov." 
-                    value={lote.lote_proveedor} 
+                </div>
+                <div className="col-span-3">
+                  <Input
+                    placeholder="Lote Prov."
+                    value={lote.lote_proveedor}
                     onChange={(e) => {
-                      const nl = [...formRecepcion.lotes]; nl[index].lote_proveedor = e.target.value; setFormRecepcion({...formRecepcion, lotes: nl})
+                      const nl = [...formRecepcion.lotes]; nl[index].lote_proveedor = e.target.value; setFormRecepcion({ ...formRecepcion, lotes: nl })
                     }} />
-                 </div>
-                 <div className="col-span-3">
-                   <Input 
+                </div>
+                <div className="col-span-3">
+                  <Input
                     type="date"
-                    value={lote.fecha_vencimiento} 
+                    value={lote.fecha_vencimiento}
                     onChange={(e) => {
-                      const nl = [...formRecepcion.lotes]; nl[index].fecha_vencimiento = e.target.value; setFormRecepcion({...formRecepcion, lotes: nl})
+                      const nl = [...formRecepcion.lotes]; nl[index].fecha_vencimiento = e.target.value; setFormRecepcion({ ...formRecepcion, lotes: nl })
                     }} />
-                 </div>
-               </div>
-             ))}
-             
-             <div className="space-y-2 mt-4">
-               <Label>Observaciones (Discrepancias, daños, etc.)</Label>
-               <Input 
-                 placeholder="Ej: Faltaron 2 cajas, empaque ligeramente dañado..."
-                 value={formRecepcion.observaciones}
-                 onChange={(e) => setFormRecepcion({...formRecepcion, observaciones: e.target.value})}
-               />
-             </div>
+                </div>
+              </div>
+            ))}
+
+            <div className="space-y-2 mt-4">
+              <Label>Observaciones (Discrepancias, daños, etc.)</Label>
+              <Input
+                placeholder="Ej: Faltaron 2 cajas, empaque ligeramente dañado..."
+                value={formRecepcion.observaciones}
+                onChange={(e) => setFormRecepcion({ ...formRecepcion, observaciones: e.target.value })}
+              />
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowRecepcion(false)}>Cancelar</Button>
@@ -461,26 +470,26 @@ export default function ComprasPage() {
             <DialogDescription>Abonar a la Orden #{ordenSeleccionada?.id_compra}. Total Orden: Bs. {ordenSeleccionada?.monto_total_bs} | Saldo Pendiente: Bs. {saldoActual.toFixed(2)}</DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
-             <div className="space-y-2">
-               <Label>Monto a Pagar (Bs.) - Max: {saldoActual.toFixed(2)}</Label>
-               <Input type="number" step="0.01" max={saldoActual} value={formPago.monto_pagado_bs} onChange={(e) => setFormPago({...formPago, monto_pagado_bs: e.target.value})} />
-             </div>
-             <div className="space-y-2">
-               <Label>Método de Pago</Label>
-               <Select value={formPago.metodo_pago} onValueChange={(v) => setFormPago({...formPago, metodo_pago: v})}>
-                 <SelectTrigger><SelectValue/></SelectTrigger>
-                 <SelectContent>
-                   <SelectItem value="Transferencia">Transferencia Bancaria</SelectItem>
-                   <SelectItem value="Efectivo">Efectivo</SelectItem>
-                   <SelectItem value="QR">QR</SelectItem>
-                   <SelectItem value="Cheque">Cheque</SelectItem>
-                 </SelectContent>
-               </Select>
-             </div>
-             <div className="space-y-2">
-               <Label>Referencia / Nro Comprobante</Label>
-               <Input value={formPago.referencia_comprobante} onChange={(e) => setFormPago({...formPago, referencia_comprobante: e.target.value})} />
-             </div>
+            <div className="space-y-2">
+              <Label>Monto a Pagar (Bs.) - Max: {saldoActual.toFixed(2)}</Label>
+              <Input type="number" step="0.01" max={saldoActual} value={formPago.monto_pagado_bs} onChange={(e) => setFormPago({ ...formPago, monto_pagado_bs: e.target.value })} />
+            </div>
+            <div className="space-y-2">
+              <Label>Método de Pago</Label>
+              <Select value={formPago.metodo_pago} onValueChange={(v) => setFormPago({ ...formPago, metodo_pago: v })}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Transferencia">Transferencia Bancaria</SelectItem>
+                  <SelectItem value="Efectivo">Efectivo</SelectItem>
+                  <SelectItem value="QR">QR</SelectItem>
+                  <SelectItem value="Cheque">Cheque</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Referencia / Nro Comprobante</Label>
+              <Input value={formPago.referencia_comprobante} onChange={(e) => setFormPago({ ...formPago, referencia_comprobante: e.target.value })} />
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowPago(false)}>Cancelar</Button>
