@@ -5816,6 +5816,7 @@ A continuación se presentan los diagramas de secuencia para los casos de uso de
 
 ```plantuml
 @startuml Secuencia_CU10
+title CU10: Registrar Ajuste Manual o Merma Aislada
 skinparam backgroundColor transparent
 autonumber
 
@@ -5870,6 +5871,7 @@ deactivate Jefe
 
 ```plantuml
 @startuml Secuencia_CU11
+title CU11: Configurar Alertas de Stock Mínimo
 skinparam backgroundColor transparent
 autonumber
 
@@ -5916,6 +5918,7 @@ deactivate Admin
 
 ```plantuml
 @startuml Secuencia_CU20
+title CU20: Aperturar Orden de Producción
 skinparam backgroundColor transparent
 autonumber
 
@@ -5982,6 +5985,7 @@ deactivate Jefe
 
 ```plantuml
 @startuml Secuencia_CU23
+title CU23: Registrar Ficha de Control de Calidad
 skinparam backgroundColor transparent
 autonumber
 
@@ -6039,6 +6043,7 @@ deactivate QA
 
 ```plantuml
 @startuml Secuencia_CU21
+title CU21: Registrar Parámetros Físicos del Proceso
 skinparam backgroundColor transparent
 autonumber
 
@@ -6090,6 +6095,7 @@ deactivate Jefe
 
 ```plantuml
 @startuml Secuencia_CU22
+title CU22: Codificar Lote Físico Terminado
 skinparam backgroundColor transparent
 autonumber
 
@@ -6148,6 +6154,7 @@ deactivate Jefe
 
 ```plantuml
 @startuml Secuencia_CU24
+title CU24: Aprobar/Liberar Lote a Almacén
 skinparam backgroundColor transparent
 autonumber
 
@@ -6206,6 +6213,7 @@ deactivate QA
 
 ```plantuml
 @startuml Secuencia_CU25
+title CU25: Enviar Lote a Cuarentena/Reproceso
 skinparam backgroundColor transparent
 autonumber
 
