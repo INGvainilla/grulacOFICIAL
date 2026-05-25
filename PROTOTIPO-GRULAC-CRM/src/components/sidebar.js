@@ -27,6 +27,8 @@ export const PACKAGES = [
     items: [
       { module: 'catalogo', title: 'Catálogo Maestro', href: '/catalogo', icon: Package },
       { module: 'kardex', title: 'Kardex Dinámico', href: '/kardex', icon: History },
+      { module: 'ajustes', title: 'Ajustes y Mermas', href: '/ajustes', icon: Package },
+      { module: 'alertas', title: 'Alertas de Stock', href: '/alertas', icon: Package }
     ]
   },
   {
@@ -51,6 +53,24 @@ export const PACKAGES = [
       { module: 'acopio', title: 'Acopio y Triage', href: '/acopio', icon: Truck },
       { module: 'recetas', title: 'Recetas BOM', href: '/recetas', icon: FlaskConical },
     ]
+  },
+  {
+    id: 'p7',
+    name: 'Producción en Planta',
+    items: [
+      { module: 'produccion', title: 'Aperturar Orden', href: '/produccion/apertura', icon: Package },
+      { module: 'produccion', title: 'Parámetros Físicos', href: '/produccion/parametros', icon: Package },
+      { module: 'produccion', title: 'Codificación y Cierre', href: '/produccion/cierre', icon: Package }
+    ]
+  },
+  {
+    id: 'p8',
+    name: 'Control de Calidad',
+    items: [
+      { module: 'calidad', title: 'Ficha de Laboratorio', href: '/calidad/ficha', icon: FlaskConical },
+      { module: 'calidad', title: 'Disposición Restrictiva', href: '/calidad/disposicion', icon: FlaskConical },
+      { module: 'calidad', title: 'Liberación a Almacén', href: '/calidad/liberacion', icon: Package }
+    ]
   }
 ]
 
@@ -71,6 +91,9 @@ export function SidebarContent({ user, onItemClick }) {
     if (item.module === 'kardex' && (permissions.includes('produccion') || permissions.includes('almacen'))) return true
     if (item.module === 'clientes' && permissions.includes('ventas')) return true
     if (['compras', 'acopio', 'recetas'].includes(item.module) && (permissions.includes('recepcion') || permissions.includes('produccion'))) return true
+    if (['ajustes', 'alertas'].includes(item.module) && permissions.includes('almacen')) return true
+    if (item.module === 'produccion' && permissions.includes('produccion')) return true
+    if (item.module === 'calidad' && permissions.includes('calidad')) return true
 
     return permissions.includes(item.module)
   }
