@@ -22,7 +22,7 @@ export async function inviteEmpleadoAction(formData) {
 
     const email = formData.email_corporativo.trim()
     const ci_documento = formData.ci_documento.trim()
-    
+
     // Paso 1: Verificar duplicidad de CI primero (antes de Auth)
     const { data: existingCI, error: checkError } = await supabaseAdmin
       .from('empleados')
@@ -100,10 +100,10 @@ export async function inviteEmpleadoAction(formData) {
         accion_sql: 'INVITE_USER',
         tabla_afectada: 'usuarios',
         registro_id: newEmp.id_empleado,
-        new_data: { 
-          email_invitado: email, 
-          accion: 'Invitación de nuevo empleado', 
-          timestamp: new Date().toISOString() 
+        new_data: {
+          email_invitado: email,
+          accion: 'Invitación de nuevo empleado',
+          timestamp: new Date().toISOString()
         }
       }])
     }

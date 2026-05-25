@@ -131,7 +131,7 @@ export default function EmpleadosPage() {
         .select('id_usuario', { count: 'exact', head: true })
         .eq('id_rol', 1)
         .eq('estado_acceso', true)
-      
+
       if (count <= 1) {
         toast.error('Autodestrucción Bloqueada', {
           description: 'No puede inhabilitar al único Administrador del sistema.'
@@ -241,11 +241,11 @@ export default function EmpleadosPage() {
               <TableBody>
                 {loading ? (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">Sincronizando con Base de Datos...</TableCell>
+                    <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">Sincronizando con Base de Datos...</TableCell>
                   </TableRow>
                 ) : empleados.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">No hay trabajadores en planilla.</TableCell>
+                    <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">No hay trabajadores en planilla.</TableCell>
                   </TableRow>
                 ) : (
                   empleados.map((emp) => (
@@ -260,7 +260,7 @@ export default function EmpleadosPage() {
                         </Badge>
                       </TableCell>
                       <TableCell>
-                        {emp.estado_activo 
+                        {emp.estado_activo
                           ? <Badge className="bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20 border-emerald-500/20">Operativo</Badge>
                           : <Badge variant="destructive" className="bg-red-500/10 text-red-500 hover:bg-red-500/20 border-red-500/20">Inactivo</Badge>
                         }
@@ -269,14 +269,13 @@ export default function EmpleadosPage() {
                         {(() => {
                           const isSelf = emp.usuarios?.[0]?.auth_uid === currentAuthId
                           return (
-                            <Button 
-                              variant="ghost" 
-                              size="sm" 
-                              className={`${
-                                emp.estado_activo 
-                                  ? 'text-red-400 hover:text-red-300 hover:bg-red-950/50' 
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className={`${emp.estado_activo
+                                  ? 'text-red-400 hover:text-red-300 hover:bg-red-950/50'
                                   : 'text-emerald-400 hover:text-emerald-300 hover:bg-emerald-950/50'
-                              } disabled:opacity-50`}
+                                } disabled:opacity-50`}
                               disabled={isSelf}
                               onClick={() => openStatusModal(emp)}
                             >
@@ -310,59 +309,59 @@ export default function EmpleadosPage() {
           <div className="space-y-4 py-4">
             <div className="space-y-2">
               <Label htmlFor="ci">Documento Nacional (CI/DNI) *</Label>
-              <Input 
+              <Input
                 id="ci"
                 placeholder="Ej: 12345678"
                 value={form.ci_documento}
-                onChange={(e) => { setForm({...form, ci_documento: e.target.value}); setFormErrors({...formErrors, ci_documento: ''}) }}
+                onChange={(e) => { setForm({ ...form, ci_documento: e.target.value }); setFormErrors({ ...formErrors, ci_documento: '' }) }}
                 className={formErrors.ci_documento ? 'border-red-500' : ''}
               />
               {formErrors.ci_documento && <p className="text-xs text-red-500">{formErrors.ci_documento}</p>}
             </div>
             <div className="space-y-2">
               <Label htmlFor="nombre">Nombre Completo del Colaborador *</Label>
-              <Input 
+              <Input
                 id="nombre"
                 placeholder="Ej: Juan Pérez Mamani"
                 value={form.nombre_completo}
-                onChange={(e) => { setForm({...form, nombre_completo: e.target.value}); setFormErrors({...formErrors, nombre_completo: ''}) }}
+                onChange={(e) => { setForm({ ...form, nombre_completo: e.target.value }); setFormErrors({ ...formErrors, nombre_completo: '' }) }}
                 className={formErrors.nombre_completo ? 'border-red-500' : ''}
               />
               {formErrors.nombre_completo && <p className="text-xs text-red-500">{formErrors.nombre_completo}</p>}
             </div>
             <div className="space-y-2">
               <Label htmlFor="cargo">Cargo Industrial</Label>
-              <Input 
+              <Input
                 id="cargo"
                 placeholder="Ej: Operario de Tina"
                 value={form.cargo}
-                onChange={(e) => setForm({...form, cargo: e.target.value})}
+                onChange={(e) => setForm({ ...form, cargo: e.target.value })}
               />
             </div>
             <div className="space-y-2">
               <Label htmlFor="telefono">Teléfono</Label>
-              <Input 
+              <Input
                 id="telefono"
                 placeholder="Ej: 76543210"
                 value={form.telefono}
-                onChange={(e) => setForm({...form, telefono: e.target.value})}
+                onChange={(e) => setForm({ ...form, telefono: e.target.value })}
               />
             </div>
             <div className="space-y-2">
               <Label htmlFor="email_corp">Correo Corporativo *</Label>
-              <Input 
+              <Input
                 id="email_corp"
                 type="email"
                 placeholder="Ej: juan.perez@grulac.com"
                 value={form.email_corporativo}
-                onChange={(e) => { setForm({...form, email_corporativo: e.target.value}); setFormErrors({...formErrors, email_corporativo: ''}) }}
+                onChange={(e) => { setForm({ ...form, email_corporativo: e.target.value }); setFormErrors({ ...formErrors, email_corporativo: '' }) }}
                 className={formErrors.email_corporativo ? 'border-red-500' : ''}
               />
               {formErrors.email_corporativo && <p className="text-xs text-red-500">{formErrors.email_corporativo}</p>}
             </div>
             <div className="space-y-2">
               <Label>Rol del Sistema *</Label>
-              <Select value={form.id_rol} onValueChange={(val) => { setForm({...form, id_rol: val}); setFormErrors({...formErrors, id_rol: ''}) }}>
+              <Select value={form.id_rol} onValueChange={(val) => { setForm({ ...form, id_rol: val }); setFormErrors({ ...formErrors, id_rol: '' }) }}>
                 <SelectTrigger className={formErrors.id_rol ? 'border-red-500' : ''}>
                   <SelectValue placeholder="Seleccione un rol..." />
                 </SelectTrigger>
@@ -376,6 +375,7 @@ export default function EmpleadosPage() {
               </Select>
               {formErrors.id_rol && <p className="text-xs text-red-500">{formErrors.id_rol}</p>}
             </div>
+
           </div>
           <DialogFooter className="gap-2">
             <Button variant="outline" onClick={() => setShowAltaModal(false)} disabled={saving}>Cancelar</Button>
@@ -401,13 +401,13 @@ export default function EmpleadosPage() {
               </div>
             </div>
             <DialogDescription>
-              Está a punto de {targetEmpleado?.estado_activo ? 'revocar' : 'restaurar'} todos los privilegios de <strong>{targetEmpleado?.nombre_completo}</strong>. 
+              Está a punto de {targetEmpleado?.estado_activo ? 'revocar' : 'restaurar'} todos los privilegios de <strong>{targetEmpleado?.nombre_completo}</strong>.
               Escriba su contraseña maestra de Administrador para confirmar.
             </DialogDescription>
           </DialogHeader>
           <div className="py-4 space-y-3">
             <Label htmlFor="adminPin">Contraseña de Administrador</Label>
-            <Input 
+            <Input
               id="adminPin"
               type="password"
               placeholder="••••••••"
@@ -418,10 +418,10 @@ export default function EmpleadosPage() {
           </div>
           <DialogFooter className="gap-2">
             <Button variant="outline" onClick={() => setShowStatusModal(false)} disabled={saving}>Cancelar</Button>
-            <Button 
-              variant={targetEmpleado?.estado_activo ? "destructive" : "default"} 
+            <Button
+              variant={targetEmpleado?.estado_activo ? "destructive" : "default"}
               className={!targetEmpleado?.estado_activo ? "bg-emerald-600 hover:bg-emerald-700 text-white" : ""}
-              onClick={handleToggleStatus} 
+              onClick={handleToggleStatus}
               disabled={saving || !adminPin.trim()}
             >
               {saving ? 'Procesando...' : (targetEmpleado?.estado_activo ? 'Revocar Acceso' : 'Restaurar Acceso')}

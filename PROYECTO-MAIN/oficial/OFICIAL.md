@@ -1753,27 +1753,20 @@ CU01 <.. Bloquear : <<extend>>
 ```
 
 **B. Ficha de Especificación del Caso de Uso**
-- **1. CASO DE USO:** CU01 - Iniciar Sesión en Plataforma.
-- **2. PROPÓSITO:** Restringir y asegurar el acceso al ERP, autenticando la identidad del personal.
-- **3. DESCRIPCIÓN:** Permite que un empleado validado de la fábrica ingrese sus credenciales corporativas, para que el sistema le asigne un token de sesión (JWT) y lo redirija al panel correspondiente según su Nivel de Rol.
-- **4. ACTORES:** Tablas de BD (`usuarios`, `roles`, `bitacora_auditoria`).
-- **5. ACTOR INICIADOR:** Usuario Autenticado (Cualquier empleado de GRULAC).
-- **6. PRECONDICIÓN:** El usuario iniciador debe existir físicamente en la tabla `usuarios` y tener su estado lógico como "Activo".
-- **7. FLUJO PRINCIPAL (Camino Feliz):**
-  1. El actor ingresa a la ruta base de GRULAC ERP.
-  2. El sistema despliega el formulario de Iniciar Sesión.
-  3. El actor introduce su ID corporativo (email) y Contraseña, enviando la petición.
-  4. El sistema encripta la contraseña, conecta con la BD y verifica la coincidencia del hash.
-  5. El sistema detecta coincidencia, extrae el perfil de permisos.
-  6. El sistema registra automáticamente en la tabla `bitacora_auditoria` la fecha, hora e IP del ingreso (acción: `LOGIN`), incluyendo el campo `registro_id` con el `id_usuario` del actor y el campo `new_data` con su email corporativo y timestamp de la acción.
-  7. El sistema actualiza el campo `ultimo_login` del registro del usuario y resetea `intentos_fallidos` a 0.
-  8. El sistema redirige al actor al panel de control correspondiente a su cargo industrial.
-- **8. POST CONDICIÓN:** El usuario queda logueado, con su `id_usuario` amarrado en la sesión activa temporalmente, habilitándolo para firmar transacciones hasta que la sesión expire. La bitácora conserva el registro inmutable de la hora y fecha del ingreso, con trazabilidad bidireccional (`id_usuario` = quién actuó, `registro_id` = qué registro fue afectado).
-- **9. EXCEPCIONES (Flujo Secundario):**
-  - *E1: Credenciales Inválidas.* (Paso 4 falla). El sistema detiene el flujo, limpia el password, incrementa el contador `intentos_fallidos` y notifica "Credenciales incorrectas", regresando al paso 2.
-  - *E2: Empleado Inhabilitado.* (Precondición falla). El sistema halla credenciales correctas, pero nota que el empleado ha sido vetado o despedido. Detiene el acceso con la alerta: "Usted no está autorizado por Gerencia".
-  - *E3: Múltiples Fallos (3 intentos).* Tras fallar E1 repetidamente, se ejecuta el caso `<<extend>> Bloquear Acceso`: se bloquea el input por 1 minuto, se registra un evento `ACCESS_LOCKED` en bitácora con el email objetivo, y se habilita visualmente el enlace "¿Olvidó su contraseña?" que redirige al CU32.
-- **10. NOTA TÉCNICA:** La autenticación es delegada a Supabase Auth (GoTrue), que gestiona el JWT y el hash de contraseñas con bcrypt internamente. Adicionalmente, se mantiene el campo `password_hash` en la tabla pública `usuarios` usando el algoritmo Blowfish (`pgcrypto`), cumpliendo con el requerimiento académico de auditoría. El email corporativo funciona como identificador único tanto en `auth.users` como en `public.usuarios`, vinculados por el campo `auth_uid` (UUID).
+
+| Campo | Descripción |
+|---|---|
+| **CASO DE USO** | CU01 - Iniciar Sesión en Plataforma. |
+| **PROPÓSITO** | Restringir y asegurar el acceso al ERP, autenticando la identidad del personal. |
+| **DESCRIPCIÓN** | Permite que un empleado validado de la fábrica ingrese sus credenciales corporativas, para que el sistema le asigne un token de sesión (JWT) y lo redirija al panel correspondiente según su Nivel de Rol. |
+| **ACTORES** | Tablas de BD (`usuarios`, `roles`, `bitacora_auditoria`). |
+| **ACTOR INICIADOR** | Usuario Autenticado (Cualquier empleado de GRULAC). |
+| **PRECONDICIÓN** | El usuario iniciador debe existir físicamente en la tabla `usuarios` y tener su estado lógico como "Activo". |
+| **FLUJO PRINCIPAL (Camino Feliz)** | <br>1. El actor ingresa a la ruta base de GRULAC ERP.<br>2. El sistema despliega el formulario de Iniciar Sesión.<br>3. El actor introduce su ID corporativo (email) y Contraseña, enviando la petición.<br>4. El sistema encripta la contraseña, conecta con la BD y verifica la coincidencia del hash.<br>5. El sistema detecta coincidencia, extrae el perfil de permisos.<br>6. El sistema registra automáticamente en la tabla `bitacora_auditoria` la fecha, hora e IP del ingreso (acción: `LOGIN`), incluyendo el campo `registro_id` con el `id_usuario` del actor y el campo `new_data` con su email corporativo y timestamp de la acción.<br>7. El sistema actualiza el campo `ultimo_login` del registro del usuario y resetea `intentos_fallidos` a 0.<br>8. El sistema redirige al actor al panel de control correspondiente a su cargo industrial. |
+| **POST CONDICIÓN** | El usuario queda logueado, con su `id_usuario` amarrado en la sesión activa temporalmente, habilitándolo para firmar transacciones hasta que la sesión expire. La bitácora conserva el registro inmutable de la hora y fecha del ingreso, con trazabilidad bidireccional (`id_usuario` = quién actuó, `registro_id` = qué registro fue afectado). |
+| **EXCEPCIONES (Flujo Secundario)** | <br>- *E1: Credenciales Inválidas.* (Paso 4 falla). El sistema detiene el flujo, limpia el password, incrementa el contador `intentos_fallidos` y notifica "Credenciales incorrectas", regresando al paso 2.<br>- *E2: Empleado Inhabilitado.* (Precondición falla). El sistema halla credenciales correctas, pero nota que el empleado ha sido vetado o despedido. Detiene el acceso con la alerta: "Usted no está autorizado por Gerencia".<br>- *E3: Múltiples Fallos (3 intentos).* Tras fallar E1 repetidamente, se ejecuta el caso `<<extend>> Bloquear Acceso`: se bloquea el input por 1 minuto, se registra un evento `ACCESS_LOCKED` en bitácora con el email objetivo, y se habilita visualmente el enlace "¿Olvidó su contraseña?" que redirige al CU32. |
+| **NOTA TÉCNICA** | La autenticación es delegada a Supabase Auth (GoTrue), que gestiona el JWT y el hash de contraseñas con bcrypt internamente. Adicionalmente, se mantiene el campo `password_hash` en la tabla pública `usuarios` usando el algoritmo Blowfish (`pgcrypto`), cumpliendo con el requerimiento académico de auditoría. El email corporativo funciona como identificador único tanto en `auth.users` como en `public.usuarios`, vinculados por el campo `auth_uid` (UUID). |
+
 
 **C. Prototipo UI (Directriz para Generador)**
 *Prompt a ingresar textual en tu IA de mockups (Google/Uizard/Figma):*
@@ -1796,23 +1789,19 @@ CU02 ..> Destruir : <<include>>
 ```
 
 **B. Ficha de Especificación del Caso de Uso**
-- **1. CASO DE USO:** CU02 - Cerrar Sesión Activa.
-- **2. PROPÓSITO:** Revocar el acceso temporal del usuario al sistema para prevenir manipulaciones no autorizadas en su terminal.
-- **3. DESCRIPCIÓN:** Permite que cualquier empleado finalice su jornada en el ERP, ejecutando una destrucción inmediata de su sesión en memoria corporativa para que ninguna transacción futura lleve su firma.
-- **4. ACTORES:** Tablas de BD (`usuarios`, `bitacora_auditoria`).
-- **5. ACTOR INICIADOR:** Usuario Autenticado (Cualquiera).
-- **6. PRECONDICIÓN:** El usuario debe tener un Token JWT vivo verificado en el navegador (Debe haber ejecutado el CU01).
-- **7. FLUJO PRINCIPAL (Camino Feliz):**
-  1. El actor despliega el menú de su Perfil en la esquina superior derecha del ERP.
-  2. El actor hace clic en la opción "Cerrar Sesión / Salir".
-  3. El sistema intercepta el clic y solicita una pequeña confirmación "¿Desea abandonar el área de trabajo?".
-  4. El actor confirma "Sí, salir".
-  5. El sistema registra en la tabla `bitacora_auditoria` la fecha, hora e IP de la salida (acción: `LOGOUT`), cerrando el par de trazabilidad iniciado en el CU01.
-  6. El sistema purga la caché del navegador y destruye el Token JWT.
-  7. El sistema redirige automáticamente al navegador a la pantalla del CU01 (Login).
-- **8. POST CONDICIÓN:** La terminal queda bloqueada asépticamente; ninguna ruta interna del sistema es accesible sin volver a inyectar credenciales. La bitácora conserva un registro completo de entrada (LOGIN) y salida (LOGOUT) con sus respectivas fechas y horas.
-- **9. EXCEPCIONES (Flujo Secundario):**
-  - *E1: Destrucción por Inactividad (Timeout).* Si el usuario olvida cerrar sesión y abandona la computadora, el sistema no espera el clic: hace un auto-logout tras 15 minutos exactos de inactividad sensorial (mouse/teclado), saltando directamente a los pasos 5, 6 y 7 para asegurar la computadora. La bitácora registra la acción como `LOGOUT_TIMEOUT`.
+
+| Campo | Descripción |
+|---|---|
+| **CASO DE USO** | CU02 - Cerrar Sesión Activa. |
+| **PROPÓSITO** | Revocar el acceso temporal del usuario al sistema para prevenir manipulaciones no autorizadas en su terminal. |
+| **DESCRIPCIÓN** | Permite que cualquier empleado finalice su jornada en el ERP, ejecutando una destrucción inmediata de su sesión en memoria corporativa para que ninguna transacción futura lleve su firma. |
+| **ACTORES** | Tablas de BD (`usuarios`, `bitacora_auditoria`). |
+| **ACTOR INICIADOR** | Usuario Autenticado (Cualquiera). |
+| **PRECONDICIÓN** | El usuario debe tener un Token JWT vivo verificado en el navegador (Debe haber ejecutado el CU01). |
+| **FLUJO PRINCIPAL (Camino Feliz)** | <br>1. El actor despliega el menú de su Perfil en la esquina superior derecha del ERP.<br>2. El actor hace clic en la opción "Cerrar Sesión / Salir".<br>3. El sistema intercepta el clic y solicita una pequeña confirmación "¿Desea abandonar el área de trabajo?".<br>4. El actor confirma "Sí, salir".<br>5. El sistema registra en la tabla `bitacora_auditoria` la fecha, hora e IP de la salida (acción: `LOGOUT`), cerrando el par de trazabilidad iniciado en el CU01.<br>6. El sistema purga la caché del navegador y destruye el Token JWT.<br>7. El sistema redirige automáticamente al navegador a la pantalla del CU01 (Login). |
+| **POST CONDICIÓN** | La terminal queda bloqueada asépticamente; ninguna ruta interna del sistema es accesible sin volver a inyectar credenciales. La bitácora conserva un registro completo de entrada (LOGIN) y salida (LOGOUT) con sus respectivas fechas y horas. |
+| **EXCEPCIONES (Flujo Secundario)** | <br>- *E1: Destrucción por Inactividad (Timeout).* Si el usuario olvida cerrar sesión y abandona la computadora, el sistema no espera el clic: hace un auto-logout tras 15 minutos exactos de inactividad sensorial (mouse/teclado), saltando directamente a los pasos 5, 6 y 7 para asegurar la computadora. La bitácora registra la acción como `LOGOUT_TIMEOUT`. |
+
 
 **C. Prototipo UI (Directriz para Generador)**
 *Prompt a ingresar textual en tu IA:*
@@ -1835,28 +1824,19 @@ CU03 ..> Validar : <<include>>
 ```
 
 **B. Ficha de Especificación del Caso de Uso**
-- **1. CASO DE USO:** CU03 - Registrar Nuevo Empleado (Alta por Invitación).
-- **2. PROPÓSITO:** Instanciar formalmente a un nuevo operador en el ecosistema de forma atómica y segura, creando simultáneamente su identidad de RRHH (`empleados`), su cuenta de sistema (`usuarios`) y enviando un correo de invitación para que el propio empleado establezca su contraseña.
-- **3. DESCRIPCIÓN:** Permite al Administrador registrar a un nuevo empleado mediante un **Server Action** que ejecuta tres operaciones en secuencia garantizada: (1) verifica la unicidad del CI/DNI, (2) crea la cuenta de autenticación en Supabase Auth vía `inviteUserByEmail` y envía automáticamente un correo de bienvenida con un enlace de onboarding de un solo uso (válido por 24 horas), y (3) inserta atómicamente los registros en `public.empleados` y `public.usuarios`. El Administrador nunca maneja ni conoce la contraseña del empleado.
-- **4. ACTORES:** Tablas de BD (`empleados`, `usuarios`, `bitacora_auditoria`), Supabase Auth (GoTrue), Servicio de correo SMTP.
-- **5. ACTOR INICIADOR:** Administrador General.
-- **6. PRECONDICIÓN:** El Administrador debe estar logueado y posicionado en la pantalla de gestión de Empleados. La dirección de correo del nuevo empleado debe ser válida y accesible.
-- **7. FLUJO PRINCIPAL (Camino Feliz):**
-  1. El Administrador oprime el botón "+ Añadir Trabajador".
-  2. El sistema despliega un formulario modal solicitando: CI/DNI, Nombre Completo, Email Corporativo, Cargo, Teléfono y Rol.
-  3. El Administrador completa los datos y presiona "Enviar Invitación".
-  4. El sistema (Server Action `inviteEmpleadoAction`) verifica que el CI no exista previamente en `public.empleados`.
-  5. El sistema llama a `supabase.auth.admin.inviteUserByEmail()` con el correo del nuevo empleado. Supabase Auth crea la cuenta en `auth.users` y envía un correo con un token de invitación de un solo uso (JWT, válido 24 horas), con enlace a `/actualizar-contrasena`.
-  6. El sistema inserta el registro en `public.empleados` (con el `email_personal` poblado) y en `public.usuarios` (vinculando el `auth_uid` retornado por Supabase).
-  7. Los Triggers de auditoría en PostgreSQL capturan automáticamente los `INSERT` en `empleados` y `usuarios` en la `bitacora_auditoria`.
-  8. El sistema notifica al Administrador "Invitación enviada con éxito" y cierra el modal.
-  9. El nuevo empleado recibe el correo, hace clic en el enlace (idealmente en modo incógnito o en su propio dispositivo) y es redirigido a `/actualizar-contrasena` donde establece su contraseña (**CU33**). Una vez establecida, el sistema popula `password_hash` en `public.usuarios` y el empleado puede iniciar sesión normalmente (**CU01**).
-- **8. POST CONDICIÓN:** El empleado existe de forma completa y consistente en tres capas: `auth.users` (identidad de autenticación), `public.empleados` (datos de RRHH) y `public.usuarios` (cuenta de sistema con rol asignado). La `bitacora_auditoria` registra los `INSERT` automáticamente vía Triggers. El enlace de invitación queda invalidado tras su primer uso exitoso.
-- **9. EXCEPCIONES (Flujo Secundario):**
-  - *E1: Conflicto de CI/DNI (Duplicidad).* Si el CI provisto ya pertenece a un trabajador existente, el sistema aborta antes de contactar Supabase Auth y muestra: "Peligro: Este CI/DNI ya pertenece a otro trabajador en la base de datos".
-  - *E2: Email ya registrado en Auth.* Si el correo ya existe en `auth.users`, Supabase Auth retorna un error 422. El sistema lo atrapa y muestra: "Este correo corporativo ya ha sido invitado o registrado previamente".
-  - *E3: Fallo en inserción de BD (Compensación Atómica).* Si la inserción en `public.empleados` o `public.usuarios` falla después de crear la cuenta en Auth, el sistema ejecuta una compensación manual eliminando el usuario de `auth.users` para evitar cuentas huérfanas.
-  - *E4: Enlace de invitación expirado.* Si el empleado intenta usar el enlace después de 24 horas, Supabase Auth lo rechaza con `InvalidToken` y el sistema redirige a `/login` con un mensaje de error.
+
+| Campo | Descripción |
+|---|---|
+| **CASO DE USO** | CU03 - Registrar Nuevo Empleado (Alta por Invitación). |
+| **PROPÓSITO** | Instanciar formalmente a un nuevo operador en el ecosistema de forma atómica y segura, creando simultáneamente su identidad de RRHH (`empleados`), su cuenta de sistema (`usuarios`) y enviando un correo de invitación para que el propio empleado establezca su contraseña. |
+| **DESCRIPCIÓN** | Permite al Administrador registrar a un nuevo empleado mediante un **Server Action** que ejecuta tres operaciones en secuencia garantizada: (1) verifica la unicidad del CI/DNI, (2) crea la cuenta de autenticación en Supabase Auth vía `inviteUserByEmail` y envía automáticamente un correo de bienvenida con un enlace de onboarding de un solo uso (válido por 24 horas), y (3) inserta atómicamente los registros en `public.empleados` y `public.usuarios`. El Administrador nunca maneja ni conoce la contraseña del empleado. |
+| **ACTORES** | Tablas de BD (`empleados`, `usuarios`, `bitacora_auditoria`), Supabase Auth (GoTrue), Servicio de correo SMTP. |
+| **ACTOR INICIADOR** | Administrador General. |
+| **PRECONDICIÓN** | El Administrador debe estar logueado y posicionado en la pantalla de gestión de Empleados. La dirección de correo del nuevo empleado debe ser válida y accesible. |
+| **FLUJO PRINCIPAL (Camino Feliz)** | <br>1. El Administrador oprime el botón "+ Añadir Trabajador".<br>2. El sistema despliega un formulario modal solicitando: CI/DNI, Nombre Completo, Email Corporativo, Cargo, Teléfono y Rol.<br>3. El Administrador completa los datos y presiona "Enviar Invitación".<br>4. El sistema (Server Action `inviteEmpleadoAction`) verifica que el CI no exista previamente en `public.empleados`.<br>5. El sistema llama a `supabase.auth.admin.inviteUserByEmail()` con el correo del nuevo empleado. Supabase Auth crea la cuenta en `auth.users` y envía un correo con un token de invitación de un solo uso (JWT, válido 24 horas), con enlace a `/actualizar-contrasena`.<br>6. El sistema inserta el registro en `public.empleados` (con el `email_personal` poblado) y en `public.usuarios` (vinculando el `auth_uid` retornado por Supabase).<br>7. Los Triggers de auditoría en PostgreSQL capturan automáticamente los `INSERT` en `empleados` y `usuarios` en la `bitacora_auditoria`.<br>8. El sistema notifica al Administrador "Invitación enviada con éxito" y cierra el modal.<br>9. El nuevo empleado recibe el correo, hace clic en el enlace (idealmente en modo incógnito o en su propio dispositivo) y es redirigido a `/actualizar-contrasena` donde establece su contraseña (**CU33**). Una vez establecida, el sistema popula `password_hash` en `public.usuarios` y el empleado puede iniciar sesión normalmente (**CU01**). |
+| **POST CONDICIÓN** | El empleado existe de forma completa y consistente en tres capas: `auth.users` (identidad de autenticación), `public.empleados` (datos de RRHH) y `public.usuarios` (cuenta de sistema con rol asignado). La `bitacora_auditoria` registra los `INSERT` automáticamente vía Triggers. El enlace de invitación queda invalidado tras su primer uso exitoso. |
+| **EXCEPCIONES (Flujo Secundario)** | <br>- *E1: Conflicto de CI/DNI (Duplicidad).* Si el CI provisto ya pertenece a un trabajador existente, el sistema aborta antes de contactar Supabase Auth y muestra: "Peligro: Este CI/DNI ya pertenece a otro trabajador en la base de datos".<br>- *E2: Email ya registrado en Auth.* Si el correo ya existe en `auth.users`, Supabase Auth retorna un error 422. El sistema lo atrapa y muestra: "Este correo corporativo ya ha sido invitado o registrado previamente".<br>- *E3: Fallo en inserción de BD (Compensación Atómica).* Si la inserción en `public.empleados` o `public.usuarios` falla después de crear la cuenta en Auth, el sistema ejecuta una compensación manual eliminando el usuario de `auth.users` para evitar cuentas huérfanas.<br>- *E4: Enlace de invitación expirado.* Si el empleado intenta usar el enlace después de 24 horas, Supabase Auth lo rechaza con `InvalidToken` y el sistema redirige a `/login` con un mensaje de error. |
+
 
 **C. Prototipo UI (Directriz para Generador)**
 *Prompt a ingresar textual en tu IA:*
@@ -1878,61 +1858,23 @@ CU04 ..> DestruirToken : <<include>>
 ```
 
 **B. Ficha de Especificación del Caso de Uso**
-- **1. CASO DE USO:** CU04 - Inhabilitar Empleado (Baja Lógica).
-- **2. PROPÓSITO:** Retirar el acceso al sistema a un operador despedido o suspendido sin afectar los registros históricos donde su firma aparece (Kardex, Recepciones, Calidad).
-- **3. DESCRIPCIÓN:** Permite al Administrador localizar un empleado en la grilla y cambiar su estado a "Inactivo" (`UPDATE estado = FALSE`), forzando de inmediato la pérdida de su conexión activa en cualquier navegador.
-- **4. ACTORES:** Tablas de BD (`usuarios`).
-- **5. ACTOR INICIADOR:** Administrador General.
-- **6. PRECONDICIÓN:** El Administrador debe estar logueado; el empleado objetivo debe existir y su estatus actual debe ser "Activo".
-- **7. FLUJO PRINCIPAL (Camino Feliz):**
-  1. El Administrador ubica al trabajador en la tabla de Personal y hace clic en el botón de acción "Dar de Baja".
-  2. El sistema despliega un mensaje crítico de advertencia: "¿Está seguro de revocar el acceso a este operador?".
-  3. El Administrador teclea su propia contraseña de Admin como confirmación y presiona "Proceder".
-  4. El sistema ejecuta el *Soft-Delete* cambiando la bandera lógica del usuario a falsa.
-  5. El sistema lanza un disparador interno (Include) que rastrea si ese empleado estaba conectado e invalida instantáneamente su Token de sesión (JWT) en memoria.
-  6. El sistema actualiza la lista, mostrando al empleado con un chip color rojo "Inactivo".
-- **8. POST CONDICIÓN:** El ex-empleado ya no puede hacer Login (Falla la Precondición del CU01), pero los movimientos pasados en Kardex firmados por él siguen intactos y auditables. Toda la transacción queda inmutablemente respaldada de forma automática en la Bitácora de Auditoría por seguridad.
-- **9. EXCEPCIONES (Flujo Secundario):**
-  - *E1: Autodestrucción Bloqueada.* Si el Administrador intenta darse de baja a sí mismo y es el único Administrador con `id_rol = 1` vivo en la empresa, el sistema detiene la transacción por seguridad arquitectónica para evitar bloquear el ERP entero cediendo acéfalo.
+
+| Campo | Descripción |
+|---|---|
+| **CASO DE USO** | CU04 - Inhabilitar Empleado (Baja Lógica). |
+| **PROPÓSITO** | Retirar el acceso al sistema a un operador despedido o suspendido sin afectar los registros históricos donde su firma aparece (Kardex, Recepciones, Calidad). |
+| **DESCRIPCIÓN** | Permite al Administrador localizar un empleado en la grilla y cambiar su estado a "Inactivo" (`UPDATE estado = FALSE`), forzando de inmediato la pérdida de su conexión activa en cualquier navegador. |
+| **ACTORES** | Tablas de BD (`usuarios`). |
+| **ACTOR INICIADOR** | Administrador General. |
+| **PRECONDICIÓN** | El Administrador debe estar logueado; el empleado objetivo debe existir y su estatus actual debe ser "Activo". |
+| **FLUJO PRINCIPAL (Camino Feliz)** | <br>1. El Administrador ubica al trabajador en la tabla de Personal y hace clic en el botón de acción "Dar de Baja".<br>2. El sistema despliega un mensaje crítico de advertencia: "¿Está seguro de revocar el acceso a este operador?".<br>3. El Administrador teclea su propia contraseña de Admin como confirmación y presiona "Proceder".<br>4. El sistema ejecuta el *Soft-Delete* cambiando la bandera lógica del usuario a falsa.<br>5. El sistema lanza un disparador interno (Include) que rastrea si ese empleado estaba conectado e invalida instantáneamente su Token de sesión (JWT) en memoria.<br>6. El sistema actualiza la lista, mostrando al empleado con un chip color rojo "Inactivo". |
+| **POST CONDICIÓN** | El ex-empleado ya no puede hacer Login (Falla la Precondición del CU01), pero los movimientos pasados en Kardex firmados por él siguen intactos y auditables. Toda la transacción queda inmutablemente respaldada de forma automática en la Bitácora de Auditoría por seguridad. |
+| **EXCEPCIONES (Flujo Secundario)** | <br>- *E1: Autodestrucción Bloqueada.* Si el Administrador intenta darse de baja a sí mismo y es el único Administrador con `id_rol = 1` vivo en la empresa, el sistema detiene la transacción por seguridad arquitectónica para evitar bloquear el ERP entero cediendo acéfalo. |
+
 
 **C. Prototipo UI (Directriz para Generador)**
 *Prompt a ingresar textual en tu IA:*
 > "Diseño de un Pop-up (Alert Box) de estilo Material Design. Fondo oscuro desenfocado. En el centro un rectángulo blanco limpio. Arriba un ícono grande de advertencia en color naranja o rojo oscuro. Título de la alerta en negrita: 'Confirmación Crítica: Baja de Personal'. Subtítulo en texto gris: 'Está a punto de revocar todos los privilegios del operador operativo. Escriba su pin maestro para continuar'. Debajo un campo de texto simple para 'Pin de Administrador' y dos botones al final: Botón izquierdo gris que diga 'Cancelar' y un botón derecho masivo color rojo sangre que diga 'Revocar Acceso'."
-
-#### CU34: Rehabilitar Empleado (Alta Lógica)
-
-**A. Estructura del Modelo de CU (Diagrama Específico)**
-```plantuml
-@startuml
-left to right direction
-actor "Administrador General" as Admin
-rectangle "Sistema ERP GRULAC - Submódulo RRHH" {
-  usecase "CU34: Rehabilitar Empleado" as CU34
-}
-Admin --> CU34
-@enduml
-```
-
-**B. Ficha de Especificación del Caso de Uso**
-- **1. CASO DE USO:** CU34 - Rehabilitar Empleado (Alta Lógica).
-- **2. PROPÓSITO:** Devolver el acceso al sistema a un operador que había sido inhabilitado, permitiéndole retomar sus funciones con su cuenta original.
-- **3. DESCRIPCIÓN:** Permite al Administrador localizar a un empleado en estado "Inactivo" en la grilla y cambiar su estado nuevamente a "Activo" (`UPDATE estado = TRUE`), restaurando su acceso instantáneamente.
-- **4. ACTORES:** Tablas de BD (`usuarios`, `empleados`).
-- **5. ACTOR INICIADOR:** Administrador General.
-- **6. PRECONDICIÓN:** El Administrador debe estar logueado; el empleado objetivo debe existir y su estatus actual debe ser "Inactivo" o "Suspendido".
-- **7. FLUJO PRINCIPAL (Camino Feliz):**
-  1. El Administrador ubica al ex-trabajador en la tabla de Personal y hace clic en el botón verde "Rehabilitar".
-  2. El sistema despliega un mensaje crítico de advertencia: "¿Está seguro de restaurar los privilegios de este operador?".
-  3. El Administrador teclea su propia contraseña de Admin como confirmación y presiona "Restaurar Acceso".
-  4. El sistema actualiza `estado_activo` a verdadero en `empleados` y `estado_acceso` a verdadero en `usuarios`.
-  5. El sistema actualiza la lista, mostrando al empleado con un chip color verde "Operativo".
-- **8. POST CONDICIÓN:** El empleado recontratado recupera su capacidad para hacer Login (CU01) usando la misma contraseña que tenía antes de ser suspendido. La transacción queda respaldada en la Bitácora de Auditoría.
-- **9. EXCEPCIONES (Flujo Secundario):**
-  - *E1: PIN de Administrador Incorrecto.* Si la contraseña de validación falla, se bloquea la operación y se notifica al Administrador.
-
-**C. Prototipo UI (Directriz para Generador)**
-*Prompt a ingresar textual en tu IA:*
-> "Diseño de un Pop-up (Alert Box) de estilo Material Design. Fondo oscuro desenfocado. En el centro un rectángulo blanco limpio. Arriba un ícono de agregar usuario en color verde esmeralda. Título de la alerta en negrita: 'Confirmación Crítica: Rehabilitación de Personal'. Subtítulo en texto gris: 'Está a punto de restaurar todos los privilegios del operador. Escriba su pin maestro para continuar'. Debajo un campo de texto simple para 'Pin de Administrador' y dos botones al final: Botón izquierdo gris que diga 'Cancelar' y un botón derecho color verde esmeralda que diga 'Restaurar Acceso'."
 
 #### CU05: Asignar o Modificar Roles y Permisos
 
@@ -1949,21 +1891,19 @@ Admin --> CU05
 ```
 
 **B. Ficha de Especificación del Caso de Uso**
-- **1. CASO DE USO:** CU05 - Asignar o Modificar Roles y Permisos.
-- **2. PROPÓSITO:** Delimitar las fronteras de poder informático de un usuario, enlazándolo con un Perfil de Autorización (Jefe de Producción, QA, Recepcionista).
-- **3. DESCRIPCIÓN:** Permite al Administrador seleccionar a un trabajador base y amarrarlo a un `id_rol` maestro que rige qué pestañas del software podrá ver y qué tablas podrá editar.
-- **4. ACTORES:** Tablas de BD (`usuarios`, `roles`).
-- **5. ACTOR INICIADOR:** Administrador General.
-- **6. PRECONDICIÓN:** El trabajador objetivo ya debe existir como entidad (Haber ejecutado CU03) y estar activo.
-- **7. FLUJO PRINCIPAL (Camino Feliz):**
-  1. El Administrador hace clic en "Asignar Puesto" junto al nombre de un trabajador sin rol asignado en la cuadrícula (DataGrid).
-  2. El sistema despliega una lista (Dropdown select) obtenida dinámicamente de la tabla de catálogo `roles`.
-  3. El Administrador escoge la opción "Ingeniero de Calidad (QA)" y presiona Guardar.
-  4. El sistema ejecuta el `UPDATE usuarios SET id_rol = X WHERE id_usuario = Y`.
-  5. El sistema notifica éxito y actualiza la columna "Cargo" en la grilla principal.
-- **8. POST CONDICIÓN:** El trabajador ya cuenta con credenciales especializadas conectadas. Al iniciar su próximo Login (CU01), su menú lateral adaptará opciones exclusivas del módulo de Calidad. Toda la transacción queda inmutablemente respaldada de forma automática en la Bitácora de Auditoría por seguridad.
-- **9. EXCEPCIONES (Flujo Secundario):**
-  - *E1: Transición Ilegal de Permisos (Incompatibilidad).* La lógica del ERP no permite que un "Jefe de Producción" sea cambiado bruscamente a "Ingeniero de QA" si el trabajador en cuestión tiene Órdenes de Producción (Lotes) actualmente abiertas a su nombre. El sistema exige cerrar los lotes en la tina antes del cambio de oficina bloqueando la operación.
+
+| Campo | Descripción |
+|---|---|
+| **CASO DE USO** | CU05 - Asignar o Modificar Roles y Permisos. |
+| **PROPÓSITO** | Delimitar las fronteras de poder informático de un usuario, enlazándolo con un Perfil de Autorización (Jefe de Producción, QA, Recepcionista). |
+| **DESCRIPCIÓN** | Permite al Administrador seleccionar a un trabajador base y amarrarlo a un `id_rol` maestro que rige qué pestañas del software podrá ver y qué tablas podrá editar. |
+| **ACTORES** | Tablas de BD (`usuarios`, `roles`). |
+| **ACTOR INICIADOR** | Administrador General. |
+| **PRECONDICIÓN** | El trabajador objetivo ya debe existir como entidad (Haber ejecutado CU03) y estar activo. |
+| **FLUJO PRINCIPAL (Camino Feliz)** | <br>1. El Administrador hace clic en "Asignar Puesto" junto al nombre de un trabajador sin rol asignado en la cuadrícula (DataGrid).<br>2. El sistema despliega una lista (Dropdown select) obtenida dinámicamente de la tabla de catálogo `roles`.<br>3. El Administrador escoge la opción "Ingeniero de Calidad (QA)" y presiona Guardar.<br>4. El sistema ejecuta el `UPDATE usuarios SET id_rol = X WHERE id_usuario = Y`.<br>5. El sistema notifica éxito y actualiza la columna "Cargo" en la grilla principal. |
+| **POST CONDICIÓN** | El trabajador ya cuenta con credenciales especializadas conectadas. Al iniciar su próximo Login (CU01), su menú lateral adaptará opciones exclusivas del módulo de Calidad. Toda la transacción queda inmutablemente respaldada de forma automática en la Bitácora de Auditoría por seguridad. |
+| **EXCEPCIONES (Flujo Secundario)** | <br>- *E1: Transición Ilegal de Permisos (Incompatibilidad).* La lógica del ERP no permite que un "Jefe de Producción" sea cambiado bruscamente a "Ingeniero de QA" si el trabajador en cuestión tiene Órdenes de Producción (Lotes) actualmente abiertas a su nombre. El sistema exige cerrar los lotes en la tina antes del cambio de oficina bloqueando la operación. |
+
 
 **C. Prototipo UI (Directriz para Generador)**
 *Prompt a ingresar textual en tu IA:*
@@ -1985,24 +1925,19 @@ CU08 ..> Categoria : <<include>>
 ```
 
 **B. Ficha de Especificación del Caso de Uso**
-- **1. CASO DE USO:** CU08 - Registrar Nuevo Producto/Insumo en Catálogo.
-- **2. PROPÓSITO:** Poblar la base de datos central con las identidades de lo que la empresa maneja (leche, sal, empaques, quesos), para que puedan contar con un Kardex transaccional físico.
-- **3. DESCRIPCIÓN:** El sistema permite al Admin instanciar conceptos estáticos (ej. "Cheddar 500g" o "Cuajo Químico") definiendo si es Insumo o Producto Final, su unidad de medida y precio o costo referencial. No añade cantidades físicas, solo la identidad organizativa.
-- **4. ACTORES:** Tablas de BD (`catalogo_items`).
-- **5. ACTOR INICIADOR:** Administrador General.
-- **6. PRECONDICIÓN:** Administrador Autenticado.
-- **7. FLUJO PRINCIPAL (Camino Feliz):**
-  1. El actor ingresa a "WMS Almacén" -> "Catálogo Maestro".
-  2. Presiona el botón flotante "+ Crear Nueva Identidad de Ítem".
-  3. Despliega un modal. El actor escoge una Categoría obligatoria: "Insumo Químico".
-  4. Ingresa el nombre "Cloruro de Calcio industrial", unidad "Litros", y costo base.
-  5. Presiona "Guardar en Sistema Central".
-  6. El sistema formatea los textos evitando dobles espacios en blanco e inserta en la tabla master `catalogo_items`.
-  7. El listado de catálogo se actualiza reflejando el nuevo ítem con "Stock 0.00" por defecto.
-- **8. POST CONDICIÓN:** El Ítem existe contablemente. A partir de ahora puede ser objeto de una Orden de Compra o registrado como merma en la línea de producción. Toda la transacción queda inmutablemente respaldada de forma automática en la Bitácora de Auditoría por seguridad.
-- **9. EXCEPCIONES (Flujo Secundario):**
-  - *E1: Falta de Categorización Restrictiva.* Si el actor omite clasificar si es Producto Vendible o Insumo de Producción, el software lanza alerta y niega la creación, puesto que afecta el comportamiento de las tablas de ventas posteriores.
-  - *E2: Campos Obligatorios Vacíos.* Si el usuario deja en blanco cualquier campo marcado como NOT NULL (nombre, SKU, unidad de medida), el sistema bloquea el botón de guardado, resalta el campo vacío con borde rojo y muestra el mensaje inline: "Este campo es obligatorio".
+
+| Campo | Descripción |
+|---|---|
+| **CASO DE USO** | CU08 - Registrar Nuevo Producto/Insumo en Catálogo. |
+| **PROPÓSITO** | Poblar la base de datos central con las identidades de lo que la empresa maneja (leche, sal, empaques, quesos), para que puedan contar con un Kardex transaccional físico. |
+| **DESCRIPCIÓN** | El sistema permite al Admin instanciar conceptos estáticos (ej. "Cheddar 500g" o "Cuajo Químico") definiendo si es Insumo o Producto Final, su unidad de medida y precio o costo referencial. No añade cantidades físicas, solo la identidad organizativa. |
+| **ACTORES** | Tablas de BD (`catalogo_items`). |
+| **ACTOR INICIADOR** | Administrador General. |
+| **PRECONDICIÓN** | Administrador Autenticado. |
+| **FLUJO PRINCIPAL (Camino Feliz)** | <br>1. El actor ingresa a "WMS Almacén" -> "Catálogo Maestro".<br>2. Presiona el botón flotante "+ Crear Nueva Identidad de Ítem".<br>3. Despliega un modal. El actor escoge una Categoría obligatoria: "Insumo Químico".<br>4. Ingresa el nombre "Cloruro de Calcio industrial", unidad "Litros", y costo base.<br>5. Presiona "Guardar en Sistema Central".<br>6. El sistema formatea los textos evitando dobles espacios en blanco e inserta en la tabla master `catalogo_items`.<br>7. El listado de catálogo se actualiza reflejando el nuevo ítem con "Stock 0.00" por defecto. |
+| **POST CONDICIÓN** | El Ítem existe contablemente. A partir de ahora puede ser objeto de una Orden de Compra o registrado como merma en la línea de producción. Toda la transacción queda inmutablemente respaldada de forma automática en la Bitácora de Auditoría por seguridad. |
+| **EXCEPCIONES (Flujo Secundario)** | <br>- *E1: Falta de Categorización Restrictiva.* Si el actor omite clasificar si es Producto Vendible o Insumo de Producción, el software lanza alerta y niega la creación, puesto que afecta el comportamiento de las tablas de ventas posteriores.<br>- *E2: Campos Obligatorios Vacíos.* Si el usuario deja en blanco cualquier campo marcado como NOT NULL (nombre, SKU, unidad de medida), el sistema bloquea el botón de guardado, resalta el campo vacío con borde rojo y muestra el mensaje inline: "Este campo es obligatorio". |
+
 
 **C. Prototipo UI (Directriz para Generador)**
 *Prompt a ingresar textual en tu IA:*
@@ -2027,21 +1962,19 @@ CU09 ..> Filtros : <<extend>>
 ```
 
 **B. Ficha de Especificación del Caso de Uso**
-- **1. CASO DE USO:** CU09 - Consultar Kardex Dinámico (Historial de Movimientos).
-- **2. PROPÓSITO:** Proveer al staff corporativo visibilidad en tiempo real del saldo contable y volumen en bodega.
-- **3. DESCRIPCIÓN:** Permite a múltiples ramas operativas consultar la inmensa tabla de la verdad (`movimientos_kardex`), procesando las sumatorias al vuelo (Entradas - Salidas) para deducir el "Stock Real Dinámico".
-- **4. ACTORES:** Tablas de BD (`movimientos_kardex`, `catalogo_items`).
-- **5. ACTOR INICIADOR:** Asesor Comercial, Jefe de Producción.
-- **6. PRECONDICIÓN:** Usuario logueado con rol validado. El ítem consultado debe haber sido creado previamente (CU08).
-- **7. FLUJO PRINCIPAL (Camino Feliz):**
-  1. El actor ingresa al módulo "Inventario y Kárdex Diario".
-  2. El sistema carga la sumatoria maestra y muestra la columna de "Disponible Físico" de todos los productos.
-  3. El actor selecciona "Quesillo Criollo 5kg" y presiona "Auditar Movimientos".
-  4. El sistema interroga las tablas `movimientos_kardex` filtrando por el ID, extrayendo las fechas en las que el Jefe de Planta inyectó cuajadas terminadas y las fechas en las que Ventas descontó por facturación.
-  5. El sistema dibuja el historial gráfico e imprime en pantalla el "Libro de entradas y salidas".
-- **8. POST CONDICIÓN:** Ninguna alteración es causada (Read Only). El usuario adquiere visibilidad de la bodega de fábrica real sin tener que caminar al sitio físico.
-- **9. EXCEPCIONES (Flujo Secundario):**
-  - *E1: Kardex Pálido (Inexistente).* Si un Asesor Comercial hace clic para expandir un ítem cuya existencia es puramente nominal (creado pero jamás comprado ni producido), el DataGrid arroja de inmediato la excepción limpiamente gráfica: "No existen transacciones trazables para este código base en la fábrica de toda la historia".
+
+| Campo | Descripción |
+|---|---|
+| **CASO DE USO** | CU09 - Consultar Kardex Dinámico (Historial de Movimientos). |
+| **PROPÓSITO** | Proveer al staff corporativo visibilidad en tiempo real del saldo contable y volumen en bodega. |
+| **DESCRIPCIÓN** | Permite a múltiples ramas operativas consultar la inmensa tabla de la verdad (`movimientos_kardex`), procesando las sumatorias al vuelo (Entradas - Salidas) para deducir el "Stock Real Dinámico". |
+| **ACTORES** | Tablas de BD (`movimientos_kardex`, `catalogo_items`). |
+| **ACTOR INICIADOR** | Asesor Comercial, Jefe de Producción. |
+| **PRECONDICIÓN** | Usuario logueado con rol validado. El ítem consultado debe haber sido creado previamente (CU08). |
+| **FLUJO PRINCIPAL (Camino Feliz)** | <br>1. El actor ingresa al módulo "Inventario y Kárdex Diario".<br>2. El sistema carga la sumatoria maestra y muestra la columna de "Disponible Físico" de todos los productos.<br>3. El actor selecciona "Quesillo Criollo 5kg" y presiona "Auditar Movimientos".<br>4. El sistema interroga las tablas `movimientos_kardex` filtrando por el ID, extrayendo las fechas en las que el Jefe de Planta inyectó cuajadas terminadas y las fechas en las que Ventas descontó por facturación.<br>5. El sistema dibuja el historial gráfico e imprime en pantalla el "Libro de entradas y salidas". |
+| **POST CONDICIÓN** | Ninguna alteración es causada (Read Only). El usuario adquiere visibilidad de la bodega de fábrica real sin tener que caminar al sitio físico. |
+| **EXCEPCIONES (Flujo Secundario)** | <br>- *E1: Kardex Pálido (Inexistente).* Si un Asesor Comercial hace clic para expandir un ítem cuya existencia es puramente nominal (creado pero jamás comprado ni producido), el DataGrid arroja de inmediato la excepción limpiamente gráfica: "No existen transacciones trazables para este código base en la fábrica de toda la historia". |
+
 
 **C. Prototipo UI (Directriz para Generador)**
 *Prompt a ingresar textual en tu IA:*
@@ -2066,24 +1999,19 @@ CU12 ..> Validar : <<include>>
 ```
 
 **B. Ficha de Especificación del Caso de Uso**
-- **1. CASO DE USO:** CU12 - Registrar Proveedor/Ganadero.
-- **2. PROPÓSITO:** Alimentar la base de datos maestra con los orígenes físicos de la materia prima (Tamberos locales o empresas químicas) para trazar la genealogía sanitaria del Kilómetro Cero.
-- **3. DESCRIPCIÓN:** Permite al personal administrativo asociar un Nombre, NIT y zona de acopio a una entidad externa. Sin este registro previo, ninguna cisterna de leche ajena podrá ingresar al módulo de Acopio.
-- **4. ACTORES:** Tablas de BD (`proveedores`).
-- **5. ACTOR INICIADOR:** Administrador General o Asesor Comercial (Área de Compras).
-- **6. PRECONDICIÓN:** Usuario logueado con autorización para inyectar *Master Data*.
-- **7. FLUJO PRINCIPAL (Camino Feliz):**
-  1. El actor ingresa al módulo "Compras y Ganaderos" -> "Maestro Proveedores".
-  2. Presiona "+ Dar de Alta Ganadero".
-  3. Despliega un formulario y teclea: Tipo (Productor de Leche / Insumos), NIT o CI, Razón Social, Teléfono, y Ruta Asignada.
-  4. El actor pulsa "Guardar Proveedor".
-  5. El sistema escanea la tabla `proveedores` buscando duplicidad estricta de NIT/CI.
-  6. El sistema aprueba el `INSERT` y le estampa automáticamente el estado algorítmico `'Activo'` (Apto para negocios).
-  7. El listado de proveedores se recarga con la nueva información.
-- **8. POST CONDICIÓN:** El Proveedor obtiene un `id_proveedor` válido, logrando que el Encargado de Recepción (CU17) pueda seleccionar su nombre oficial cuando su camión llegue a la fábrica. Toda la transacción queda inmutablemente respaldada de forma automática en la Bitácora de Auditoría por seguridad.
-- **9. EXCEPCIONES (Flujo Secundario):**
-  - *E1: Conflicto de Identidad Única.* Si el sistema detecta que el NIT proveído o el código de ruta ya pertenece a un ganadero preexistente, aborta la creación impidiendo silenciosamente la corrupción de historiales contables.
-  - *E2: Campos Obligatorios Vacíos.* Si el usuario deja en blanco cualquier campo marcado como NOT NULL (NIT, Razón Social, Tipo Proveedor), el sistema bloquea el botón de guardado, resalta el campo vacío con borde rojo y muestra el mensaje inline: "Este campo es obligatorio".
+
+| Campo | Descripción |
+|---|---|
+| **CASO DE USO** | CU12 - Registrar Proveedor/Ganadero. |
+| **PROPÓSITO** | Alimentar la base de datos maestra con los orígenes físicos de la materia prima (Tamberos locales o empresas químicas) para trazar la genealogía sanitaria del Kilómetro Cero. |
+| **DESCRIPCIÓN** | Permite al personal administrativo asociar un Nombre, NIT y zona de acopio a una entidad externa. Sin este registro previo, ninguna cisterna de leche ajena podrá ingresar al módulo de Acopio. |
+| **ACTORES** | Tablas de BD (`proveedores`). |
+| **ACTOR INICIADOR** | Administrador General o Asesor Comercial (Área de Compras). |
+| **PRECONDICIÓN** | Usuario logueado con autorización para inyectar *Master Data*. |
+| **FLUJO PRINCIPAL (Camino Feliz)** | <br>1. El actor ingresa al módulo "Compras y Ganaderos" -> "Maestro Proveedores".<br>2. Presiona "+ Dar de Alta Ganadero".<br>3. Despliega un formulario y teclea: Tipo (Productor de Leche / Insumos), NIT o CI, Razón Social, Teléfono, y Ruta Asignada.<br>4. El actor pulsa "Guardar Proveedor".<br>5. El sistema escanea la tabla `proveedores` buscando duplicidad estricta de NIT/CI.<br>6. El sistema aprueba el `INSERT` y le estampa automáticamente el estado algorítmico `'Activo'` (Apto para negocios).<br>7. El listado de proveedores se recarga con la nueva información. |
+| **POST CONDICIÓN** | El Proveedor obtiene un `id_proveedor` válido, logrando que el Encargado de Recepción (CU17) pueda seleccionar su nombre oficial cuando su camión llegue a la fábrica. Toda la transacción queda inmutablemente respaldada de forma automática en la Bitácora de Auditoría por seguridad. |
+| **EXCEPCIONES (Flujo Secundario)** | <br>- *E1: Conflicto de Identidad Única.* Si el sistema detecta que el NIT proveído o el código de ruta ya pertenece a un ganadero preexistente, aborta la creación impidiendo silenciosamente la corrupción de historiales contables.<br>- *E2: Campos Obligatorios Vacíos.* Si el usuario deja en blanco cualquier campo marcado como NOT NULL (NIT, Razón Social, Tipo Proveedor), el sistema bloquea el botón de guardado, resalta el campo vacío con borde rojo y muestra el mensaje inline: "Este campo es obligatorio". |
+
 
 **C. Prototipo UI (Directriz para Generador)**
 *Prompt a ingresar textual en tu IA:*
@@ -2106,24 +2034,19 @@ CU26 ..> Categoria : <<include>>
 ```
 
 **B. Ficha de Especificación del Caso de Uso**
-- **1. CASO DE USO:** CU26 - Registrar Cliente Comercial B2B/B2C.
-- **2. PROPÓSITO:** Constituir el catálogo de destinos comerciales de facturación (Supermercados, Distribuidores o Mayoristas Detallistas) para poder despachar la producción a su nombre.
-- **3. DESCRIPCIÓN:** Permite al Asesor de Ventas capturar atómicamente la Razón Social y NIT de un nuevo comprador, clasificándolo según su envergadura para que el sistema asocie reglas tributarias o topes de crédito.
-- **4. ACTORES:** Tablas de BD (`clientes`).
-- **5. ACTOR INICIADOR:** Asesor Comercial.
-- **6. PRECONDICIÓN:** Usuario de Ventas logueado y posicionado en la pestaña de CRM.
-- **7. FLUJO PRINCIPAL (Camino Feliz):**
-  1. El actor ingresa a "Cartera de Clientes" (Módulo Comercial).
-  2. Presiona en "Agregar Comprador".
-  3. Despliega la ventana modal orientada a Contabilidad y teclea: NIT, Razón Social, y clasifica el Nivel de Compra (Mayorista / Minorista).
-  4. Presiona "Integrar Cliente".
-  5. El sistema escanea duplicidad de Documentos de Identidad Tributaria.
-  6. El sistema aprueba el `INSERT` en la tabla maestra `clientes`.
-  7. El sistema despliega el mensaje de éxito ("Cliente apto para despachos") y refresca el DataGrid del CRM mostrando el registro en primera fila.
-- **8. POST CONDICIÓN:** El cliente queda habilitado irrevocablemente en BD como llave primaria (ID). El Asesor Comercial ya puede utilizar su nombre como palanca para el levantamiento de Pedidos y descarte de Kárdex. Toda la transacción queda inmutablemente respaldada de forma automática en la Bitácora de Auditoría por seguridad.
-- **9. EXCEPCIONES (Flujo Secundario):**
-  - *E1: Registro Centralizado (Duplicado).* El sistema detecta que otra sucursal ya registró a ese NIT (ej: Supermercados FIDALGA). Interrumpe la inserción con un cartel restrictivo forzando al usuario a utilizar el contacto ya existente para salvar la consistencia financiera general.
-  - *E2: Campos Obligatorios Vacíos.* Si el usuario deja en blanco cualquier campo marcado como NOT NULL (NIT, Razón Social), el sistema bloquea el botón de guardado, resalta el campo vacío con borde rojo y muestra el mensaje inline: "Este campo es obligatorio".
+
+| Campo | Descripción |
+|---|---|
+| **CASO DE USO** | CU26 - Registrar Cliente Comercial B2B/B2C. |
+| **PROPÓSITO** | Constituir el catálogo de destinos comerciales de facturación (Supermercados, Distribuidores o Mayoristas Detallistas) para poder despachar la producción a su nombre. |
+| **DESCRIPCIÓN** | Permite al Asesor de Ventas capturar atómicamente la Razón Social y NIT de un nuevo comprador, clasificándolo según su envergadura para que el sistema asocie reglas tributarias o topes de crédito. |
+| **ACTORES** | Tablas de BD (`clientes`). |
+| **ACTOR INICIADOR** | Asesor Comercial. |
+| **PRECONDICIÓN** | Usuario de Ventas logueado y posicionado en la pestaña de CRM. |
+| **FLUJO PRINCIPAL (Camino Feliz)** | <br>1. El actor ingresa a "Cartera de Clientes" (Módulo Comercial).<br>2. Presiona en "Agregar Comprador".<br>3. Despliega la ventana modal orientada a Contabilidad y teclea: NIT, Razón Social, y clasifica el Nivel de Compra (Mayorista / Minorista).<br>4. Presiona "Integrar Cliente".<br>5. El sistema escanea duplicidad de Documentos de Identidad Tributaria.<br>6. El sistema aprueba el `INSERT` en la tabla maestra `clientes`.<br>7. El sistema despliega el mensaje de éxito ("Cliente apto para despachos") y refresca el DataGrid del CRM mostrando el registro en primera fila. |
+| **POST CONDICIÓN** | El cliente queda habilitado irrevocablemente en BD como llave primaria (ID). El Asesor Comercial ya puede utilizar su nombre como palanca para el levantamiento de Pedidos y descarte de Kárdex. Toda la transacción queda inmutablemente respaldada de forma automática en la Bitácora de Auditoría por seguridad. |
+| **EXCEPCIONES (Flujo Secundario)** | <br>- *E1: Registro Centralizado (Duplicado).* El sistema detecta que otra sucursal ya registró a ese NIT (ej: Supermercados FIDALGA). Interrumpe la inserción con un cartel restrictivo forzando al usuario a utilizar el contacto ya existente para salvar la consistencia financiera general.<br>- *E2: Campos Obligatorios Vacíos.* Si el usuario deja en blanco cualquier campo marcado como NOT NULL (NIT, Razón Social), el sistema bloquea el botón de guardado, resalta el campo vacío con borde rojo y muestra el mensaje inline: "Este campo es obligatorio". |
+
 
 **C. Prototipo UI (Directriz para Generador)**
 *Prompt a ingresar textual en tu IA:*
@@ -2146,28 +2069,19 @@ CU31 ..> ValidarPass : <<include>>
 ```
 
 **B. Ficha de Especificación del Caso de Uso**
-- **1. CASO DE USO:** CU31 - Cambiar Contraseña Propia.
-- **2. PROPÓSITO:** Permitir que cualquier usuario autenticado actualice su contraseña de forma autónoma desde su perfil, sin intervención del Administrador.
-- **3. DESCRIPCIÓN:** El usuario accede a la configuración de su perfil y despliega una ventana modal donde debe ingresar su contraseña actual (para verificar identidad), seguida de la nueva contraseña y su confirmación. El sistema valida políticas de seguridad y actualiza el hash en la tabla `usuarios`.
-- **4. ACTORES:** Tablas de BD (`usuarios`, `bitacora_auditoria`).
-- **5. ACTOR INICIADOR:** Usuario Autenticado (Cualquier empleado de GRULAC).
-- **6. PRECONDICIÓN:** El usuario debe estar logueado con sesión activa (CU01 ejecutado).
-- **7. FLUJO PRINCIPAL (Camino Feliz):**
-  1. El actor accede a "Mi Perfil" desde el menú de la esquina superior derecha.
-  2. El actor hace clic en "Cambiar Contraseña".
-  3. El sistema despliega una ventana modal con tres campos: "Contraseña Actual", "Nueva Contraseña" y "Confirmar Nueva Contraseña".
-  4. El actor llena los tres campos y presiona "Guardar".
-  5. El sistema verifica que la contraseña actual coincida con el hash almacenado en BD.
-  6. El sistema valida que la nueva contraseña cumpla las políticas de seguridad: mínimo 8 caracteres, al menos una mayúscula, una minúscula, un número, y que NO sea idéntica a la contraseña anterior.
-  7. El sistema genera un nuevo hash (`bcrypt`) y ejecuta `UPDATE usuarios SET password_hash = $nuevo_hash`.
-  8. El sistema registra el evento en `bitacora_auditoria` (acción: `CAMBIO_PASSWORD`).
-  9. El sistema muestra un toast de éxito: "Su contraseña ha sido actualizada correctamente".
-- **8. POST CONDICIÓN:** El hash anterior es irrecuperable. La próxima vez que el usuario ejecute el CU01 (Login), deberá usar la nueva contraseña.
-- **9. EXCEPCIONES (Flujo Secundario):**
-  - *E1: Contraseña Actual Incorrecta.* El sistema detecta que el hash enviado no coincide con el almacenado. Muestra: "Su contraseña actual es incorrecta" y no permite continuar.
-  - *E2: Política de Seguridad Incumplida.* La nueva contraseña no cumple los requisitos (falta mayúscula, minúscula, número o longitud insuficiente). El sistema resalta el campo con borde rojo e indica qué requisito falta.
-  - *E3: Confirmación No Coincide.* "Nueva Contraseña" y "Confirmar" difieren. El sistema muestra: "Las contraseñas no coinciden".
-  - *E4: Contraseña Repetida.* Si la nueva contraseña es idéntica a la actual, el sistema la rechaza: "La nueva contraseña no puede ser igual a la anterior".
+
+| Campo | Descripción |
+|---|---|
+| **CASO DE USO** | CU31 - Cambiar Contraseña Propia. |
+| **PROPÓSITO** | Permitir que cualquier usuario autenticado actualice su contraseña de forma autónoma desde su perfil, sin intervención del Administrador. |
+| **DESCRIPCIÓN** | El usuario accede a la configuración de su perfil y despliega una ventana modal donde debe ingresar su contraseña actual (para verificar identidad), seguida de la nueva contraseña y su confirmación. El sistema valida políticas de seguridad y actualiza el hash en la tabla `usuarios`. |
+| **ACTORES** | Tablas de BD (`usuarios`, `bitacora_auditoria`). |
+| **ACTOR INICIADOR** | Usuario Autenticado (Cualquier empleado de GRULAC). |
+| **PRECONDICIÓN** | El usuario debe estar logueado con sesión activa (CU01 ejecutado). |
+| **FLUJO PRINCIPAL (Camino Feliz)** | <br>1. El actor accede a "Mi Perfil" desde el menú de la esquina superior derecha.<br>2. El actor hace clic en "Cambiar Contraseña".<br>3. El sistema despliega una ventana modal con tres campos: "Contraseña Actual", "Nueva Contraseña" y "Confirmar Nueva Contraseña".<br>4. El actor llena los tres campos y presiona "Guardar".<br>5. El sistema verifica que la contraseña actual coincida con el hash almacenado en BD.<br>6. El sistema valida que la nueva contraseña cumpla las políticas de seguridad: mínimo 8 caracteres, al menos una mayúscula, una minúscula, un número, y que NO sea idéntica a la contraseña anterior.<br>7. El sistema genera un nuevo hash (`bcrypt`) y ejecuta `UPDATE usuarios SET password_hash = $nuevo_hash`.<br>8. El sistema registra el evento en `bitacora_auditoria` (acción: `CAMBIO_PASSWORD`).<br>9. El sistema muestra un toast de éxito: "Su contraseña ha sido actualizada correctamente". |
+| **POST CONDICIÓN** | El hash anterior es irrecuperable. La próxima vez que el usuario ejecute el CU01 (Login), deberá usar la nueva contraseña. |
+| **EXCEPCIONES (Flujo Secundario)** | <br>- *E1: Contraseña Actual Incorrecta.* El sistema detecta que el hash enviado no coincide con el almacenado. Muestra: "Su contraseña actual es incorrecta" y no permite continuar.<br>- *E2: Política de Seguridad Incumplida.* La nueva contraseña no cumple los requisitos (falta mayúscula, minúscula, número o longitud insuficiente). El sistema resalta el campo con borde rojo e indica qué requisito falta.<br>- *E3: Confirmación No Coincide.* "Nueva Contraseña" y "Confirmar" difieren. El sistema muestra: "Las contraseñas no coinciden".<br>- *E4: Contraseña Repetida.* Si la nueva contraseña es idéntica a la actual, el sistema la rechaza: "La nueva contraseña no puede ser igual a la anterior". |
+
 
 **C. Prototipo UI (Directriz para Generador)**
 *Prompt a ingresar textual en tu IA:*
@@ -2192,32 +2106,19 @@ CU32 ..> ValidarToken : <<include>>
 ```
 
 **B. Ficha de Especificación del Caso de Uso**
-- **1. CASO DE USO:** CU32 - Recuperar Contraseña Olvidada.
-- **2. PROPÓSITO:** Permitir que un empleado activo que olvidó su clave recupere el acceso de forma segura.
-- **3. DESCRIPCIÓN:** El usuario solicita un enlace temporal de recuperación desde el Login. El sistema verifica su existencia y envía un correo con un token JWT de un solo uso que lo redirige a la pantalla para establecer una nueva contraseña.
-- **4. ACTORES:** Tablas de BD (`usuarios`, `bitacora_auditoria`), Supabase Auth (GoTrue), Servicio de Email SMTP.
-- **5. ACTOR INICIADOR:** Usuario No Autenticado (Empleado con cuenta existente).
-- **6. PRECONDICIÓN:** El email corporativo debe existir en `auth.users` y en `public.usuarios`, y el estado de la cuenta debe ser Activo.
-- **7. FLUJO PRINCIPAL (Camino Feliz):**
-  1. El actor hace clic en "¿Olvidó su contraseña?" desde la pantalla de Login.
-  2. El sistema despliega un formulario pidiendo el "Email Corporativo".
-  3. El actor ingresa su email y presiona "Enviar Enlace de Recuperación".
-  4. Supabase Auth genera un token de un solo uso y envía el correo con enlace a `/actualizar-contrasena`.
-  5. El sistema muestra el mensaje genérico (anti-enumeración): "Si tu correo está registrado, recibirás el enlace en breve".
-  6. El actor abre su correo y hace clic en el enlace.
-  7. El navegador redirige a `/actualizar-contrasena#access_token=...` y extrae la sesión.
-  8. El sistema despliega el formulario con campos: "Nueva Contraseña" y "Confirmar Nueva Contraseña", con un checklist visual de políticas.
-  9. El actor ingresa su nueva contraseña cumpliendo las reglas.
-  10. El sistema actualiza la clave en Supabase Auth (`updateUser`).
-  11. El sistema ejecuta el RPC `update_password_hash_direct()` para guardar el hash en PostgreSQL.
-  12. El sistema resetea `intentos_fallidos = 0`.
-  13. El sistema registra en `bitacora_auditoria` (acción: `RESET_PASSWORD`).
-  14. El sistema muestra el toast de éxito y redirige al Login.
-- **8. POST CONDICIÓN:** El usuario recupera el acceso. El token queda invalidado por Supabase.
-- **9. EXCEPCIONES (Flujo Secundario):**
-  - *E1: Email No Registrado o Inhabilitado.* El sistema no envía el correo pero muestra el mismo mensaje de éxito por seguridad (anti-enumeración).
-  - *E2: Token Expirado.* Si el actor usa el enlace tarde, Supabase Auth lo rechaza y la página muestra: "El enlace ha expirado".
-  - *E3: Políticas no cumplidas.* El sistema bloquea el guardado si la clave no cumple requisitos de seguridad.
+
+| Campo | Descripción |
+|---|---|
+| **CASO DE USO** | CU32 - Recuperar Contraseña Olvidada. |
+| **PROPÓSITO** | Permitir que un empleado activo que olvidó su clave recupere el acceso de forma segura. |
+| **DESCRIPCIÓN** | El usuario solicita un enlace temporal de recuperación desde el Login. El sistema verifica su existencia y envía un correo con un token JWT de un solo uso que lo redirige a la pantalla para establecer una nueva contraseña. |
+| **ACTORES** | Tablas de BD (`usuarios`, `bitacora_auditoria`), Supabase Auth (GoTrue), Servicio de Email SMTP. |
+| **ACTOR INICIADOR** | Usuario No Autenticado (Empleado con cuenta existente). |
+| **PRECONDICIÓN** | El email corporativo debe existir en `auth.users` y en `public.usuarios`, y el estado de la cuenta debe ser Activo. |
+| **FLUJO PRINCIPAL (Camino Feliz)** | <br>1. El actor hace clic en "¿Olvidó su contraseña?" desde la pantalla de Login.<br>2. El sistema despliega un formulario pidiendo el "Email Corporativo".<br>3. El actor ingresa su email y presiona "Enviar Enlace de Recuperación".<br>4. Supabase Auth genera un token de un solo uso y envía el correo con enlace a `/actualizar-contrasena`.<br>5. El sistema muestra el mensaje genérico (anti-enumeración): "Si tu correo está registrado, recibirás el enlace en breve".<br>6. El actor abre su correo y hace clic en el enlace.<br>7. El navegador redirige a `/actualizar-contrasena#access_token=...` y extrae la sesión.<br>8. El sistema despliega el formulario con campos: "Nueva Contraseña" y "Confirmar Nueva Contraseña", con un checklist visual de políticas.<br>9. El actor ingresa su nueva contraseña cumpliendo las reglas.<br>10. El sistema actualiza la clave en Supabase Auth (`updateUser`).<br>11. El sistema ejecuta el RPC `update_password_hash_direct()` para guardar el hash en PostgreSQL.<br>12. El sistema resetea `intentos_fallidos = 0`.<br>13. El sistema registra en `bitacora_auditoria` (acción: `RESET_PASSWORD`).<br>14. El sistema muestra el toast de éxito y redirige al Login. |
+| **POST CONDICIÓN** | El usuario recupera el acceso. El token queda invalidado por Supabase. |
+| **EXCEPCIONES (Flujo Secundario)** | <br>- *E1: Email No Registrado o Inhabilitado.* El sistema no envía el correo pero muestra el mismo mensaje de éxito por seguridad (anti-enumeración).<br>- *E2: Token Expirado.* Si el actor usa el enlace tarde, Supabase Auth lo rechaza y la página muestra: "El enlace ha expirado".<br>- *E3: Políticas no cumplidas.* El sistema bloquea el guardado si la clave no cumple requisitos de seguridad. |
+
 
 **C. Prototipo UI (Directriz para Generador)**
 *Prompt a ingresar textual en tu IA:*
@@ -2242,32 +2143,57 @@ CU33 ..> VerificarUso : <<include>>
 ```
 
 **B. Ficha de Especificación del Caso de Uso**
-- **1. CASO DE USO:** CU33 - Establecer Primera Contraseña (Onboarding).
-- **2. PROPÓSITO:** Proveer un mecanismo seguro para que un empleado recién registrado (CU03) pueda tomar control de su cuenta estableciendo su propia contraseña por primera vez.
-- **3. DESCRIPCIÓN:** El nuevo empleado hace clic en el enlace de invitación recibido por correo. El sistema intercepta el token, ejecuta una Guardia de Seguridad (Opción B) para garantizar que la invitación no se reutilice, y le permite definir su contraseña, sincronizando los esquemas de Autenticación y Base de Datos local.
-- **4. ACTORES:** Tablas de BD (`usuarios`, `bitacora_auditoria`), Supabase Auth (GoTrue).
-- **5. ACTOR INICIADOR:** Nuevo Empleado Invitado.
-- **6. PRECONDICIÓN:** El Administrador ejecutó exitosamente el CU03. El token JWT de invitación debe estar vigente (< 24 horas) y la cuenta aún no debe tener un `password_hash` establecido.
-- **7. FLUJO PRINCIPAL (Camino Feliz):**
-  1. El nuevo empleado abre su correo y hace clic en el enlace de invitación (se recomienda modo incógnito).
-  2. El navegador redirige a `/actualizar-contrasena` con los tokens en la URL.
-  3. El sistema ejecuta `supabase.auth.setSession()` para loguear temporalmente al usuario.
-  4. **Guardia de Seguridad (Opción B):** El sistema consulta `public.usuarios` y verifica que `password_hash IS NULL`.
-  5. Al confirmarse que es una cuenta virgen, el sistema muestra el formulario de "Establecer Contraseña".
-  6. El empleado ingresa y confirma su nueva contraseña cumpliendo las políticas de seguridad.
-  7. El sistema llama a `supabase.auth.updateUser()` para anclar la credencial.
-  8. El sistema ejecuta el RPC `update_password_hash_direct()` para poblar el hash local en PostgreSQL.
-  9. El sistema registra el evento en `bitacora_auditoria` con `accion_sql: 'RESET_PASSWORD'` y la nota de "Onboarding".
-  10. El sistema redirige al CU01 (Login) informando el éxito de la operación.
-- **8. POST CONDICIÓN:** La cuenta queda plenamente activa. El enlace de invitación pierde su validez para siempre por dos vías: Supabase Auth quema el token, y la Guardia de Opción B lo rechaza porque `password_hash` ya no es NULL.
-- **9. EXCEPCIONES (Flujo Secundario):**
-  - *E1: Invitación Ya Utilizada (Guardia Opción B).* Si un empleado malicioso intenta reutilizar un enlace viejo o usar el botón "Atrás", el paso 4 detecta que `password_hash IS NOT NULL`. El sistema bloquea el formulario y muestra: "Este enlace de invitación ya fue utilizado. Tu cuenta ya está activa", redirigiendo al Login de inmediato.
-  - *E2: Token Expirado.* Si el empleado tarda más de 24 horas en hacer clic, el token caduca y el sistema le exige contactar a Gerencia para una nueva alta.
+
+| Campo | Descripción |
+|---|---|
+| **CASO DE USO** | CU33 - Establecer Primera Contraseña (Onboarding). |
+| **PROPÓSITO** | Proveer un mecanismo seguro para que un empleado recién registrado (CU03) pueda tomar control de su cuenta estableciendo su propia contraseña por primera vez. |
+| **DESCRIPCIÓN** | El nuevo empleado hace clic en el enlace de invitación recibido por correo. El sistema intercepta el token, ejecuta una Guardia de Seguridad (Opción B) para garantizar que la invitación no se reutilice, y le permite definir su contraseña, sincronizando los esquemas de Autenticación y Base de Datos local. |
+| **ACTORES** | Tablas de BD (`usuarios`, `bitacora_auditoria`), Supabase Auth (GoTrue). |
+| **ACTOR INICIADOR** | Nuevo Empleado Invitado. |
+| **PRECONDICIÓN** | El Administrador ejecutó exitosamente el CU03. El token JWT de invitación debe estar vigente (< 24 horas) y la cuenta aún no debe tener un `password_hash` establecido. |
+| **FLUJO PRINCIPAL (Camino Feliz)** | <br>1. El nuevo empleado abre su correo y hace clic en el enlace de invitación (se recomienda modo incógnito).<br>2. El navegador redirige a `/actualizar-contrasena` con los tokens en la URL.<br>3. El sistema ejecuta `supabase.auth.setSession()` para loguear temporalmente al usuario.<br>4. **Guardia de Seguridad (Opción B):** El sistema consulta `public.usuarios` y verifica que `password_hash IS NULL`.<br>5. Al confirmarse que es una cuenta virgen, el sistema muestra el formulario de "Establecer Contraseña".<br>6. El empleado ingresa y confirma su nueva contraseña cumpliendo las políticas de seguridad.<br>7. El sistema llama a `supabase.auth.updateUser()` para anclar la credencial.<br>8. El sistema ejecuta el RPC `update_password_hash_direct()` para poblar el hash local en PostgreSQL.<br>9. El sistema registra el evento en `bitacora_auditoria` con `accion_sql: 'RESET_PASSWORD'` y la nota de "Onboarding".<br>10. El sistema redirige al CU01 (Login) informando el éxito de la operación. |
+| **POST CONDICIÓN** | La cuenta queda plenamente activa. El enlace de invitación pierde su validez para siempre por dos vías: Supabase Auth quema el token, y la Guardia de Opción B lo rechaza porque `password_hash` ya no es NULL. |
+| **EXCEPCIONES (Flujo Secundario)** | <br>- *E1: Invitación Ya Utilizada (Guardia Opción B).* Si un empleado malicioso intenta reutilizar un enlace viejo o usar el botón "Atrás", el paso 4 detecta que `password_hash IS NOT NULL`. El sistema bloquea el formulario y muestra: "Este enlace de invitación ya fue utilizado. Tu cuenta ya está activa", redirigiendo al Login de inmediato.<br>- *E2: Token Expirado.* Si el empleado tarda más de 24 horas en hacer clic, el token caduca y el sistema le exige contactar a Gerencia para una nueva alta. |
+
 
 **C. Prototipo UI (Directriz para Generador)**
 *Prompt a ingresar textual en tu IA:*
 > "Pantalla de bienvenida y configuración de contraseña. Encabezado: 'Bienvenido a GRULAC, establece tu credencial'. Subtítulo: 'Crea una contraseña segura para tu primer ingreso'. Dos campos de texto protegidos con ojito toggle y un checklist dinámico de seguridad abajo. Botón azul masivo 'Completar Registro'."
 
+
+#### CU34: Rehabilitar Empleado (Alta Lógica)
+
+**A. Estructura del Modelo de CU (Diagrama Específico)**
+```plantuml
+@startuml
+left to right direction
+actor "Administrador General" as Admin
+rectangle "Sistema ERP GRULAC - Submódulo RRHH" {
+  usecase "CU34: Rehabilitar Empleado" as CU34
+}
+Admin --> CU34
+@enduml
+```
+
+**B. Ficha de Especificación del Caso de Uso**
+
+| Campo | Descripción |
+|---|---|
+| **CASO DE USO** | CU34 - Rehabilitar Empleado (Alta Lógica). |
+| **PROPÓSITO** | Devolver el acceso al sistema a un operador que había sido inhabilitado, permitiéndole retomar sus funciones con su cuenta original. |
+| **DESCRIPCIÓN** | Permite al Administrador localizar a un empleado en estado "Inactivo" en la grilla y cambiar su estado nuevamente a "Activo" (`UPDATE estado = TRUE`), restaurando su acceso instantáneamente. |
+| **ACTORES** | Tablas de BD (`usuarios`, `empleados`). |
+| **ACTOR INICIADOR** | Administrador General. |
+| **PRECONDICIÓN** | El Administrador debe estar logueado; el empleado objetivo debe existir y su estatus actual debe ser "Inactivo" o "Suspendido". |
+| **FLUJO PRINCIPAL (Camino Feliz)** | <br>1. El Administrador ubica al ex-trabajador en la tabla de Personal y hace clic en el botón verde "Rehabilitar".<br>2. El sistema despliega un mensaje crítico de advertencia: "¿Está seguro de restaurar los privilegios de este operador?".<br>3. El Administrador teclea su propia contraseña de Admin como confirmación y presiona "Restaurar Acceso".<br>4. El sistema actualiza `estado_activo` a verdadero en `empleados` y `estado_acceso` a verdadero en `usuarios`.<br>5. El sistema actualiza la lista, mostrando al empleado con un chip color verde "Operativo". |
+| **POST CONDICIÓN** | El empleado recontratado recupera su capacidad para hacer Login (CU01) usando la misma contraseña que tenía antes de ser suspendido. La transacción queda respaldada en la Bitácora de Auditoría. |
+| **EXCEPCIONES (Flujo Secundario)** | <br>- *E1: PIN de Administrador Incorrecto.* Si la contraseña de validación falla, se bloquea la operación y se notifica al Administrador. |
+
+
+**C. Prototipo UI (Directriz para Generador)**
+*Prompt a ingresar textual en tu IA:*
+> "Diseño de un Pop-up (Alert Box) de estilo Material Design. Fondo oscuro desenfocado. En el centro un rectángulo blanco limpio. Arriba un ícono de agregar usuario en color verde esmeralda. Título de la alerta en negrita: 'Confirmación Crítica: Rehabilitación de Personal'. Subtítulo en texto gris: 'Está a punto de restaurar todos los privilegios del operador. Escriba su pin maestro para continuar'. Debajo un campo de texto simple para 'Pin de Administrador' y dos botones al final: Botón izquierdo gris que diga 'Cancelar' y un botón derecho color verde esmeralda que diga 'Restaurar Acceso'."
 
 ### CICLO 2: Dominio Logístico y Reglas SCM
 
@@ -2290,24 +2216,19 @@ CU13 ..> Verificar : <<include>>
 ```
 
 **B. Ficha de Especificación del Caso de Uso**
-- **1. CASO DE USO:** CU13 - Inhabilitar Proveedor (Bloqueo Comercial).
-- **2. PROPÓSITO:** Restringir toda relación comercial con un ganadero o empresa proveedora que haya incurrido en faltas sanitarias, incumplimientos contractuales o adulteración de materia prima, preservando intacto el historial de transacciones pasadas.
-- **3. DESCRIPCIÓN:** Permite al Administrador localizar un proveedor activo en la grilla del módulo SCM y cambiar su estado algorítmico a `'Inhabilitado'` (`UPDATE is_activo = FALSE`), impidiendo que el Ing. Industrial lo seleccione en futuras recepciones de leche o insumos.
-- **4. ACTORES:** Tablas de BD (`proveedores`, `bitacora_auditoria`).
-- **5. ACTOR INICIADOR:** Administrador General.
-- **6. PRECONDICIÓN:** El Administrador debe estar logueado; el proveedor objetivo debe existir y su estatus actual debe ser `'Activo'`.
-- **7. FLUJO PRINCIPAL (Camino Feliz):**
-  1. El Administrador ingresa al módulo "Compras y Ganaderos" → "Maestro Proveedores".
-  2. El Administrador ubica al proveedor en la tabla y hace clic en el botón de acción "Inhabilitar".
-  3. El sistema despliega un mensaje crítico: "¿Está seguro de bloquear comercialmente a este proveedor? No podrá recibir mercadería de esta fuente.".
-  4. El Administrador confirma la operación.
-  5. El sistema verifica que no existan Órdenes de Compra (`ordenes_compra`) en estado `'Pendiente'` o `'En Tránsito'` asociadas a este proveedor.
-  6. El sistema ejecuta el `UPDATE proveedores SET is_activo = FALSE WHERE id_proveedor = X`.
-  7. El sistema actualiza la grilla, mostrando al proveedor con un chip rojo "Inhabilitado".
-- **8. POST CONDICIÓN:** El proveedor bloqueado desaparece de todos los selectores de recepción (CU15, CU17). Las transacciones históricas (recepciones, pagos) firmadas por este proveedor permanecen auditables. Toda la transacción queda inmutablemente respaldada en la Bitácora de Auditoría.
-- **9. EXCEPCIONES (Flujo Secundario):**
-  - *E1: Órdenes de Compra Pendientes.* Si existen órdenes activas vinculadas al proveedor, el sistema aborta la inhabilitación mostrando: "Este proveedor tiene N orden(es) pendiente(s). Ciérrelas antes de proceder al bloqueo".
-  - *E2: Proveedor ya Inhabilitado.* Si el proveedor ya está inactivo, el botón se muestra deshabilitado visualmente.
+
+| Campo | Descripción |
+|---|---|
+| **CASO DE USO** | CU13 - Inhabilitar Proveedor (Bloqueo Comercial). |
+| **PROPÓSITO** | Restringir toda relación comercial con un ganadero o empresa proveedora que haya incurrido en faltas sanitarias, incumplimientos contractuales o adulteración de materia prima, preservando intacto el historial de transacciones pasadas. |
+| **DESCRIPCIÓN** | Permite al Administrador localizar un proveedor activo en la grilla del módulo SCM y cambiar su estado algorítmico a `'Inhabilitado'` (`UPDATE is_activo = FALSE`), impidiendo que el Ing. Industrial lo seleccione en futuras recepciones de leche o insumos. |
+| **ACTORES** | Tablas de BD (`proveedores`, `bitacora_auditoria`). |
+| **ACTOR INICIADOR** | Administrador General. |
+| **PRECONDICIÓN** | El Administrador debe estar logueado; el proveedor objetivo debe existir y su estatus actual debe ser `'Activo'`. |
+| **FLUJO PRINCIPAL (Camino Feliz)** | <br>1. El Administrador ingresa al módulo "Compras y Ganaderos" → "Maestro Proveedores".<br>2. El Administrador ubica al proveedor en la tabla y hace clic en el botón de acción "Inhabilitar".<br>3. El sistema despliega un mensaje crítico: "¿Está seguro de bloquear comercialmente a este proveedor? No podrá recibir mercadería de esta fuente.".<br>4. El Administrador confirma la operación.<br>5. El sistema verifica que no existan Órdenes de Compra (`ordenes_compra`) en estado `'Pendiente'` o `'En Tránsito'` asociadas a este proveedor.<br>6. El sistema ejecuta el `UPDATE proveedores SET is_activo = FALSE WHERE id_proveedor = X`.<br>7. El sistema actualiza la grilla, mostrando al proveedor con un chip rojo "Inhabilitado". |
+| **POST CONDICIÓN** | El proveedor bloqueado desaparece de todos los selectores de recepción (CU15, CU17). Las transacciones históricas (recepciones, pagos) firmadas por este proveedor permanecen auditables. Toda la transacción queda inmutablemente respaldada en la Bitácora de Auditoría. |
+| **EXCEPCIONES (Flujo Secundario)** | <br>- *E1: Órdenes de Compra Pendientes.* Si existen órdenes activas vinculadas al proveedor, el sistema aborta la inhabilitación mostrando: "Este proveedor tiene N orden(es) pendiente(s). Ciérrelas antes de proceder al bloqueo".<br>- *E2: Proveedor ya Inhabilitado.* Si el proveedor ya está inactivo, el botón se muestra deshabilitado visualmente. |
+
 
 **C. Prototipo UI (Directriz para Generador)**
 *Prompt a ingresar textual en tu IA:*
@@ -2332,29 +2253,19 @@ CU14 ..> Cruzar : <<include>>
 ```
 
 **B. Ficha de Especificación del Caso de Uso**
-- **1. CASO DE USO:** CU14 - Elaborar Orden de Compra de Insumos.
-- **2. PROPÓSITO:** Formalizar y digitalizar las solicitudes de reposición de insumos químicos y materias primas que actualmente se realizan informalmente por teléfono cada viernes, eliminando el riesgo de desabastecimiento por olvido.
-- **3. DESCRIPCIÓN:** Permite al Administrador seleccionar uno o más ítems del catálogo maestro (`catalogo_items`), definir las cantidades requeridas y asociar la orden a un proveedor habilitado. El sistema cruza automáticamente contra el stock actual del Kardex para sugerir cantidades óptimas basadas en el consumo promedio semanal.
-- **4. ACTORES:** Tablas de BD (`ordenes_compra`, `detalle_orden_compra`, `catalogo_items`, `proveedores`).
-- **5. ACTOR INICIADOR:** Administrador General.
-- **6. PRECONDICIÓN:** El Administrador debe estar logueado. Debe existir al menos un proveedor activo (CU12) y los ítems a comprar deben estar registrados en el catálogo (CU08).
-- **7. FLUJO PRINCIPAL (Camino Feliz):**
-  1. El Administrador ingresa al módulo "Compras y Ganaderos" → "Órdenes de Compra".
-  2. Presiona el botón "+ Nueva Orden de Compra".
-  3. El sistema despliega un formulario con un selector de Proveedor (solo activos) y una tabla dinámica de ítems.
-  4. El Administrador selecciona al proveedor "Distribuidora Química del Oriente".
-  5. El Administrador agrega ítems: selecciona "Cuajo Albamax" del catálogo, el sistema muestra automáticamente el stock actual (ej. 2.5 L) y el stock mínimo configurado (ej. 5 L).
-  6. El Administrador define la cantidad a comprar (ej. 10 L) y el precio unitario pactado.
-  7. Repite el paso 5-6 para cada insumo requerido.
-  8. El sistema calcula el subtotal por línea y el total general de la orden.
-  9. El Administrador presiona "Emitir Orden de Compra".
-  10. El sistema genera un `INSERT` en `ordenes_compra` con estado `'Pendiente'` y sus respectivos registros en `detalle_orden_compra`.
-  11. El sistema muestra la orden generada con un número correlativo único.
-- **8. POST CONDICIÓN:** La orden queda registrada formalmente como referencia para la recepción futura (CU15). El proveedor asignado queda vinculado a la transacción. Toda la operación queda respaldada en la Bitácora de Auditoría.
-- **9. EXCEPCIONES (Flujo Secundario):**
-  - *E1: Proveedor Sin Ítems Compatibles.* Si el proveedor seleccionado no suministra los ítems del catálogo elegidos, el sistema emite una advertencia informativa.
-  - *E2: Cantidad Cero o Negativa.* El sistema bloquea el guardado si alguna línea tiene cantidad ≤ 0.
-  - *E3: Campos Obligatorios Vacíos.* Si el usuario no selecciona proveedor o no agrega ningún ítem, el sistema bloquea el botón de emisión.
+
+| Campo | Descripción |
+|---|---|
+| **CASO DE USO** | CU14 - Elaborar Orden de Compra de Insumos. |
+| **PROPÓSITO** | Formalizar y digitalizar las solicitudes de reposición de insumos químicos y materias primas que actualmente se realizan informalmente por teléfono cada viernes, eliminando el riesgo de desabastecimiento por olvido. |
+| **DESCRIPCIÓN** | Permite al Administrador seleccionar uno o más ítems del catálogo maestro (`catalogo_items`), definir las cantidades requeridas y asociar la orden a un proveedor habilitado. El sistema cruza automáticamente contra el stock actual del Kardex para sugerir cantidades óptimas basadas en el consumo promedio semanal. |
+| **ACTORES** | Tablas de BD (`ordenes_compra`, `detalle_orden_compra`, `catalogo_items`, `proveedores`). |
+| **ACTOR INICIADOR** | Administrador General. |
+| **PRECONDICIÓN** | El Administrador debe estar logueado. Debe existir al menos un proveedor activo (CU12) y los ítems a comprar deben estar registrados en el catálogo (CU08). |
+| **FLUJO PRINCIPAL (Camino Feliz)** | <br>1. El Administrador ingresa al módulo "Compras y Ganaderos" → "Órdenes de Compra".<br>2. Presiona el botón "+ Nueva Orden de Compra".<br>3. El sistema despliega un formulario con un selector de Proveedor (solo activos) y una tabla dinámica de ítems.<br>4. El Administrador selecciona al proveedor "Distribuidora Química del Oriente".<br>5. El Administrador agrega ítems: selecciona "Cuajo Albamax" del catálogo, el sistema muestra automáticamente el stock actual (ej. 2.5 L) y el stock mínimo configurado (ej. 5 L).<br>6. El Administrador define la cantidad a comprar (ej. 10 L) y el precio unitario pactado.<br>7. Repite el paso 5-6 para cada insumo requerido.<br>8. El sistema calcula el subtotal por línea y el total general de la orden.<br>9. El Administrador presiona "Emitir Orden de Compra".<br>10. El sistema genera un `INSERT` en `ordenes_compra` con estado `'Pendiente'` y sus respectivos registros en `detalle_orden_compra`.<br>11. El sistema muestra la orden generada con un número correlativo único. |
+| **POST CONDICIÓN** | La orden queda registrada formalmente como referencia para la recepción futura (CU15). El proveedor asignado queda vinculado a la transacción. Toda la operación queda respaldada en la Bitácora de Auditoría. |
+| **EXCEPCIONES (Flujo Secundario)** | <br>- *E1: Proveedor Sin Ítems Compatibles.* Si el proveedor seleccionado no suministra los ítems del catálogo elegidos, el sistema emite una advertencia informativa.<br>- *E2: Cantidad Cero o Negativa.* El sistema bloquea el guardado si alguna línea tiene cantidad ≤ 0.<br>- *E3: Campos Obligatorios Vacíos.* Si el usuario no selecciona proveedor o no agrega ningún ítem, el sistema bloquea el botón de emisión. |
+
 
 **C. Prototipo UI (Directriz para Generador)**
 *Prompt a ingresar textual en tu IA:*
@@ -2379,27 +2290,19 @@ CU15 ..> Kardex : <<include>>
 ```
 
 **B. Ficha de Especificación del Caso de Uso**
-- **1. CASO DE USO:** CU15 - Registrar Recepción Física de Insumos.
-- **2. PROPÓSITO:** Documentar formalmente la llegada física de mercadería al almacén de la planta, actualizando el Kardex en tiempo real para que el Jefe de Producción tenga visibilidad inmediata sobre los insumos disponibles.
-- **3. DESCRIPCIÓN:** Permite al Ing. Industrial confirmar la recepción de una Orden de Compra previamente emitida (CU14), verificando cantidades y estado de los insumos. Al confirmar, el sistema genera automáticamente movimientos de tipo `INGRESO` en la tabla `movimientos_kardex`, incrementando el stock disponible.
-- **4. ACTORES:** Tablas de BD (`ordenes_compra`, `detalle_orden_compra`, `movimientos_kardex`, `catalogo_items`).
-- **5. ACTOR INICIADOR:** Ing. Industrial (Receptor).
-- **6. PRECONDICIÓN:** Debe existir al menos una Orden de Compra en estado `'Pendiente'` (CU14 ejecutado). El usuario debe estar logueado con rol de Recepción.
-- **7. FLUJO PRINCIPAL (Camino Feliz):**
-  1. El Receptor ingresa al módulo "Compras y Ganaderos" → "Recepciones Pendientes".
-  2. El sistema lista las Órdenes de Compra con estado `'Pendiente'`.
-  3. El Receptor selecciona la orden correspondiente a la mercadería que acaba de llegar.
-  4. El sistema despliega el detalle de la orden: proveedor, ítems solicitados y cantidades esperadas.
-  5. El Receptor verifica físicamente cada ítem y confirma las cantidades realmente recibidas (puede diferir de lo solicitado).
-  6. El Receptor registra observaciones (ej. "Envase dañado", "Fecha vencimiento cercana").
-  7. El Receptor presiona "Confirmar Recepción".
-  8. El sistema genera un `INSERT` en `movimientos_kardex` por cada ítem recibido (tipo: `INGRESO_COMPRA`), incrementando el stock dinámico.
-  9. El sistema actualiza el estado de la Orden de Compra a `'Recibida'`.
-  10. El sistema muestra un resumen de la recepción con el nuevo stock actualizado.
-- **8. POST CONDICIÓN:** El inventario del Kardex refleja instantáneamente las nuevas existencias. Los ítems recibidos están disponibles para producción. Toda la operación queda respaldada en la Bitácora de Auditoría.
-- **9. EXCEPCIONES (Flujo Secundario):**
-  - *E1: Recepción Parcial.* Si la cantidad recibida es menor a la solicitada, el sistema permite confirmar la recepción parcial y mantiene la orden en estado `'Parcialmente Recibida'` para una futura entrega complementaria.
-  - *E2: Insumo No Solicitado.* Si llega mercadería que no corresponde a ninguna orden, el sistema permite crear una recepción extraordinaria vinculada directamente al catálogo.
+
+| Campo | Descripción |
+|---|---|
+| **CASO DE USO** | CU15 - Registrar Recepción Física de Insumos. |
+| **PROPÓSITO** | Documentar formalmente la llegada física de mercadería al almacén de la planta, actualizando el Kardex en tiempo real para que el Jefe de Producción tenga visibilidad inmediata sobre los insumos disponibles. |
+| **DESCRIPCIÓN** | Permite al Ing. Industrial confirmar la recepción de una Orden de Compra previamente emitida (CU14), verificando cantidades y estado de los insumos. Al confirmar, el sistema genera automáticamente movimientos de tipo `INGRESO` en la tabla `movimientos_kardex`, incrementando el stock disponible. |
+| **ACTORES** | Tablas de BD (`ordenes_compra`, `detalle_orden_compra`, `movimientos_kardex`, `catalogo_items`). |
+| **ACTOR INICIADOR** | Ing. Industrial (Receptor). |
+| **PRECONDICIÓN** | Debe existir al menos una Orden de Compra en estado `'Pendiente'` (CU14 ejecutado). El usuario debe estar logueado con rol de Recepción. |
+| **FLUJO PRINCIPAL (Camino Feliz)** | <br>1. El Receptor ingresa al módulo "Compras y Ganaderos" → "Recepciones Pendientes".<br>2. El sistema lista las Órdenes de Compra con estado `'Pendiente'`.<br>3. El Receptor selecciona la orden correspondiente a la mercadería que acaba de llegar.<br>4. El sistema despliega el detalle de la orden: proveedor, ítems solicitados y cantidades esperadas.<br>5. El Receptor verifica físicamente cada ítem y confirma las cantidades realmente recibidas (puede diferir de lo solicitado).<br>6. El Receptor registra observaciones (ej. "Envase dañado", "Fecha vencimiento cercana").<br>7. El Receptor presiona "Confirmar Recepción".<br>8. El sistema genera un `INSERT` en `movimientos_kardex` por cada ítem recibido (tipo: `INGRESO_COMPRA`), incrementando el stock dinámico.<br>9. El sistema actualiza el estado de la Orden de Compra a `'Recibida'`.<br>10. El sistema muestra un resumen de la recepción con el nuevo stock actualizado. |
+| **POST CONDICIÓN** | El inventario del Kardex refleja instantáneamente las nuevas existencias. Los ítems recibidos están disponibles para producción. Toda la operación queda respaldada en la Bitácora de Auditoría. |
+| **EXCEPCIONES (Flujo Secundario)** | <br>- *E1: Recepción Parcial.* Si la cantidad recibida es menor a la solicitada, el sistema permite confirmar la recepción parcial y mantiene la orden en estado `'Parcialmente Recibida'` para una futura entrega complementaria.<br>- *E2: Insumo No Solicitado.* Si llega mercadería que no corresponde a ninguna orden, el sistema permite crear una recepción extraordinaria vinculada directamente al catálogo. |
+
 
 **C. Prototipo UI (Directriz para Generador)**
 *Prompt a ingresar textual en tu IA:*
@@ -2424,26 +2327,19 @@ CU16 ..> Asiento : <<include>>
 ```
 
 **B. Ficha de Especificación del Caso de Uso**
-- **1. CASO DE USO:** CU16 - Registrar Pago a Proveedor.
-- **2. PROPÓSITO:** Cerrar el ciclo financiero de una Orden de Compra registrando el desembolso monetario efectuado al proveedor, manteniendo trazabilidad contable completa entre la orden, la recepción física y el pago.
-- **3. DESCRIPCIÓN:** Permite al Administrador vincular un pago (efectivo, transferencia o QR) a una Orden de Compra previamente recibida (CU15). El sistema registra el movimiento financiero en la tabla `pagos_proveedores` y actualiza el estado de la deuda.
-- **4. ACTORES:** Tablas de BD (`pagos_proveedores`, `ordenes_compra`).
-- **5. ACTOR INICIADOR:** Administrador General.
-- **6. PRECONDICIÓN:** Debe existir una Orden de Compra en estado `'Recibida'` o `'Parcialmente Pagada'`. El Administrador debe estar logueado.
-- **7. FLUJO PRINCIPAL (Camino Feliz):**
-  1. El Administrador ingresa al módulo "Compras y Ganaderos" → "Cuentas por Pagar".
-  2. El sistema lista las órdenes con saldo pendiente, mostrando: Proveedor, Monto Total, Monto Pagado y Saldo.
-  3. El Administrador selecciona la orden a pagar.
-  4. El sistema despliega un formulario de pago: Monto a Abonar, Método de Pago (Efectivo/Transferencia/QR), Referencia Bancaria y Fecha del Pago.
-  5. El Administrador llena los datos y presiona "Registrar Pago".
-  6. El sistema valida que el monto no exceda el saldo pendiente.
-  7. El sistema genera un `INSERT` en `pagos_proveedores` vinculado a la orden.
-  8. Si el pago cubre el total, el sistema actualiza la orden a estado `'Pagada'`. Si es parcial, la marca como `'Parcialmente Pagada'`.
-  9. El sistema muestra un recibo digital del pago realizado.
-- **8. POST CONDICIÓN:** El historial financiero del proveedor queda actualizado. La trazabilidad Orden→Recepción→Pago queda cerrada. Toda la operación queda respaldada en la Bitácora de Auditoría.
-- **9. EXCEPCIONES (Flujo Secundario):**
-  - *E1: Monto Excedido.* Si el monto ingresado supera el saldo pendiente, el sistema bloquea la transacción: "El monto ingresado excede la deuda pendiente de X Bs".
-  - *E2: Orden Ya Pagada.* Si la orden ya fue liquidada en su totalidad, el botón de pago se muestra deshabilitado.
+
+| Campo | Descripción |
+|---|---|
+| **CASO DE USO** | CU16 - Registrar Pago a Proveedor. |
+| **PROPÓSITO** | Cerrar el ciclo financiero de una Orden de Compra registrando el desembolso monetario efectuado al proveedor, manteniendo trazabilidad contable completa entre la orden, la recepción física y el pago. |
+| **DESCRIPCIÓN** | Permite al Administrador vincular un pago (efectivo, transferencia o QR) a una Orden de Compra previamente recibida (CU15). El sistema registra el movimiento financiero en la tabla `pagos_proveedores` y actualiza el estado de la deuda. |
+| **ACTORES** | Tablas de BD (`pagos_proveedores`, `ordenes_compra`). |
+| **ACTOR INICIADOR** | Administrador General. |
+| **PRECONDICIÓN** | Debe existir una Orden de Compra en estado `'Recibida'` o `'Parcialmente Pagada'`. El Administrador debe estar logueado. |
+| **FLUJO PRINCIPAL (Camino Feliz)** | <br>1. El Administrador ingresa al módulo "Compras y Ganaderos" → "Cuentas por Pagar".<br>2. El sistema lista las órdenes con saldo pendiente, mostrando: Proveedor, Monto Total, Monto Pagado y Saldo.<br>3. El Administrador selecciona la orden a pagar.<br>4. El sistema despliega un formulario de pago: Monto a Abonar, Método de Pago (Efectivo/Transferencia/QR), Referencia Bancaria y Fecha del Pago.<br>5. El Administrador llena los datos y presiona "Registrar Pago".<br>6. El sistema valida que el monto no exceda el saldo pendiente.<br>7. El sistema genera un `INSERT` en `pagos_proveedores` vinculado a la orden.<br>8. Si el pago cubre el total, el sistema actualiza la orden a estado `'Pagada'`. Si es parcial, la marca como `'Parcialmente Pagada'`.<br>9. El sistema muestra un recibo digital del pago realizado. |
+| **POST CONDICIÓN** | El historial financiero del proveedor queda actualizado. La trazabilidad Orden→Recepción→Pago queda cerrada. Toda la operación queda respaldada en la Bitácora de Auditoría. |
+| **EXCEPCIONES (Flujo Secundario)** | <br>- *E1: Monto Excedido.* Si el monto ingresado supera el saldo pendiente, el sistema bloquea la transacción: "El monto ingresado excede la deuda pendiente de X Bs".<br>- *E2: Orden Ya Pagada.* Si la orden ya fue liquidada en su totalidad, el botón de pago se muestra deshabilitado. |
+
 
 **C. Prototipo UI (Directriz para Generador)**
 *Prompt a ingresar textual en tu IA:*
@@ -2469,27 +2365,19 @@ CU17 ..> Vincular : <<include>>
 ```
 
 **B. Ficha de Especificación del Caso de Uso**
-- **1. CASO DE USO:** CU17 - Registrar Ticket de Ingreso de Cisterna (Volumen).
-- **2. PROPÓSITO:** Documentar formalmente cada recepción diaria de leche cruda acopiada desde las colonias ganaderas, eliminando el 60% de recepciones anónimas detectadas en el diagnóstico (PF-02) y estableciendo el punto de entrada a la cadena de trazabilidad SENASAG.
-- **3. DESCRIPCIÓN:** Permite al Ing. Industrial crear un ticket de recepción vinculando obligatoriamente al ganadero proveedor, registrando el volumen en litros de la cisterna y la hora exacta de llegada. Este ticket se convierte en la llave primaria a la que se anclará el dictamen de triage bioquímico (CU18).
-- **4. ACTORES:** Tablas de BD (`recepciones_leche`, `proveedores`).
-- **5. ACTOR INICIADOR:** Ing. Industrial (Receptor).
-- **6. PRECONDICIÓN:** El Ing. Industrial debe estar logueado con rol de Recepción. El ganadero proveedor debe existir como activo en el sistema (CU12 ejecutado).
-- **7. FLUJO PRINCIPAL (Camino Feliz):**
-  1. El Receptor ingresa al módulo "Acopio de Leche" → "Nueva Recepción".
-  2. El sistema despliega el formulario de ticket con la fecha y hora actuales pre-pobladas.
-  3. El Receptor selecciona al ganadero proveedor de un dropdown (solo proveedores activos con clasificación "Productor de Leche").
-  4. El Receptor ingresa el volumen en litros medido en la cisterna (ej. 3,200 L).
-  5. El Receptor registra la temperatura de llegada de la leche (°C).
-  6. El Receptor presiona "Registrar Ticket de Ingreso".
-  7. El sistema valida que el volumen sea > 0 y que la temperatura esté dentro de un rango plausible (0°C - 40°C).
-  8. El sistema genera un `INSERT` en `recepciones_leche` con estado inicial `'Pendiente de Triage'`.
-  9. El sistema muestra el ticket generado con un número correlativo único y habilita el botón "Iniciar Triage Bioquímico" (CU18).
-- **8. POST CONDICIÓN:** La recepción queda vinculada al proveedor ganadero con identificación obligatoria, resolviendo el PF-02. El ticket espera la ejecución del CU18 para determinar la aceptación o rechazo de la leche. Toda la operación queda respaldada en la Bitácora de Auditoría.
-- **9. EXCEPCIONES (Flujo Secundario):**
-  - *E1: Proveedor No Registrado.* Si el ganadero que llega con la cisterna no está en el sistema, el Receptor debe escalar al Administrador para ejecutar primero el CU12.
-  - *E2: Volumen Fuera de Rango.* Si el volumen ingresado es ≤ 0 o excede la capacidad máxima configurada (ej. 10,000 L), el sistema bloquea el registro con mensaje de validación.
-  - *E3: Proveedor Inhabilitado.* Si el ganadero fue bloqueado (CU13), el dropdown no lo muestra y el sistema impide la recepción.
+
+| Campo | Descripción |
+|---|---|
+| **CASO DE USO** | CU17 - Registrar Ticket de Ingreso de Cisterna (Volumen). |
+| **PROPÓSITO** | Documentar formalmente cada recepción diaria de leche cruda acopiada desde las colonias ganaderas, eliminando el 60% de recepciones anónimas detectadas en el diagnóstico (PF-02) y estableciendo el punto de entrada a la cadena de trazabilidad SENASAG. |
+| **DESCRIPCIÓN** | Permite al Ing. Industrial crear un ticket de recepción vinculando obligatoriamente al ganadero proveedor, registrando el volumen en litros de la cisterna y la hora exacta de llegada. Este ticket se convierte en la llave primaria a la que se anclará el dictamen de triage bioquímico (CU18). |
+| **ACTORES** | Tablas de BD (`recepciones_leche`, `proveedores`). |
+| **ACTOR INICIADOR** | Ing. Industrial (Receptor). |
+| **PRECONDICIÓN** | El Ing. Industrial debe estar logueado con rol de Recepción. El ganadero proveedor debe existir como activo en el sistema (CU12 ejecutado). |
+| **FLUJO PRINCIPAL (Camino Feliz)** | <br>1. El Receptor ingresa al módulo "Acopio de Leche" → "Nueva Recepción".<br>2. El sistema despliega el formulario de ticket con la fecha y hora actuales pre-pobladas.<br>3. El Receptor selecciona al ganadero proveedor de un dropdown (solo proveedores activos con clasificación "Productor de Leche").<br>4. El Receptor ingresa el volumen en litros medido en la cisterna (ej. 3,200 L).<br>5. El Receptor registra la temperatura de llegada de la leche (°C).<br>6. El Receptor presiona "Registrar Ticket de Ingreso".<br>7. El sistema valida que el volumen sea > 0 y que la temperatura esté dentro de un rango plausible (0°C - 40°C).<br>8. El sistema genera un `INSERT` en `recepciones_leche` con estado inicial `'Pendiente de Triage'`.<br>9. El sistema muestra el ticket generado con un número correlativo único y habilita el botón "Iniciar Triage Bioquímico" (CU18). |
+| **POST CONDICIÓN** | La recepción queda vinculada al proveedor ganadero con identificación obligatoria, resolviendo el PF-02. El ticket espera la ejecución del CU18 para determinar la aceptación o rechazo de la leche. Toda la operación queda respaldada en la Bitácora de Auditoría. |
+| **EXCEPCIONES (Flujo Secundario)** | <br>- *E1: Proveedor No Registrado.* Si el ganadero que llega con la cisterna no está en el sistema, el Receptor debe escalar al Administrador para ejecutar primero el CU12.<br>- *E2: Volumen Fuera de Rango.* Si el volumen ingresado es ≤ 0 o excede la capacidad máxima configurada (ej. 10,000 L), el sistema bloquea el registro con mensaje de validación.<br>- *E3: Proveedor Inhabilitado.* Si el ganadero fue bloqueado (CU13), el dropdown no lo muestra y el sistema impide la recepción. |
+
 
 **C. Prototipo UI (Directriz para Generador)**
 *Prompt a ingresar textual en tu IA:*
@@ -2516,28 +2404,19 @@ CU18 <.. Kardex : <<extend>>
 ```
 
 **B. Ficha de Especificación del Caso de Uso**
-- **1. CASO DE USO:** CU18 - Registrar Dictamen de Triage Bioquímico.
-- **2. PROPÓSITO:** Implementar la barrera sanitaria digital que impide sistémicamente el ingreso de leche contaminada al proceso productivo, resolviendo el PF-04 donde parámetros fuera de rango no generaban ninguna alerta ni rechazo automático.
-- **3. DESCRIPCIÓN:** Permite al Ing. Industrial capturar los resultados del análisis de laboratorio (pH, acidez Dornic, células somáticas, porcentaje de grasa, presencia de antibióticos) sobre un ticket de cisterna previamente registrado (CU17). El sistema compara automáticamente cada parámetro contra los umbrales configurados; si alguno resulta letal, fuerza el rechazo. Si todos son conformes, la leche se acepta y el Kardex se incrementa.
-- **4. ACTORES:** Tablas de BD (`recepciones_leche`, `movimientos_kardex`, `catalogo_items`).
-- **5. ACTOR INICIADOR:** Ing. Industrial (Laboratorista).
-- **6. PRECONDICIÓN:** Debe existir un ticket de cisterna en estado `'Pendiente de Triage'` (CU17 ejecutado). El Ing. Industrial debe estar logueado con rol de Laboratorio/Recepción.
-- **7. FLUJO PRINCIPAL (Camino Feliz):**
-  1. El Laboratorista ingresa al módulo "Acopio de Leche" → "Triage Pendientes".
-  2. El sistema muestra los tickets de cisterna pendientes de dictamen.
-  3. El Laboratorista selecciona el ticket a evaluar.
-  4. El sistema despliega el formulario de triage con los campos bioquímicos: pH (rango 6.6-6.8), Acidez Dornic (14-18°D), Células Somáticas (< 400,000/mL), % Grasa (≥ 3.0%), % Agua (≤ 8.5%), Punto de Congelamiento, Presencia de Antibióticos (Positivo/Negativo).
-  5. El Laboratorista ingresa los valores obtenidos del análisis de la muestra.
-  6. El sistema ejecuta la validación automática: compara cada valor contra los umbrales SENASAG configurados y colorea cada campo (verde: conforme, rojo: fuera de rango).
-  7. Todos los parámetros son conformes. El sistema sugiere el dictamen "ACEPTADA".
-  8. El Laboratorista confirma la aceptación presionando "Aprobar Recepción".
-  9. El sistema actualiza `recepciones_leche` con estado `'Aceptada'` y los valores bioquímicos.
-  10. El sistema genera automáticamente un movimiento de tipo `INGRESO_LECHE` en `movimientos_kardex`, sumando el volumen de litros al stock de materia prima.
-  11. El sistema muestra el resumen del dictamen con el nuevo stock de leche disponible.
-- **8. POST CONDICIÓN:** La leche queda incorporada al inventario de materia prima disponible para producción. El dictamen queda vinculado al proveedor ganadero, alimentando su historial de calidad. Toda la operación queda respaldada en la Bitácora de Auditoría.
-- **9. EXCEPCIONES (Flujo Secundario):**
-  - *E1: Parámetro Letal Detectado.* Si las células somáticas superan 400,000/mL o si la presencia de antibióticos es positiva, el sistema fuerza el dictamen a "RECHAZADA" sin posibilidad de sobreescritura manual, bloquea el ingreso al Kardex, y registra un incidente en el historial del proveedor ganadero.
-  - *E2: Parámetros en Zona de Advertencia.* Si un valor está fuera de rango pero no es letal (ej. pH 6.5), el sistema permite la aceptación con observación obligatoria y marca la recepción como "Aceptada con Observaciones".
+
+| Campo | Descripción |
+|---|---|
+| **CASO DE USO** | CU18 - Registrar Dictamen de Triage Bioquímico. |
+| **PROPÓSITO** | Implementar la barrera sanitaria digital que impide sistémicamente el ingreso de leche contaminada al proceso productivo, resolviendo el PF-04 donde parámetros fuera de rango no generaban ninguna alerta ni rechazo automático. |
+| **DESCRIPCIÓN** | Permite al Ing. Industrial capturar los resultados del análisis de laboratorio (pH, acidez Dornic, células somáticas, porcentaje de grasa, presencia de antibióticos) sobre un ticket de cisterna previamente registrado (CU17). El sistema compara automáticamente cada parámetro contra los umbrales configurados; si alguno resulta letal, fuerza el rechazo. Si todos son conformes, la leche se acepta y el Kardex se incrementa. |
+| **ACTORES** | Tablas de BD (`recepciones_leche`, `movimientos_kardex`, `catalogo_items`). |
+| **ACTOR INICIADOR** | Ing. Industrial (Laboratorista). |
+| **PRECONDICIÓN** | Debe existir un ticket de cisterna en estado `'Pendiente de Triage'` (CU17 ejecutado). El Ing. Industrial debe estar logueado con rol de Laboratorio/Recepción. |
+| **FLUJO PRINCIPAL (Camino Feliz)** | <br>1. El Laboratorista ingresa al módulo "Acopio de Leche" → "Triage Pendientes".<br>2. El sistema muestra los tickets de cisterna pendientes de dictamen.<br>3. El Laboratorista selecciona el ticket a evaluar.<br>4. El sistema despliega el formulario de triage con los campos bioquímicos: pH (rango 6.6-6.8), Acidez Dornic (14-18°D), Células Somáticas (< 400,000/mL), % Grasa (≥ 3.0%), % Agua (≤ 8.5%), Punto de Congelamiento, Presencia de Antibióticos (Positivo/Negativo).<br>5. El Laboratorista ingresa los valores obtenidos del análisis de la muestra.<br>6. El sistema ejecuta la validación automática: compara cada valor contra los umbrales SENASAG configurados y colorea cada campo (verde: conforme, rojo: fuera de rango).<br>7. Todos los parámetros son conformes. El sistema sugiere el dictamen "ACEPTADA".<br>8. El Laboratorista confirma la aceptación presionando "Aprobar Recepción".<br>9. El sistema actualiza `recepciones_leche` con estado `'Aceptada'` y los valores bioquímicos.<br>10. El sistema genera automáticamente un movimiento de tipo `INGRESO_LECHE` en `movimientos_kardex`, sumando el volumen de litros al stock de materia prima.<br>11. El sistema muestra el resumen del dictamen con el nuevo stock de leche disponible. |
+| **POST CONDICIÓN** | La leche queda incorporada al inventario de materia prima disponible para producción. El dictamen queda vinculado al proveedor ganadero, alimentando su historial de calidad. Toda la operación queda respaldada en la Bitácora de Auditoría. |
+| **EXCEPCIONES (Flujo Secundario)** | <br>- *E1: Parámetro Letal Detectado.* Si las células somáticas superan 400,000/mL o si la presencia de antibióticos es positiva, el sistema fuerza el dictamen a "RECHAZADA" sin posibilidad de sobreescritura manual, bloquea el ingreso al Kardex, y registra un incidente en el historial del proveedor ganadero.<br>- *E2: Parámetros en Zona de Advertencia.* Si un valor está fuera de rango pero no es letal (ej. pH 6.5), el sistema permite la aceptación con observación obligatoria y marca la recepción como "Aceptada con Observaciones". |
+
 
 **C. Prototipo UI (Directriz para Generador)**
 *Prompt a ingresar textual en tu IA:*
@@ -2562,31 +2441,342 @@ CU19 ..> Vincular : <<include>>
 ```
 
 **B. Ficha de Especificación del Caso de Uso**
-- **1. CASO DE USO:** CU19 - Registrar Receta Base BOM (Ingeniería de Formulación).
-- **2. PROPÓSITO:** Digitalizar las fórmulas maestras de cada línea de producto (Queso Mozzarella, Cheddar, Dulce de Leche Repostero, Dulce de Leche Familiar) que actualmente existen solo como valores estáticos en hojas Excel sin vinculación al consumo real (PF-04), permitiendo la deducción automática de insumos cuando se aperture una orden de producción (CU20).
-- **3. DESCRIPCIÓN:** Permite al Jefe de Producción definir la lista de insumos (Bill of Materials) de un producto terminado, especificando las proporciones exactas por cada 100 litros de leche procesada. Cada ingrediente se vincula directamente al catálogo maestro (`catalogo_items`), habilitando la futura deducción automática del Kardex durante la producción.
-- **4. ACTORES:** Tablas de BD (`recetas_bom`, `detalle_receta`, `catalogo_items`).
-- **5. ACTOR INICIADOR:** Jefe de Producción.
-- **6. PRECONDICIÓN:** El Jefe de Producción debe estar logueado. Los insumos que componen la receta deben existir previamente en el catálogo maestro (CU08).
-- **7. FLUJO PRINCIPAL (Camino Feliz):**
-  1. El Jefe de Producción ingresa al módulo "Producción" → "Recetas y Formulación".
-  2. Presiona "+ Nueva Receta".
-  3. El sistema despliega un formulario maestro: Nombre de la Receta (ej. "Queso Cheddar Estándar"), Producto Final asociado (seleccionado del catálogo), Volumen Base de Referencia (ej. 100 L de leche).
-  4. El Jefe de Producción agrega líneas de ingredientes: selecciona "Cuajo Albamax" del catálogo, define la cantidad (ej. 0.035 L por cada 100 L de leche), y la tolerancia permitida (ej. ± 5%).
-  5. Repite el paso 4 para cada ingrediente: Fermento Hansen, Cloruro de Calcio, Sal Industrial, Ácido Láctico, etc.
-  6. El sistema calcula y muestra en tiempo real el porcentaje total de la mezcla.
-  7. El Jefe de Producción presiona "Guardar Receta".
-  8. El sistema genera un `INSERT` en `recetas_bom` y sus respectivos registros en `detalle_receta`.
-  9. El sistema muestra la receta guardada con un badge "Activa" y la lista completa de ingredientes.
-- **8. POST CONDICIÓN:** La receta queda disponible como plantilla para la apertura de órdenes de producción (CU20). Cuando se inicie un lote, el sistema podrá calcular automáticamente las cantidades necesarias según el volumen de leche procesada y deducirlas del Kardex. Toda la operación queda respaldada en la Bitácora de Auditoría.
-- **9. EXCEPCIONES (Flujo Secundario):**
-  - *E1: Insumo No Registrado.* Si el Jefe de Producción intenta agregar un ingrediente que no existe en el catálogo, el sistema impide la selección e indica: "Registre primero el insumo en el Catálogo Maestro (CU08)".
-  - *E2: Receta Duplicada.* Si ya existe una receta activa con el mismo nombre de producto, el sistema advierte y sugiere editar la existente o crear una versión nueva.
-  - *E3: Porcentaje Excedido.* Si la suma de proporciones supera un umbral configurado (ej. 105%), el sistema emite una advertencia de incoherencia química.
+
+| Campo | Descripción |
+|---|---|
+| **CASO DE USO** | CU19 - Registrar Receta Base BOM (Ingeniería de Formulación). |
+| **PROPÓSITO** | Digitalizar las fórmulas maestras de cada línea de producto (Queso Mozzarella, Cheddar, Dulce de Leche Repostero, Dulce de Leche Familiar) que actualmente existen solo como valores estáticos en hojas Excel sin vinculación al consumo real (PF-04), permitiendo la deducción automática de insumos cuando se aperture una orden de producción (CU20). |
+| **DESCRIPCIÓN** | Permite al Jefe de Producción definir la lista de insumos (Bill of Materials) de un producto terminado, especificando las proporciones exactas por cada 100 litros de leche procesada. Cada ingrediente se vincula directamente al catálogo maestro (`catalogo_items`), habilitando la futura deducción automática del Kardex durante la producción. |
+| **ACTORES** | Tablas de BD (`recetas_bom`, `detalle_receta`, `catalogo_items`). |
+| **ACTOR INICIADOR** | Jefe de Producción. |
+| **PRECONDICIÓN** | El Jefe de Producción debe estar logueado. Los insumos que componen la receta deben existir previamente en el catálogo maestro (CU08). |
+| **FLUJO PRINCIPAL (Camino Feliz)** | <br>1. El Jefe de Producción ingresa al módulo "Producción" → "Recetas y Formulación".<br>2. Presiona "+ Nueva Receta".<br>3. El sistema despliega un formulario maestro: Nombre de la Receta (ej. "Queso Cheddar Estándar"), Producto Final asociado (seleccionado del catálogo), Volumen Base de Referencia (ej. 100 L de leche).<br>4. El Jefe de Producción agrega líneas de ingredientes: selecciona "Cuajo Albamax" del catálogo, define la cantidad (ej. 0.035 L por cada 100 L de leche), y la tolerancia permitida (ej. ± 5%).<br>5. Repite el paso 4 para cada ingrediente: Fermento Hansen, Cloruro de Calcio, Sal Industrial, Ácido Láctico, etc.<br>6. El sistema calcula y muestra en tiempo real el porcentaje total de la mezcla.<br>7. El Jefe de Producción presiona "Guardar Receta".<br>8. El sistema genera un `INSERT` en `recetas_bom` y sus respectivos registros en `detalle_receta`.<br>9. El sistema muestra la receta guardada con un badge "Activa" y la lista completa de ingredientes. |
+| **POST CONDICIÓN** | La receta queda disponible como plantilla para la apertura de órdenes de producción (CU20). Cuando se inicie un lote, el sistema podrá calcular automáticamente las cantidades necesarias según el volumen de leche procesada y deducirlas del Kardex. Toda la operación queda respaldada en la Bitácora de Auditoría. |
+| **EXCEPCIONES (Flujo Secundario)** | <br>- *E1: Insumo No Registrado.* Si el Jefe de Producción intenta agregar un ingrediente que no existe en el catálogo, el sistema impide la selección e indica: "Registre primero el insumo en el Catálogo Maestro (CU08)".<br>- *E2: Receta Duplicada.* Si ya existe una receta activa con el mismo nombre de producto, el sistema advierte y sugiere editar la existente o crear una versión nueva.<br>- *E3: Porcentaje Excedido.* Si la suma de proporciones supera un umbral configurado (ej. 105%), el sistema emite una advertencia de incoherencia química. |
+
 
 **C. Prototipo UI (Directriz para Generador)**
 *Prompt a ingresar textual en tu IA:*
 > "Pantalla de configuración de Receta tipo BOM (Bill of Materials). Encabezado con campo 'Nombre de Receta' y selector de Producto Final. Un badge 'Base: 100 L de Leche'. Tabla de ingredientes con columnas: 'Insumo (dropdown del catálogo)', 'Cantidad', 'Unidad', 'Tolerancia (%)', 'Proporción'. Botón '+Agregar Ingrediente'. Un indicador circular tipo gauge que muestra el porcentaje total de la mezcla en tiempo real. Estilo técnico-científico con tipografía monoespaciada para los valores numéricos. Botón principal azul: 'Guardar Receta'."
+
+
+### CICLO 3: Núcleo Manufacturero y Control de Calidad (QA)
+
+#### CU10: Registrar Ajuste Manual o Merma Aislada
+
+**Descripción del diagrama:** Modela la acción del Jefe de Producción para registrar movimientos de inventario no derivados de producción ni compras, tales como mermas por deterioro, derrames, roturas de envase o ajustes contables por reconteo físico.
+
+**A. Estructura del Modelo de CU (Diagrama Específico)**
+```plantuml
+@startuml
+left to right direction
+actor "Jefe de Producción" as JefeProd
+rectangle "Sistema ERP GRULAC - Submódulo WMS" {
+  usecase "CU10: Registrar Ajuste\nManual o Merma" as CU10
+  usecase "Validar Justificación\nObligatoria" as Validar
+  usecase "Actualizar Kardex\nAutomáticamente" as Kardex
+}
+JefeProd --> CU10
+CU10 ..> Validar : <<include>>
+CU10 ..> Kardex : <<include>>
+@enduml
+```
+
+**B. Ficha de Especificación del Caso de Uso**
+
+| Campo | Descripción |
+|---|---|
+| **CASO DE USO** | CU10 - Registrar Ajuste Manual o Merma Aislada. |
+| **PROPÓSITO** | Documentar formalmente cualquier variación de inventario que no provenga de un proceso automatizado (producción, compra o venta), eliminando los stocks negativos no explicados detectados en el diagnóstico (PF-07 — insumo Mantequilla con -58 kg) y exigiendo justificación trazable para cada corrección. |
+| **DESCRIPCIÓN** | Permite al Jefe de Producción seleccionar un ítem del catálogo maestro y registrar un movimiento de tipo `AJUSTE_POSITIVO` (sobrante detectado en reconteo) o `AJUSTE_NEGATIVO` (merma por deterioro, derrame, rotura), indicando obligatoriamente la cantidad, el motivo y una observación detallada. El sistema actualiza el Kardex en tiempo real y deja un rastro auditable inmutable. |
+| **ACTORES** | Tablas de BD (`movimientos_kardex`, `catalogo_items`, `bitacora_auditoria`). |
+| **ACTOR INICIADOR** | Jefe de Producción. |
+| **PRECONDICIÓN** | El Jefe de Producción debe estar logueado. El ítem objeto del ajuste debe existir previamente en el catálogo maestro (CU08). |
+| **FLUJO PRINCIPAL (Camino Feliz)** | <br>1. El Jefe de Producción ingresa al módulo "Inventario y Kárdex" → "Ajustes y Mermas".<br>2. Presiona el botón "+ Registrar Ajuste".<br>3. El sistema despliega un formulario con: Selector de Ítem (dropdown del catálogo), Tipo de Ajuste (Positivo/Negativo), Cantidad, Motivo (dropdown: Deterioro, Derrame, Reconteo, Vencimiento, Otro) y Observación (texto libre obligatorio).<br>4. El Jefe de Producción selecciona "Cloruro de Calcio", tipo "Ajuste Negativo", cantidad "0.5 L", motivo "Derrame" y observación "Derrame accidental durante trasvase a tina 2".<br>5. El sistema valida que la cantidad sea > 0 y que la observación no esté vacía.<br>6. El sistema valida que, en caso de ajuste negativo, el stock resultante no quede en valores negativos.<br>7. El Jefe presiona "Confirmar Ajuste".<br>8. El sistema genera un `INSERT` en `movimientos_kardex` con tipo `AJUSTE_NEGATIVO`, vinculando el `id_usuario` del operador responsable.<br>9. El sistema muestra el nuevo stock actualizado y un resumen del movimiento registrado. |
+| **POST CONDICIÓN** | El Kardex refleja el ajuste con trazabilidad completa: quién lo hizo, cuándo, por qué motivo y qué cantidad fue afectada. Toda la operación queda respaldada automáticamente en la Bitácora de Auditoría vía Trigger de BD. |
+| **EXCEPCIONES (Flujo Secundario)** | <br>- *E1: Stock Resultante Negativo.* Si el ajuste negativo generaría un stock < 0, el sistema bloquea la operación: "El ajuste excede el stock disponible actual (X unidades). Verifique la cantidad ingresada".<br>- *E2: Observación Vacía.* Si el campo de observación está en blanco, el sistema impide el guardado: "Debe ingresar una justificación detallada del ajuste para fines de auditoría". |
+
+
+**C. Prototipo UI (Directriz para Generador)**
+*Prompt a ingresar textual en tu IA:*
+> "Pantalla de registro de ajustes de inventario. Estética industrial limpia. Encabezado: 'Ajuste Manual de Inventario'. Formulario con: Selector de Producto (dropdown con búsqueda e ícono de lupa), Toggle tipo switch para 'Tipo: Ingreso / Egreso' con colores verde y rojo respectivamente, campo numérico grande 'Cantidad', selector de 'Motivo' con íconos (gota para Derrame, reloj para Vencimiento, balanza para Reconteo), y un textarea amplio para 'Justificación Obligatoria'. Un badge que muestra el stock actual y el stock resultante en tiempo real. Botón principal azul industrial: 'Confirmar Ajuste'. Diseño responsivo."
+
+---
+
+#### CU11: Configurar Alertas de Stock Mínimo
+
+**Descripción del diagrama:** Muestra la relación entre el Administrador General y la configuración paramétrica de umbrales de alerta para cada ítem del catálogo, con la activación automática de notificaciones cuando el stock alcanza niveles críticos.
+
+**A. Estructura del Modelo de CU (Diagrama Específico)**
+```plantuml
+@startuml
+left to right direction
+actor "Administrador General" as Admin
+rectangle "Sistema ERP GRULAC - Submódulo WMS" {
+  usecase "CU11: Configurar Alertas\nde Stock Mínimo" as CU11
+  usecase "Validar Umbral\nvs Stock Actual" as Validar
+}
+Admin --> CU11
+CU11 ..> Validar : <<include>>
+@enduml
+```
+
+**B. Ficha de Especificación del Caso de Uso**
+
+| Campo | Descripción |
+|---|---|
+| **CASO DE USO** | CU11 - Configurar Alertas de Stock Mínimo. |
+| **PROPÓSITO** | Establecer los umbrales paramétricos de alerta temprana para cada insumo y producto terminado del catálogo, resolviendo la ausencia total de alertas automáticas de stock diagnosticada en PF-03, que provocó situaciones de desabastecimiento crítico (caso del Dulce de Leche Repostero producido "para el día siguiente sin reserva"). |
+| **DESCRIPCIÓN** | Permite al Administrador definir para cada ítem del catálogo maestro un valor de `stock_minimo_alerta` que, al ser alcanzado o superado hacia abajo por cualquier movimiento de Kardex, dispara automáticamente una notificación visual en el sistema y, opcionalmente, un correo electrónico a los directores configurados. |
+| **ACTORES** | Tablas de BD (`catalogo_items`, `bitacora_auditoria`). |
+| **ACTOR INICIADOR** | Administrador General. |
+| **PRECONDICIÓN** | El Administrador debe estar logueado. Los ítems deben estar previamente registrados en el catálogo maestro (CU08). |
+| **FLUJO PRINCIPAL (Camino Feliz)** | <br>1. El Administrador ingresa al módulo "Inventario y Kárdex" → "Configuración de Alertas".<br>2. El sistema carga el listado completo de ítems del catálogo con sus columnas: Nombre, Categoría, Stock Actual, Stock Mínimo Actual y Estado de Alerta.<br>3. El Administrador selecciona "Cuajo Albamax" y hace clic en "Editar Umbral".<br>4. El sistema despliega un campo numérico editable para el `stock_minimo_alerta`.<br>5. El Administrador ingresa el valor "5" (litros, equivalente a 3 días de producción según entrevista).<br>6. El Administrador presiona "Guardar Configuración".<br>7. El sistema ejecuta `UPDATE catalogo_items SET stock_minimo = 5 WHERE id_item = X`.<br>8. El sistema recalcula inmediatamente el estado de alerta: si el stock actual (ej. 2.5 L) es ≤ al nuevo umbral (5 L), marca el ítem con badge rojo "¡Stock Bajo!" en la grilla.<br>9. El sistema muestra un toast de éxito: "Umbral de alerta actualizado correctamente". |
+| **POST CONDICIÓN** | A partir de este momento, cualquier movimiento de Kardex que reduzca el stock por debajo del umbral configurado activará la alerta visual y, si está habilitado, el envío de correo electrónico al responsable. Toda la operación queda respaldada en la Bitácora de Auditoría. |
+| **EXCEPCIONES (Flujo Secundario)** | <br>- *E1: Umbral Negativo o Cero.* Si el valor ingresado es ≤ 0, el sistema bloquea el guardado: "El umbral de stock mínimo debe ser un valor positivo".<br>- *E2: Umbral Superior al Stock Actual.* El sistema permite guardar pero emite una advertencia inmediata: "Atención: El stock actual (X) ya está por debajo del umbral configurado (Y). Se activará la alerta de inmediato". |
+
+
+**C. Prototipo UI (Directriz para Generador)**
+*Prompt a ingresar textual en tu IA:*
+> "Pantalla de configuración de alertas de inventario tipo Dashboard. Tabla maestra con columnas: 'Código', 'Nombre del Insumo', 'Stock Actual' (con barra de progreso visual), 'Umbral Mínimo' (campo editable inline), 'Estado' (badge verde 'OK' o rojo '¡Stock Bajo!'). Un filtro superior para 'Mostrar solo ítems en alerta'. Estética de panel de control industrial con colores de semáforo (verde/amarillo/rojo). Al editar un umbral, se despliega un mini-popup inline con campo numérico y botón 'Guardar'. Tipografía moderna Inter o Roboto."
+
+---
+
+#### CU20: Aperturar Orden de Producción
+
+**Descripción del diagrama:** Representa la interacción más crítica del Ciclo 3: el Jefe de Producción inicia formalmente un lote de fabricación seleccionando la receta BOM, lo que desencadena la deducción automática de insumos del Kardex según las proporciones de la fórmula.
+
+**A. Estructura del Modelo de CU (Diagrama Específico)**
+```plantuml
+@startuml
+left to right direction
+actor "Jefe de Producción" as JefeProd
+rectangle "Sistema ERP GRULAC - Submódulo Producción" {
+  usecase "CU20: Aperturar Orden\nde Producción" as CU20
+  usecase "Seleccionar Receta BOM\ny Calcular Insumos" as Receta
+  usecase "Deducir Insumos\ndel Kardex" as Deducir
+}
+JefeProd --> CU20
+CU20 ..> Receta : <<include>>
+CU20 ..> Deducir : <<include>>
+@enduml
+```
+
+**B. Ficha de Especificación del Caso de Uso**
+
+| Campo | Descripción |
+|---|---|
+| **CASO DE USO** | CU20 - Aperturar Orden de Producción. |
+| **PROPÓSITO** | Formalizar digitalmente el inicio de una jornada o lote de producción, vinculando obligatoriamente la receta BOM (CU19) al volumen de leche a procesar, calculando automáticamente las cantidades de cada insumo requerido y deduciéndolas del Kardex en tiempo real, eliminando así el cálculo manual en Excel y la desconexión entre receta y consumo real (PF-04, PF-10). |
+| **DESCRIPCIÓN** | Permite al Jefe de Producción crear una orden de producción asignando un número de lote único, seleccionando la receta BOM del producto a fabricar (Queso Mozzarella, Cheddar, Dulce de Leche Repostero o Familiar), e indicando el volumen base de leche cruda a procesar. El sistema calcula automáticamente las cantidades proporcionales de cada insumo según la fórmula, valida la disponibilidad en el Kardex, y al confirmar, ejecuta la deducción atómica de todos los insumos del inventario. |
+| **ACTORES** | Tablas de BD (`ordenes_produccion`, `detalle_produccion_insumos`, `recetas_bom`, `detalle_receta`, `movimientos_kardex`, `catalogo_items`). |
+| **ACTOR INICIADOR** | Jefe de Producción. |
+| **PRECONDICIÓN** | El Jefe de Producción debe estar logueado. Debe existir al menos una receta BOM activa (CU19). Los insumos deben tener stock disponible suficiente en el Kardex. |
+| **FLUJO PRINCIPAL (Camino Feliz)** | <br>1. El Jefe de Producción ingresa al módulo "Producción en Planta" → "Nueva Orden de Producción".<br>2. El sistema despliega un formulario con: Selector de Receta BOM (dropdown con recetas activas), campo numérico "Volumen de Leche a Procesar (Litros)", y campos automáticos de Fecha/Hora de Inicio y Operario Responsable (tomados de la sesión activa).<br>3. El Jefe selecciona la receta "Queso Cheddar Estándar" e ingresa "500 L" como volumen base.<br>4. El sistema extrae la lista de ingredientes del `detalle_receta` y calcula proporcionalmente las cantidades para 500 L (ej. si la receta indica 0.035 L de Cuajo por 100 L → 0.175 L para 500 L).<br>5. El sistema despliega una tabla de pre-visualización: Insumo | Cantidad Requerida | Stock Disponible | Estado (verde si hay suficiente, rojo si falta).<br>6. Todos los insumos tienen stock suficiente. El Jefe presiona "Aperturar Orden de Producción".<br>7. El sistema genera un número de lote único con formato estandarizado: `DDMMYYYYHHMM-PROD` (ej. `230520261430-CHL`).<br>8. El sistema genera un `INSERT` en `ordenes_produccion` con estado `'En Proceso'`.<br>9. El sistema genera `INSERT` masivos en `detalle_produccion_insumos` vinculando cada insumo calculado.<br>10. El sistema genera `INSERT` en `movimientos_kardex` con tipo `EGRESO_PRODUCCION` por cada insumo, deduciéndolos del stock.<br>11. El sistema muestra la orden aperturada con el número de lote, la lista de insumos consumidos y el nuevo stock actualizado. |
+| **POST CONDICIÓN** | La orden queda abierta con estado `'En Proceso'`, esperando el registro de parámetros físicos (CU21) y la codificación del lote terminado (CU22). Los insumos fueron deducidos del Kardex con trazabilidad completa (se sabe exactamente qué lote consumió qué insumo y en qué cantidad). Toda la operación queda respaldada en la Bitácora de Auditoría. |
+| **EXCEPCIONES (Flujo Secundario)** | <br>- *E1: Insumo Insuficiente.* Si algún ingrediente de la receta no tiene stock suficiente, el sistema bloquea la apertura y lista los faltantes: "No es posible iniciar la producción. Faltan: Cuajo Albamax (requerido: 0.175 L, disponible: 0.05 L)". Sugiere al Jefe registrar una Orden de Compra (CU14).<br>- *E2: Receta Sin Ingredientes.* Si la receta seleccionada no tiene líneas de detalle, el sistema impide la apertura: "La receta seleccionada no tiene insumos configurados. Complete la formulación (CU19) antes de producir".<br>- *E3: Orden Duplicada en la Misma Jornada.* Si ya existe una orden abierta con la misma receta y fecha para el mismo operario, el sistema emite una advertencia (no bloquea): "Ya existe una orden abierta del mismo producto hoy. ¿Desea continuar?". |
+
+
+**C. Prototipo UI (Directriz para Generador)**
+*Prompt a ingresar textual en tu IA:*
+> "Pantalla de apertura de producción tipo ERP industrial. Encabezado prominente: 'Aperturar Orden de Producción'. Formulario dividido en dos secciones. Sección Superior: Selector grande de Receta (dropdown con búsqueda que muestra el nombre del producto y la cantidad de ingredientes), campo numérico prominente 'Volumen de Leche (L)' con ícono de tanque, y datos automáticos (Fecha/Hora, Operario) en modo solo lectura. Sección Inferior: Tabla de pre-visualización de insumos con columnas 'Ingrediente', 'Requerido', 'Disponible', 'Estado' con semáforos verdes/rojos. Un badge grande con el número de lote auto-generado. Botón principal verde industrial: 'Confirmar e Iniciar Producción'. Diseño responsivo para tablet industrial."
+
+---
+
+#### CU21: Registrar Parámetros Físicos (Mermas, Tiempos, Temperatura)
+
+**Descripción del diagrama:** Modela el registro continuo de datos de proceso durante la fabricación del lote, capturando las variables físicas críticas que actualmente se pierden en las hojas de Excel (PF-05, PF-16 — campos vacíos en tiempos y temperaturas).
+
+**A. Estructura del Modelo de CU (Diagrama Específico)**
+```plantuml
+@startuml
+left to right direction
+actor "Jefe de Producción" as JefeProd
+rectangle "Sistema ERP GRULAC - Submódulo Producción" {
+  usecase "CU21: Registrar Parámetros\nFísicos del Proceso" as CU21
+  usecase "Validar Rangos\nPermitidos" as Validar
+}
+JefeProd --> CU21
+CU21 ..> Validar : <<include>>
+@enduml
+```
+
+**B. Ficha de Especificación del Caso de Uso**
+
+| Campo | Descripción |
+|---|---|
+| **CASO DE USO** | CU21 - Registrar Parámetros Físicos (Mermas, Tiempos, Temperatura). |
+| **PROPÓSITO** | Capturar digitalmente las variables de proceso de la jornada de producción (temperaturas de tina, tiempos de cuajado/hilado/cocción, presiones, grados Brix) que actualmente se registran en formatos mixtos e inconsistentes (PF-05, PF-15), generando la bitácora técnica del lote que alimentará el análisis de rendimiento y la ficha de calidad. |
+| **DESCRIPCIÓN** | Permite al Jefe de Producción, durante el transcurso de una orden de producción abierta (CU20), registrar progresivamente los parámetros físicos del proceso en formularios dinámicos adaptados al tipo de producto (Cuajada, Hilado, Cheddar, Dulce de Leche). El sistema valida rangos plausibles y marca con timestamps automáticos cada registro. |
+| **ACTORES** | Tablas de BD (`parametros_proceso`, `ordenes_produccion`). |
+| **ACTOR INICIADOR** | Jefe de Producción. |
+| **PRECONDICIÓN** | Debe existir una orden de producción en estado `'En Proceso'` (CU20 ejecutado). El Jefe de Producción debe estar logueado. |
+| **FLUJO PRINCIPAL (Camino Feliz)** | <br>1. El Jefe de Producción ingresa al módulo "Producción en Planta" → "Órdenes Activas".<br>2. El sistema muestra las órdenes en estado `'En Proceso'` con su número de lote y producto.<br>3. El Jefe selecciona la orden activa y presiona "Registrar Parámetros".<br>4. El sistema despliega el formulario dinámico según el tipo de producto:<br>- **Cuajada/Mozzarella:** pH inicial, temperatura de cuajado (°C), hora de adición de CaCl2, hora de corte de cuajada, temperatura de hilado (°C), hora de moldeo.<br>- **Cheddar:** pH inicial, temperatura pasteurización (°C), hora inicio/fin de prensado, pH final.<br>- **Dulce de Leche:** pH leche, acidez Dornic, grados Brix en etapas (inicio/medio/final), presión de caldera (PSI), hora de mezclado/cocción/final.<br>5. El Jefe completa los campos progresivamente durante la jornada (puede guardar parcialmente).<br>6. El sistema valida cada campo contra rangos configurados (ej. temperatura 0-120°C, pH 1-14, Brix 0-80).<br>7. El Jefe presiona "Guardar Parámetros".<br>8. El sistema genera `INSERT` en `parametros_proceso` vinculado a la orden de producción, con timestamp automático de cada registro.<br>9. El sistema muestra un resumen visual de los parámetros registrados con indicadores de completitud. |
+| **POST CONDICIÓN** | Los parámetros quedan vinculados al lote de producción, alimentando la ficha de calidad (CU23) y permitiendo el cálculo posterior de rendimientos y tiempos de ciclo. Toda la operación queda respaldada en la Bitácora de Auditoría. |
+| **EXCEPCIONES (Flujo Secundario)** | <br>- *E1: Valor Fuera de Rango.* Si un valor ingresado excede los rangos plausibles (ej. temperatura 335°C — error real detectado en PF-15), el sistema lo resalta en rojo y exige confirmación explícita: "El valor ingresado está fuera del rango esperado (0-120°C). ¿Confirma que es correcto?".<br>- *E2: Registro Parcial Incompleto.* El sistema permite guardar formularios incompletos con un badge amarillo "Parcial", pero advierte al Jefe que los campos faltantes serán necesarios para el cierre del lote (CU22). |
+
+
+**C. Prototipo UI (Directriz para Generador)**
+*Prompt a ingresar textual en tu IA:*
+> "Pantalla de captura de parámetros de proceso industrial. Encabezado: 'Parámetros de Proceso — Lote #230520261430-CHL'. Formulario tipo timeline vertical con secciones colapsables por etapa del proceso (Pasteurización, Cuajado, Prensado, etc.). Cada sección tiene campos numéricos con unidades visibles (°C, pH, °Brix, PSI) y timestamps automáticos al lado. Indicadores tipo gauge circular para temperatura y barra horizontal para pH. Un indicador de completitud (% de campos llenados) en la esquina superior derecha. Botón 'Guardar Parcial' gris y botón 'Guardar Completo' verde. Diseño optimizado para tablet industrial con botones grandes."
+
+---
+
+#### CU22: Codificar Lote Físico Terminado
+
+**Descripción del diagrama:** Modela el cierre formal de una orden de producción, donde el Jefe de Producción registra la cantidad bruta y neta obtenida, permitiendo al sistema calcular el rendimiento real y el porcentaje de merma técnica del proceso.
+
+**A. Estructura del Modelo de CU (Diagrama Específico)**
+```plantuml
+@startuml
+left to right direction
+actor "Jefe de Producción" as JefeProd
+rectangle "Sistema ERP GRULAC - Submódulo Producción" {
+  usecase "CU22: Codificar Lote\nFísico Terminado" as CU22
+  usecase "Calcular Rendimiento\ny Merma Técnica" as Calcular
+}
+JefeProd --> CU22
+CU22 ..> Calcular : <<include>>
+@enduml
+```
+
+**B. Ficha de Especificación del Caso de Uso**
+
+| Campo | Descripción |
+|---|---|
+| **CASO DE USO** | CU22 - Codificar Lote Físico Terminado. |
+| **PROPÓSITO** | Cerrar formalmente una orden de producción registrando la cantidad real de producto obtenido, calculando automáticamente el rendimiento (kg producidos / litros de leche procesados) y la merma técnica, generando un lote trazable con código único que quedará pendiente de aprobación por Calidad (CU23). |
+| **DESCRIPCIÓN** | Permite al Jefe de Producción finalizar una orden de producción abierta (CU20) ingresando el peso bruto total obtenido, el número de moldes/envases y las presentaciones de envasado. El sistema calcula el rendimiento transformativo en tiempo real, compara contra los rangos históricos esperados, y establece el lote con estado `'Pendiente QA'` para su evaluación por el Ingeniero de Calidad. |
+| **ACTORES** | Tablas de BD (`ordenes_produccion`, `lotes_produccion`, `presentaciones_lote`). |
+| **ACTOR INICIADOR** | Jefe de Producción. |
+| **PRECONDICIÓN** | Debe existir una orden de producción en estado `'En Proceso'` con al menos los parámetros básicos registrados (CU21). El Jefe debe estar logueado. |
+| **FLUJO PRINCIPAL (Camino Feliz)** | <br>1. El Jefe de Producción ingresa al módulo "Producción en Planta" → "Órdenes Activas".<br>2. Selecciona la orden a cerrar y presiona "Codificar Lote Terminado".<br>3. El sistema despliega un formulario de cierre con los datos de la orden (Receta, Volumen Leche, Fecha Inicio) y campos editables: Peso Bruto Total (kg), Número de Moldes/Envases, Hora de Finalización.<br>4. El Jefe ingresa: Peso Bruto = 48.5 kg, Moldes = 10, Hora Final = 16:30.<br>5. El sistema agrega una sección de "Desglose por Presentación": el Jefe indica las unidades por presentación (ej. 8 moldes de 5 kg + 2 moldes de 4.25 kg).<br>6. El sistema calcula automáticamente el rendimiento: (48.5 kg / 500 L) × 100 = 9.7% (rendimiento esperado para Cheddar: 8-12%).<br>7. El sistema muestra un indicador visual: verde si está dentro del rango, amarillo si está en el borde, rojo si es anómalo.<br>8. El Jefe presiona "Cerrar Lote y Enviar a Calidad".<br>9. El sistema genera un `INSERT` en `lotes_produccion` con el código de lote heredado de la orden y estado `'Pendiente QA'`.<br>10. El sistema genera los registros de `presentaciones_lote` con las unidades por presentación.<br>11. El sistema actualiza la orden de producción a estado `'Cerrada'` con la hora de finalización.<br>12. El sistema muestra el resumen del lote con un badge amarillo "Pendiente Control de Calidad". |
+| **POST CONDICIÓN** | El lote queda codificado con trazabilidad completa: receta utilizada, insumos consumidos (desde CU20), parámetros de proceso (desde CU21), rendimiento y merma calculados. El lote espera el dictamen de Calidad (CU23). Ningún producto de este lote puede ser vendido ni despachado hasta la aprobación QA. Toda la operación queda respaldada en la Bitácora de Auditoría. |
+| **EXCEPCIONES (Flujo Secundario)** | <br>- *E1: Rendimiento Anómalo.* Si el rendimiento calculado está fuera de los rangos esperados del producto (ej. 70.8% para Dulce de Leche cuando el rango es 32-46% — error real detectado en PF-23), el sistema emite una advertencia roja: "El rendimiento calculado (X%) está fuera del rango esperado (A-B%). Verifique los valores ingresados antes de continuar". No bloquea el cierre pero exige confirmación explícita.<br>- *E2: Peso Cero o Negativo.* Si el peso bruto ingresado es ≤ 0, el sistema bloquea el cierre: "El peso del lote debe ser un valor positivo".<br>- *E3: Inconsistencia de Presentaciones.* Si la suma de pesos por presentación difiere del peso bruto total en más de un 5%, el sistema advierte: "La suma de presentaciones (X kg) no coincide con el peso bruto declarado (Y kg)". |
+
+
+**C. Prototipo UI (Directriz para Generador)**
+*Prompt a ingresar textual en tu IA:*
+> "Pantalla de cierre de lote de producción. Encabezado con el número de lote prominente en fuente monoespaciada. Sección superior: Datos de la orden en modo solo lectura (Receta, Volumen, Inicio). Sección central: Campos editables grandes para 'Peso Bruto Total (kg)' y 'N° Moldes', con un indicador circular tipo gauge que muestra el rendimiento en tiempo real (verde/amarillo/rojo). Sección inferior: Tabla de presentaciones editable (Presentación | Unidades | Peso). Un timeline visual lateral mostrando las etapas completadas (Apertura → Parámetros → Cierre → QA). Botón principal verde: 'Cerrar Lote y Enviar a QA'. Estética industrial premium."
+
+---
+
+#### CU23: Registrar Ficha de Control de Calidad
+
+**Descripción del diagrama:** Representa la barrera sanitaria irrevocable del sistema, donde el Ingeniero de Calidad evalúa las propiedades físico-químicas del lote terminado, con la vinculación obligatoria a las contramuestras de laboratorio que determinarán la liberación o retención del producto.
+
+**A. Estructura del Modelo de CU (Diagrama Específico)**
+```plantuml
+@startuml
+left to right direction
+actor "Ingeniero de Calidad\n(QA)" as QA
+rectangle "Sistema ERP GRULAC - Submódulo QA" {
+  usecase "CU23: Registrar Ficha\nde Control de Calidad" as CU23
+  usecase "Evaluar Parámetros\nFísico-Químicos" as Evaluar
+  usecase "Vincular Contramuestra\nde Laboratorio" as Vincular
+}
+QA --> CU23
+CU23 ..> Evaluar : <<include>>
+CU23 ..> Vincular : <<include>>
+@enduml
+```
+
+**B. Ficha de Especificación del Caso de Uso**
+
+| Campo | Descripción |
+|---|---|
+| **CASO DE USO** | CU23 - Registrar Ficha de Control de Calidad. |
+| **PROPÓSITO** | Implementar la barrera sanitaria digital que evalúa y documenta las propiedades físico-químicas de cada lote de producto terminado, vinculando las contramuestras de laboratorio para cumplir con los requisitos de trazabilidad de SENASAG y resolver la desconexión entre producción y calidad diagnosticada en PF-08 y PF-09. |
+| **DESCRIPCIÓN** | Permite al Ingeniero de Calidad seleccionar un lote en estado `'Pendiente QA'` (CU22) y registrar los resultados del análisis de laboratorio: pH post-producción, grados Brix (para dulces), humedad, peso por unidad, textura, aspecto visual y presencia de defectos. El sistema evalúa los resultados contra los estándares configurados por producto y emite un dictamen preliminar que el QA puede confirmar, ajustar o rechazar. |
+| **ACTORES** | Tablas de BD (`fichas_calidad`, `lotes_produccion`, `bitacora_auditoria`). |
+| **ACTOR INICIADOR** | Ingeniero de Calidad (QA). |
+| **PRECONDICIÓN** | Debe existir al menos un lote en estado `'Pendiente QA'` (CU22 ejecutado). El Ingeniero de Calidad debe estar logueado con rol QA. El Ingeniero NO debe ser la misma persona que aperturó la orden de producción del lote (segregación de funciones). |
+| **FLUJO PRINCIPAL (Camino Feliz)** | <br>1. El Ingeniero de Calidad ingresa al módulo "Control de Calidad" → "Fichas Pendientes".<br>2. El sistema muestra los lotes con estado `'Pendiente QA'`, indicando: Número de Lote, Producto, Fecha de Producción, Operario Responsable.<br>3. El QA selecciona el lote a evaluar.<br>4. El sistema despliega la ficha de control con campos específicos según el tipo de producto:<br>- **Quesos (Mozzarella/Cheddar):** pH final (rango 5.0-5.5), humedad (%), textura (escala 1-5), presencia de ojos/grietas, peso promedio por molde (kg), aspecto visual (Conforme/No Conforme), observaciones organolépticas.<br>- **Dulce de Leche:** Grados Brix finales (rango 68-72), pH (rango 5.5-6.5), consistencia, color (escala Pantone), presencia de cristales, peso por envase (kg).<br>5. El QA ingresa los valores del análisis de laboratorio.<br>6. El sistema valida cada parámetro contra los rangos estándar y colorea los campos (verde: conforme, amarillo: límite, rojo: fuera de rango).<br>7. El sistema sugiere un dictamen preliminar basado en los resultados: `'Conforme'`, `'No Conforme'` o `'Observado'`.<br>8. El QA confirma o ajusta el dictamen, agrega observaciones técnicas y la referencia de la contramuestra de laboratorio.<br>9. El QA presiona "Registrar Ficha de Calidad".<br>10. El sistema genera un `INSERT` en `fichas_calidad` vinculado al `id_lote`.<br>11. El sistema muestra la ficha registrada con el dictamen final y un badge visual indicando el resultado. |
+| **POST CONDICIÓN** | La ficha de calidad queda registrada e inmutable. El dictamen determina el siguiente paso del lote: si es `'Conforme'`, habilita la liberación a almacén (CU24); si es `'No Conforme'`, habilita el envío a cuarentena/reproceso (CU25). Ningún movimiento posterior del lote es posible sin la ficha de calidad registrada. Toda la operación queda respaldada en la Bitácora de Auditoría. |
+| **EXCEPCIONES (Flujo Secundario)** | <br>- *E1: Parámetro Crítico Fuera de Rango.* Si el pH está fuera del rango seguro o los grados Brix son anómalos, el sistema fuerza el dictamen a `'No Conforme'` sin posibilidad de sobreescritura: "El lote presenta parámetros críticos fuera de norma. Se dictamina como No Conforme automáticamente".<br>- *E2: Ficha Duplicada.* Si ya existe una ficha de calidad para el lote seleccionado, el sistema impide la creación de una segunda: "Este lote ya cuenta con ficha de calidad registrada. Consulte el historial". |
+
+
+**C. Prototipo UI (Directriz para Generador)**
+*Prompt a ingresar textual en tu IA:*
+> "Pantalla de laboratorio de control de calidad. Estética científica-médica con fondo claro. Encabezado: 'Ficha de Control de Calidad — Lote #230520261430-CHL'. Datos del lote en modo solo lectura (Producto, Fecha, Operario). Formulario con campos numéricos para cada parámetro, cada uno con un indicador visual tipo semáforo (verde/amarillo/rojo) al costado que se activa dinámicamente al ingresar valores. Un panel lateral derecho con el dictamen preliminar calculado automáticamente que cambia entre 'CONFORME' (badge verde grande), 'OBSERVADO' (amarillo) y 'NO CONFORME' (rojo). Campo de texto amplio para 'Observaciones Técnicas'. Referencia de 'Contramuestra N°'. Dos botones: 'Guardar como Borrador' gris y 'Registrar Ficha Oficial' azul. Tipografía monoespaciada para valores numéricos."
+
+---
+
+#### CU24: Aprobar/Liberar Lote a Almacén
+
+**Descripción del diagrama:** Modela la decisión final del Ingeniero de Calidad para liberar un lote conforme al inventario de producto terminado en la cámara de frío, generando automáticamente el ingreso al Kardex comercial.
+
+**A. Estructura del Modelo de CU (Diagrama Específico)**
+```plantuml
+@startuml
+left to right direction
+actor "Ingeniero de Calidad\n(QA)" as QA
+rectangle "Sistema ERP GRULAC - Submódulo QA" {
+  usecase "CU24: Aprobar y Liberar\nLote a Almacén" as CU24
+  usecase "Ingresar Lote al\nKardex de Producto Terminado" as Kardex
+}
+QA --> CU24
+CU24 ..> Kardex : <<include>>
+@enduml
+```
+
+**B. Ficha de Especificación del Caso de Uso**
+
+| Campo | Descripción |
+|---|---|
+| **CASO DE USO** | CU24 - Aprobar/Liberar Lote a Almacén. |
+| **PROPÓSITO** | Ejecutar la transición irreversible de un lote de producción desde el estado `'Pendiente QA'` al inventario de producto terminado disponible para venta, impidiendo sistémicamente que cualquier lote sin aprobación de calidad alcance al consumidor final, resolviendo la desconexión entre producción y stock (PF-08) y cumpliendo el requisito de trazabilidad SENASAG (PF-15). |
+| **DESCRIPCIÓN** | Permite al Ingeniero de Calidad, tras registrar una ficha de calidad con dictamen `'Conforme'` (CU23), aprobar formalmente el lote y transferirlo al inventario de producto terminado. El sistema genera automáticamente movimientos de ingreso en el Kardex de producto terminado, incrementando el stock disponible para despacho. |
+| **ACTORES** | Tablas de BD (`lotes_produccion`, `fichas_calidad`, `movimientos_kardex`, `catalogo_items`). |
+| **ACTOR INICIADOR** | Ingeniero de Calidad (QA). |
+| **PRECONDICIÓN** | El lote debe tener una ficha de calidad con dictamen `'Conforme'` (CU23 ejecutado con resultado positivo). El Ingeniero de Calidad debe estar logueado. |
+| **FLUJO PRINCIPAL (Camino Feliz)** | <br>1. El Ingeniero de Calidad ingresa al módulo "Control de Calidad" → "Lotes Aprobados Pendientes de Liberación".<br>2. El sistema muestra los lotes con ficha `'Conforme'` que aún no han sido liberados al almacén.<br>3. El QA selecciona el lote a liberar.<br>4. El sistema despliega un resumen completo del lote: Datos de Producción (Receta, Volumen, Rendimiento), Ficha de Calidad (Dictamen, Parámetros), y Presentaciones (Unidades por tipo).<br>5. El QA verifica la información y presiona "Liberar Lote a Cámara de Frío".<br>6. El sistema solicita confirmación: "¿Confirma la liberación del Lote #X al inventario de producto terminado? Esta acción es irreversible".<br>7. El QA confirma.<br>8. El sistema actualiza `lotes_produccion` con estado `'Liberado'` y fecha de liberación.<br>9. El sistema genera `INSERT` en `movimientos_kardex` con tipo `INGRESO_PRODUCCION` por cada presentación del lote, incrementando el stock de producto terminado.<br>10. El sistema verifica si el nuevo stock supera o se mantiene por debajo del umbral de alerta (CU11). Si estaba en alerta y ahora tiene stock suficiente, desactiva la alerta.<br>11. El sistema muestra un badge verde: "Lote liberado exitosamente. Stock de [Producto] actualizado a X unidades". |
+| **POST CONDICIÓN** | El producto terminado está disponible en el inventario para ser despachado (CU29 — Ciclo 4). La trazabilidad es completa: Lote → Ficha QA → Orden Producción → Receta BOM → Insumos Consumidos → Leche de Origen (Cisterna → Proveedor). Toda la operación queda respaldada en la Bitácora de Auditoría. |
+| **EXCEPCIONES (Flujo Secundario)** | <br>- *E1: Lote Sin Ficha Conforme.* Si el lote no tiene ficha de calidad o su dictamen no es `'Conforme'`, el botón de liberación se muestra deshabilitado y el sistema informa: "Este lote no puede ser liberado. Requiere ficha de calidad con dictamen Conforme".<br>- *E2: Lote Ya Liberado.* Si el lote ya fue liberado previamente, el sistema impide la operación duplicada: "Este lote ya fue liberado al almacén el [fecha]". |
+
+
+**C. Prototipo UI (Directriz para Generador)**
+*Prompt a ingresar textual en tu IA:*
+> "Pantalla de liberación de lotes aprobados. Estética de panel de control de calidad. Lista de lotes aprobados con badges verdes 'Conforme'. Al seleccionar un lote, se expande un panel lateral con el resumen completo: mini-cards con datos de producción, parámetros de calidad y presentaciones. Un timeline visual mostrando el recorrido del lote (Producción → QA → Liberación). Botón prominente verde esmeralda con ícono de check: 'Liberar a Cámara de Frío'. Un modal de confirmación con el texto de advertencia de irreversibilidad. Estilo profesional de laboratorio."
+
+---
+
+#### CU25: Enviar Lote a Cuarentena/Reproceso
+
+**Descripción del diagrama:** Representa el flujo alternativo cuando el Ingeniero de Calidad determina que un lote no cumple con los estándares, permitiendo su retención en cuarentena para observación o su derivación a reproceso en tina, impidiendo sistémicamente que alcance el inventario comercial.
+
+**A. Estructura del Modelo de CU (Diagrama Específico)**
+```plantuml
+@startuml
+left to right direction
+actor "Ingeniero de Calidad\n(QA)" as QA
+rectangle "Sistema ERP GRULAC - Submódulo QA" {
+  usecase "CU25: Enviar Lote a\nCuarentena/Reproceso" as CU25
+  usecase "Bloquear Acceso\nal Kardex Comercial" as Bloquear
+}
+QA --> CU25
+CU25 ..> Bloquear : <<include>>
+@enduml
+```
+
+**B. Ficha de Especificación del Caso de Uso**
+
+| Campo | Descripción |
+|---|---|
+| **CASO DE USO** | CU25 - Enviar Lote a Cuarentena/Reproceso. |
+| **PROPÓSITO** | Implementar el flujo inverso de seguridad que retiene o recicla lotes defectuosos, impidiendo sistémicamente que un lote con dictamen `'No Conforme'` u `'Observado'` alcance el inventario comercial ni sea despachado a clientes, cumpliendo las exigencias de inocuidad alimentaria de SENASAG. |
+| **DESCRIPCIÓN** | Permite al Ingeniero de Calidad, tras registrar una ficha de calidad con dictamen `'No Conforme'` o `'Observado'` (CU23), enviar el lote a uno de dos destinos: **Cuarentena** (retención para observación prolongada y re-evaluación posterior) o **Reproceso** (derivación a tina para corrección del defecto detectado). En ambos casos, el lote queda permanentemente bloqueado del Kardex comercial. |
+| **ACTORES** | Tablas de BD (`lotes_produccion`, `fichas_calidad`, `bitacora_auditoria`). |
+| **ACTOR INICIADOR** | Ingeniero de Calidad (QA). |
+| **PRECONDICIÓN** | El lote debe tener una ficha de calidad con dictamen `'No Conforme'` o `'Observado'` (CU23 ejecutado). El Ingeniero de Calidad debe estar logueado. |
+| **FLUJO PRINCIPAL (Camino Feliz)** | <br>1. El Ingeniero de Calidad ingresa al módulo "Control de Calidad" → "Lotes No Conformes".<br>2. El sistema muestra los lotes con ficha `'No Conforme'` o `'Observado'` pendientes de disposición.<br>3. El QA selecciona el lote y el sistema muestra la ficha de calidad con los parámetros fuera de rango resaltados en rojo.<br>4. El QA selecciona la disposición: **"Cuarentena"** (defecto menor subsanable, requiere re-evaluación en 48h) o **"Reproceso"** (defecto mayor corregible, ej. falta de sal — requiere retorno a tina de producción).<br>5. El QA ingresa la justificación técnica detallada (campo obligatorio) y las instrucciones de reproceso si aplica.<br>6. El QA presiona "Confirmar Disposición".<br>7. El sistema actualiza `lotes_produccion` con estado `'En Cuarentena'` o `'En Reproceso'`, bloqueando toda interacción comercial con este lote.<br>8. Si la disposición es "Reproceso", el sistema genera una notificación al Jefe de Producción indicando el lote y las instrucciones de corrección.<br>9. El sistema muestra un badge rojo: "Lote #X enviado a [Cuarentena/Reproceso]. Bloqueado de inventario comercial". |
+| **POST CONDICIÓN** | El lote queda permanentemente fuera del circuito comercial hasta que sea re-evaluado (en caso de cuarentena, requerirá una nueva ficha CU23) o reprocesado (generará una nueva orden CU20 vinculada al lote original). La trazabilidad del incidente queda completa para auditorías SENASAG. Toda la operación queda respaldada en la Bitácora de Auditoría. |
+| **EXCEPCIONES (Flujo Secundario)** | <br>- *E1: Lote Ya Dispuesto.* Si el lote ya fue enviado a cuarentena o reproceso, el sistema impide duplicación: "Este lote ya tiene una disposición registrada. Consulte el historial".<br>- *E2: Justificación Vacía.* Si el QA no ingresa una justificación técnica, el sistema bloquea la operación: "Debe ingresar una justificación técnica detallada para fines de auditoría SENASAG". |
+
+
+**C. Prototipo UI (Directriz para Generador)**
+*Prompt a ingresar textual en tu IA:*
+> "Pantalla de disposición de lotes no conformes. Estética de alerta industrial con tonos rojos y amarillos. Lista de lotes no conformes con badges rojos. Al seleccionar un lote, se muestra la ficha de calidad con los parámetros fuera de rango resaltados. Dos opciones grandes tipo card seleccionable: Card 'CUARENTENA' con ícono de reloj y fondo amarillo (subtítulo: 'Retención para observación y re-evaluación'), Card 'REPROCESO' con ícono de reciclar y fondo naranja (subtítulo: 'Derivar a tina para corrección del defecto'). Textarea obligatorio para 'Justificación Técnica'. Botón rojo: 'Confirmar Disposición'. Diseño que transmita seriedad y responsabilidad."
 
 
 ## 7.5. Estructurar caso de uso
@@ -2739,6 +2929,75 @@ end note
 @enduml
 ```
 
+## 7.5.3. Ciclo #3
+
+**Descripción del diagrama:** Diagrama unificado de Casos de Uso del Ciclo 3 que integra los 8 casos de uso del Núcleo Manufacturero y Control de Calidad. Muestra las interacciones del Jefe de Producción con las funcionalidades de producción por lote (apertura, parámetros, cierre) y del Ingeniero de Calidad con las funcionalidades de evaluación, liberación y retención de lotes. Se evidencia la cadena secuencial obligatoria: Aperturar → Registrar Parámetros → Codificar Lote → Ficha QA → Liberar/Cuarentena.
+
+```plantuml
+@startuml UC_Ciclo3
+left to right direction
+skinparam packageStyle rectangle
+
+actor "Jefe de Produccion\n(from CU20)" as JefeProd
+actor "Ingeniero de Calidad\n(QA)\n(from CU23)" as QA
+actor "Administrador General\n(from CU11)" as Admin
+
+usecase "Registrar Ajuste Manual\no Merma Aislada\n(from CU10)" as CU10
+usecase "Validar Justificacion\nObligatoria\n(from CU10)" as V_Just
+usecase "Actualizar Kardex\nAutomaticamente\n(from CU10)" as A_Kardex_Ajuste
+
+usecase "Configurar Alertas\nde Stock Minimo\n(from CU11)" as CU11
+usecase "Validar Umbral\nvs Stock Actual\n(from CU11)" as V_Umbral
+
+usecase "Aperturar Orden\nde Produccion\n(from CU20)" as CU20
+usecase "Seleccionar Receta BOM\ny Calcular Insumos\n(from CU20)" as S_BOM
+usecase "Deducir Insumos\ndel Kardex\n(from CU20)" as D_Kardex
+
+usecase "Registrar Parametros\nFisicos del Proceso\n(from CU21)" as CU21
+usecase "Validar Rangos\nPermitidos\n(from CU21)" as V_Rangos
+
+usecase "Codificar Lote\nFisico Terminado\n(from CU22)" as CU22
+usecase "Calcular Rendimiento\ny Merma Tecnica\n(from CU22)" as C_Rend
+
+usecase "Registrar Ficha de\nControl de Calidad\n(from CU23)" as CU23
+usecase "Evaluar Parametros\nFisico-Quimicos\n(from CU23)" as E_Param
+usecase "Vincular Contramuestra\nde Laboratorio\n(from CU23)" as V_Contra
+
+usecase "Aprobar y Liberar\nLote a Almacen\n(from CU24)" as CU24
+usecase "Ingresar Lote al\nKardex Producto Terminado\n(from CU24)" as I_Kardex
+
+usecase "Enviar Lote a\nCuarentena-Reproceso\n(from CU25)" as CU25
+usecase "Bloquear Acceso al\nKardex Comercial\n(from CU25)" as B_Kardex
+
+JefeProd --> CU10
+JefeProd --> CU20
+JefeProd --> CU21
+JefeProd --> CU22
+
+CU10 .> V_Just : <<include>>
+CU10 .> A_Kardex_Ajuste : <<include>>
+CU20 .> S_BOM : <<include>>
+CU20 .> D_Kardex : <<include>>
+CU21 .> V_Rangos : <<include>>
+CU22 .> C_Rend : <<include>>
+
+Admin --> CU11
+CU11 .> V_Umbral : <<include>>
+
+QA --> CU23
+QA --> CU24
+QA --> CU25
+
+CU23 .> E_Param : <<include>>
+CU23 .> V_Contra : <<include>>
+CU24 .> I_Kardex : <<include>>
+CU25 .> B_Kardex : <<include>>
+
+@enduml
+```
+
+
+
 # 8. CAPITULO 4: FLUJO DE TRABAJO: ANALISIS
 
 ## 8.1. Análisis de Arquitectura
@@ -2767,6 +3026,52 @@ package "Gestion de Comercial" as P4
 - **Gestión de Inventario (WMS)**: Encargado de la estructuración técnica del almacén de la planta. Permite a los administradores registrar y tipificar de manera estandarizada los insumos, materias primas y productos finales en el catálogo maestro. Además, otorga visibilidad analítica constante mediante el Kardex, permitiendo auditar el historial de ingresos y egresos de mercadería en tiempo real.
 
 - **Gestión Comercial y Proveedores**: Enfocado en la administración del directorio de las entidades fundamentales que originan y terminan el ciclo de negocio. Agrupa los casos de uso para dar de alta formalmente en el sistema a los ganaderos o proveedores (origen de la leche) y a los clientes comerciales (destino de los quesos), información indispensable para la posterior facturación y logística.
+
+
+#### Identificar Paquetes - Ciclo 2
+
+**Descripción del diagrama:** Se identifican 2 paquetes arquitectónicos para el Ciclo 2, agrupando los casos de uso por dominio funcional dentro de la cadena de suministro y pre-producción. La separación obedece al principio de **cohesión funcional**: cada paquete agrupa operaciones que comparten las mismas entidades de datos y reglas de negocio.
+
+```plantuml
+@startuml Paquetes_Ciclo2_Arquitectura
+skinparam packageStyle folder
+skinparam backgroundColor transparent
+
+package "Gestion de Proveedores y Compras" as P5
+package "Acopio de Leche y Formulacion" as P6
+
+@enduml
+```
+
+- **Gestión de Proveedores y Compras**: Agrupa las operaciones del ciclo comercial de entrada: la inhabilitación de proveedores problemáticos, la emisión formal de órdenes de compra de insumos, la recepción física de mercadería en almacén y el registro de pagos. Se empaquetaron juntos porque comparten las mismas entidades transaccionales (`proveedores`, `ordenes_compra`, `pagos_proveedores`) y representan el flujo completo de la relación empresa-proveedor, desde la solicitud hasta la liquidación financiera. Separarlos rompería la trazabilidad Orden→Recepción→Pago.
+
+- **Acopio de Leche y Formulación**: Encapsula las operaciones pre-productivas esenciales: por un lado, el punto de entrada de la materia prima principal (recepción de cisternas y triage bioquímico irrevocable); y por otro, la configuración de las recetas maestras (BOM) que dictarán cómo se transformará esa leche. Se agruparon en un solo paquete para evitar fragmentación (paquetes de un solo caso de uso) y porque ambos representan los prerrequisitos obligatorios antes de poder iniciar la manufactura en el Ciclo 3.
+
+
+
+#### Identificar Paquetes - Ciclo 3
+
+**Descripción del diagrama:** Se identifican 2 nuevos paquetes arquitectónicos para el Ciclo 3 (Producción y Calidad), y se reutiliza 1 paquete heredado del Ciclo 1 (Gestión de Inventario). Esto obedece a la metodología PUDS: los nuevos casos de uso que pertenecen a un dominio funcional ya existente se integran a su respectivo paquete, promoviendo la alta cohesión y evitando la duplicación de responsabilidades. La separación entre Producción y Calidad obedece al principio de **segregación de funciones**.
+
+```plantuml
+@startuml Paquetes_Ciclo3_Arquitectura
+skinparam packageStyle folder
+skinparam backgroundColor transparent
+
+package "Gestion de Inventario" as P3 <<existente>>
+package "Produccion en Planta" as P7 <<nuevo>>
+package "Control de Calidad y Bioseguridad" as P8 <<nuevo>>
+
+@enduml
+```
+
+- **Gestión de Inventario (Paquete Existente - P3)**: Recibe los nuevos casos de uso correspondientes a ajustes manuales y mermas (CU10) y configuración de alertas de stock mínimo (CU11), consolidando así todo el dominio del WMS (Kardex).
+
+- **Producción en Planta (Paquete Nuevo - P7)**: Agrupa las operaciones estrictas de manufactura: apertura de órdenes de producción con deducción de insumos (CU20), registro de parámetros de proceso (CU21) y codificación del lote terminado (CU22). Se empaquetaron juntos porque comparten las mismas entidades transaccionales (`ordenes_produccion`, `lotes_produccion`, `parametros_proceso`) y representan el flujo de transformación física, operado exclusivamente por el Jefe de Producción.
+
+- **Control de Calidad y Bioseguridad**: Encapsula las operaciones de evaluación, dictamen y disposición de lotes terminados: registro de fichas de control de calidad (CU23), liberación de lotes conformes al inventario comercial (CU24) y envío de lotes no conformes a cuarentena o reproceso (CU25). Se agruparon en un paquete separado porque representan una **función de auditoría independiente** que no puede ser contaminada por el paquete de Producción — el Ingeniero de Calidad actúa como barrera sanitaria irrevocable y debe operar con independencia del proceso productivo.
+
+
 
 ### 8.1.2. Relacionar paquetes y casos de uso
 
@@ -2815,6 +3120,73 @@ P4 ..> CU12 : <<trace>>
 @enduml
 ```
 
+#### Relacionar paquetes y casos de uso Ciclo 2
+
+**Descripción del diagrama:** Establece la trazabilidad formal entre cada paquete arquitectónico del Ciclo 2 y los Casos de Uso específicos que contiene, utilizando estereotipos `<<trace>>` conformes a UML 2.5.
+
+```plantuml
+@startuml Paquetes_CU_Ciclo2
+left to right direction
+skinparam packageStyle folder
+skinparam backgroundColor transparent
+
+package "Gestion de Proveedores y Compras" as P5
+usecase "Inhabilitar Proveedor\n(from CU13)" as CU13
+usecase "Elaborar Orden de Compra\n(from CU14)" as CU14
+usecase "Registrar Recepcion\nde Insumos\n(from CU15)" as CU15
+usecase "Registrar Pago\na Proveedor\n(from CU16)" as CU16
+P5 ..> CU13 : <<trace>>
+P5 ..> CU14 : <<trace>>
+P5 ..> CU15 : <<trace>>
+P5 ..> CU16 : <<trace>>
+
+package "Acopio de Leche y Formulacion" as P6
+usecase "Registrar Ticket\nde Cisterna\n(from CU17)" as CU17
+usecase "Registrar Dictamen\nde Triage\n(from CU18)" as CU18
+usecase "Registrar Receta\nBase BOM\n(from CU19)" as CU19
+P6 ..> CU17 : <<trace>>
+P6 ..> CU18 : <<trace>>
+P6 ..> CU19 : <<trace>>
+
+@enduml
+```
+
+#### Relacionar paquetes y casos de uso Ciclo 3
+
+**Descripción del diagrama:** Establece la trazabilidad formal entre cada paquete arquitectónico del Ciclo 3 y los Casos de Uso específicos que contiene, utilizando estereotipos `<<trace>>` conformes a UML 2.5.
+
+```plantuml
+@startuml Paquetes_CU_Ciclo3
+left to right direction
+skinparam packageStyle folder
+skinparam backgroundColor transparent
+
+package "Gestion de Inventario\n(Ciclo 1)" as P3
+usecase "Registrar Ajuste Manual\no Merma\n(from CU10)" as CU10
+usecase "Configurar Alertas\nde Stock Minimo\n(from CU11)" as CU11
+P3 ..> CU10 : <<trace>>
+P3 ..> CU11 : <<trace>>
+
+package "Produccion en Planta" as P7
+usecase "Aperturar Orden\nde Produccion\n(from CU20)" as CU20
+usecase "Registrar Parametros\nFisicos\n(from CU21)" as CU21
+usecase "Codificar Lote\nTerminado\n(from CU22)" as CU22
+P7 ..> CU20 : <<trace>>
+P7 ..> CU21 : <<trace>>
+P7 ..> CU22 : <<trace>>
+
+package "Control de Calidad y Bioseguridad" as P8
+usecase "Registrar Ficha de\nControl de Calidad\n(from CU23)" as CU23
+usecase "Aprobar y Liberar\nLote a Almacen\n(from CU24)" as CU24
+usecase "Enviar Lote a\nCuarentena-Reproceso\n(from CU25)" as CU25
+P8 ..> CU23 : <<trace>>
+P8 ..> CU24 : <<trace>>
+P8 ..> CU25 : <<trace>>
+
+@enduml
+```
+
+
 ### 8.1.3. Dependencias de Paquetes Arquitectónicos
 
 A continuación se esquematiza el acoplamiento y las dependencias lógicas direccionadas entre estos módulos (Ciclo 1):
@@ -2836,6 +3208,69 @@ P1 ..> P2 : <<import>>
 
 @enduml
 ```
+
+#### Dependencias de Paquetes Arquitectónicos Ciclo 2
+
+**Descripción del diagrama:** Esquematiza las dependencias direccionadas entre los paquetes del Ciclo 2 y su relación con los paquetes heredados del Ciclo 1. Se evidencia que todos los paquetes del Ciclo 2 dependen del paquete de Seguridad (autenticación obligatoria), el cual a su vez importa la Gestión de Usuario. Además, tanto "Gestión de Proveedores" como "Acopio de Leche y Formulación" dependen de "Gestión Comercial" (para resolver la entidad Proveedor) y de "Gestión de Inventario" (para vincular insumos del catálogo maestro).
+
+```plantuml
+@startuml Paquetes_Dependencias_Ciclo2
+skinparam packageStyle folder
+skinparam backgroundColor transparent
+top to bottom direction
+
+package "SEGURIDAD\n(Ciclo 1)" as P1
+package "Gestion de Usuario\n(Ciclo 1)" as P2
+package "Gestion de Inventario\n(Ciclo 1)" as P3
+package "Gestion Comercial\n(Ciclo 1)" as P4
+
+package "Gestion de Proveedores\ny Compras" as P5
+package "Acopio de Leche\ny Formulacion" as P6
+
+P1 ..> P2 : <<import>>
+
+P5 ..> P1 : <<use>>
+P5 ..> P4 : <<use>>
+P5 ..> P3 : <<use>>
+
+P6 ..> P1 : <<use>>
+P6 ..> P4 : <<use>>
+P6 ..> P3 : <<use>>
+
+@enduml
+```
+
+
+#### Dependencias de Paquetes Arquitectónicos Ciclo 3
+
+**Descripción del diagrama:** Esquematiza las dependencias direccionadas entre los paquetes del Ciclo 3 y su relación con los paquetes heredados de Ciclos 1 y 2. El paquete de Producción (P7) depende de Seguridad (autenticación), Inventario (Kardex para deducción de insumos), y Acopio y Formulación (recetas BOM). El paquete de Calidad (P8) depende de Seguridad, de Producción (para acceder a los lotes terminados), de Acopio y Formulación (para leer los estándares de la receta) y de Inventario (para la liberación al Kardex comercial). Nota: Se omiten los paquetes P2, P4 y P5 por no tener dependencias directas en este ciclo.
+
+```plantuml
+@startuml Paquetes_Dependencias_Ciclo3
+skinparam packageStyle folder
+skinparam backgroundColor transparent
+top to bottom direction
+
+package "SEGURIDAD\n(Ciclo 1)" as P1
+package "Gestion de Inventario\n(Ciclos 1, 3)" as P3
+package "Acopio de Leche\ny Formulacion\n(Ciclo 2)" as P6
+
+package "Produccion en Planta\n(Ciclo 3)" as P7
+package "Control de Calidad\ny Bioseguridad\n(Ciclo 3)" as P8
+
+P7 ..> P1 : <<use>>
+P7 ..> P3 : <<use>>
+P7 ..> P6 : <<use>>
+
+P8 ..> P1 : <<use>>
+P8 ..> P7 : <<use>>
+P8 ..> P3 : <<use>>
+P8 ..> P6 : <<use>>
+
+@enduml
+```
+
+
 
 ## 8.2. Diagramas de Comunicación
 
@@ -2918,30 +3353,6 @@ CTR --> ENT : 3: update(is_active=false)
 ENT ..> ENT2 : 3.1: <<trigger DB>> insert(audit)
 ENT --> CTR : 4: Confirmación BD
 CTR --> IU : 5: Actualizar lista visual
-@enduml
-```
-
-### CU34: Rehabilitar Empleado (Alta Lógica)
-
-**Descripción del diagrama:** Secuencia de mensajes para la reactivación de un empleado previamente inhabilitado. El controlador actualiza el estado activo tanto en la tabla `empleados` como en `usuarios`, restaurando el acceso al sistema. El trigger de base de datos registra automáticamente la operación en la bitácora.
-
-```plantuml
-@startuml DCom_CU34
-left to right direction
-skinparam backgroundColor transparent
-actor "Admin" as Actor
-boundary "IU_RRHH" as IU
-control "CTR_Usuario" as CTR
-entity "CE_Usuario" as ENT
-entity "CE_Empleado" as ENT_EMP
-entity "CE_Bitacora" as ENT2
-Actor --> IU : 1: Clic 'Rehabilitar'
-IU --> CTR : 2: rehabilitarEmpleado(id)
-CTR --> ENT_EMP : 3: update(estado_activo=true)
-CTR --> ENT : 4: update(is_active=true)
-ENT ..> ENT2 : 4.1: <<trigger DB>> insert(audit)
-ENT --> CTR : 5: Confirmación BD
-CTR --> IU : 6: Actualizar lista visual
 @enduml
 ```
 
@@ -3115,6 +3526,428 @@ CTR --> ENT2 : 10: insert(RESET_PASSWORD)
 CTR --> IU : 11: Redirigir a Login
 @enduml
 ```
+
+### CU34: Rehabilitar Empleado (Alta Lógica)
+
+**Descripción del diagrama:** Secuencia de mensajes para la reactivación de un empleado previamente inhabilitado. El controlador actualiza el estado activo tanto en la tabla `empleados` como en `usuarios`, restaurando el acceso al sistema. El trigger de base de datos registra automáticamente la operación en la bitácora.
+
+```plantuml
+@startuml DCom_CU34
+left to right direction
+skinparam backgroundColor transparent
+actor "Admin" as Actor
+boundary "IU_RRHH" as IU
+control "CTR_Usuario" as CTR
+entity "CE_Usuario" as ENT
+entity "CE_Empleado" as ENT_EMP
+entity "CE_Bitacora" as ENT2
+Actor --> IU : 1: Clic 'Rehabilitar'
+IU --> CTR : 2: rehabilitarEmpleado(id)
+CTR --> ENT_EMP : 3: update(estado_activo=true)
+CTR --> ENT : 4: update(is_active=true)
+ENT ..> ENT2 : 4.1: <<trigger DB>> insert(audit)
+ENT --> CTR : 5: Confirmación BD
+CTR --> IU : 6: Actualizar lista visual
+@enduml
+```
+
+### Diagramas de Comunicación — Ciclo 2
+
+A continuación se presentan los diagramas de comunicación del Ciclo 2 bajo el patrón arquitectónico MVC, mapeados a los elementos de Análisis: Frontera (IU), Control (CTR) y Entidad (CE).
+
+#### CU13: Inhabilitar Proveedor
+
+**Descripción del diagrama:** Secuencia de mensajes para el bloqueo comercial de un proveedor. El controlador verifica primero la existencia de órdenes pendientes antes de ejecutar la actualización de estado, y el trigger de base de datos registra automáticamente la acción en la bitácora.
+
+```plantuml
+@startuml DCom_CU13
+left to right direction
+skinparam backgroundColor transparent
+actor "Admin" as Actor
+boundary "IU_Proveedores" as IU
+control "CTR_Proveedor" as CTR
+entity "CE_Proveedor" as ENT
+entity "CE_OrdenCompra" as ENT_OC
+entity "CE_Bitacora" as ENT2
+Actor --> IU : 1: Clic 'Inhabilitar'
+IU --> CTR : 2: inhabilitarProveedor(id)
+CTR --> ENT_OC : 3: checkOrdenesPendientes(id)
+ENT_OC --> CTR : 4: count = 0
+CTR --> ENT : 5: update(is_activo=false)
+ENT ..> ENT2 : 5.1: <<trigger DB>> insert(audit)
+ENT --> CTR : 6: Confirmación BD
+CTR --> IU : 7: Actualizar lista visual
+@enduml
+```
+
+#### CU14: Elaborar Orden de Compra de Insumos
+
+**Descripción del diagrama:** Flujo de comunicación para la emisión de una orden de compra. El controlador consulta el stock actual del Kardex para sugerir cantidades y luego inserta atómicamente la orden con todas sus líneas de detalle.
+
+```plantuml
+@startuml DCom_CU14
+left to right direction
+skinparam backgroundColor transparent
+actor "Admin" as Actor
+boundary "IU_OrdenCompra" as IU
+control "CTR_Compra" as CTR
+entity "CE_Kardex" as ENT_K
+entity "CE_OrdenCompra" as ENT_OC
+entity "CE_DetalleOrden" as ENT_DET
+entity "CE_Bitacora" as ENT2
+Actor --> IU : 1: Seleccionar proveedor e ítems
+IU --> CTR : 2: emitirOrden(proveedor, items[])
+CTR --> ENT_K : 3: consultarStockActual(items[])
+ENT_K --> CTR : 4: Array de stocks
+CTR --> ENT_OC : 5: insert(orden, estado='Pendiente')
+CTR --> ENT_DET : 6: insert(detalles[])
+ENT_OC ..> ENT2 : 5.1: <<trigger DB>> insert(audit)
+CTR --> IU : 7: Mostrar N° Orden generado
+@enduml
+```
+
+#### CU15: Registrar Recepción Física de Insumos
+
+**Descripción del diagrama:** Secuencia de comunicación que documenta la llegada física de mercadería. El controlador compara cantidades recibidas contra las solicitadas, actualiza el Kardex con movimientos de ingreso y modifica el estado de la orden de compra correspondiente.
+
+```plantuml
+@startuml DCom_CU15
+left to right direction
+skinparam backgroundColor transparent
+actor "Receptor" as Actor
+boundary "IU_Recepcion" as IU
+control "CTR_Recepcion" as CTR
+entity "CE_OrdenCompra" as ENT_OC
+entity "CE_Kardex" as ENT_K
+entity "CE_Bitacora" as ENT2
+Actor --> IU : 1: Confirmar cantidades recibidas
+IU --> CTR : 2: registrarRecepcion(orden, cantidades[])
+CTR --> ENT_OC : 3: obtenerDetalle(orden)
+CTR --> ENT_K : 4: insert(INGRESO_COMPRA, items[])
+ENT_K ..> ENT2 : 4.1: <<trigger DB>> insert(audit)
+CTR --> ENT_OC : 5: update(estado='Recibida')
+CTR --> IU : 6: Mostrar resumen con nuevo stock
+@enduml
+```
+
+#### CU16: Registrar Pago a Proveedor
+
+**Descripción del diagrama:** Flujo de comunicación para el cierre financiero de una orden de compra. El controlador valida que el monto no exceda el saldo pendiente, registra el pago y actualiza el estado financiero de la orden.
+
+```plantuml
+@startuml DCom_CU16
+left to right direction
+skinparam backgroundColor transparent
+actor "Admin" as Actor
+boundary "IU_Pagos" as IU
+control "CTR_Pago" as CTR
+entity "CE_OrdenCompra" as ENT_OC
+entity "CE_PagoProveedor" as ENT_PAGO
+entity "CE_Bitacora" as ENT2
+Actor --> IU : 1: Ingresar datos de pago
+IU --> CTR : 2: registrarPago(orden, monto, metodo)
+CTR --> ENT_OC : 3: getSaldoPendiente(orden)
+ENT_OC --> CTR : 4: saldo restante
+CTR --> ENT_PAGO : 5: insert(pago)
+ENT_PAGO ..> ENT2 : 5.1: <<trigger DB>> insert(audit)
+CTR --> ENT_OC : 6: update(estado='Pagada')
+CTR --> IU : 7: Mostrar recibo digital
+@enduml
+```
+
+#### CU17: Registrar Ticket de Ingreso de Cisterna
+
+**Descripción del diagrama:** Secuencia de comunicación para el registro de una cisterna de leche cruda. El controlador valida la existencia y estado activo del proveedor ganadero antes de crear el ticket, dejándolo en estado pendiente de triage bioquímico.
+
+```plantuml
+@startuml DCom_CU17
+left to right direction
+skinparam backgroundColor transparent
+actor "Receptor" as Actor
+boundary "IU_Acopio" as IU
+control "CTR_Acopio" as CTR
+entity "CE_Proveedor" as ENT_PROV
+entity "CE_RecepcionLeche" as ENT_REC
+entity "CE_Bitacora" as ENT2
+Actor --> IU : 1: Seleccionar ganadero y volumen
+IU --> CTR : 2: registrarTicket(proveedor, litros, temp)
+CTR --> ENT_PROV : 3: verificarActivo(id_proveedor)
+ENT_PROV --> CTR : 4: proveedor válido
+CTR --> ENT_REC : 5: insert(ticket, estado='Pendiente Triage')
+ENT_REC ..> ENT2 : 5.1: <<trigger DB>> insert(audit)
+CTR --> IU : 6: Mostrar ticket con N° y habilitar Triage
+@enduml
+```
+
+#### CU18: Registrar Dictamen de Triage Bioquímico
+
+**Descripción del diagrama:** Flujo de comunicación más complejo del Ciclo 2. El controlador recibe los parámetros bioquímicos, los compara contra umbrales SENASAG, emite el dictamen y, solo en caso de aceptación, extiende el flujo actualizando el Kardex de materia prima.
+
+```plantuml
+@startuml DCom_CU18
+left to right direction
+skinparam backgroundColor transparent
+actor "Laboratorista" as Actor
+boundary "IU_Triage" as IU
+control "CTR_Triage" as CTR
+entity "CE_RecepcionLeche" as ENT_REC
+entity "CE_Kardex" as ENT_K
+entity "CE_Bitacora" as ENT2
+Actor --> IU : 1: Ingresar parámetros bioquímicos
+IU --> CTR : 2: registrarTriage(ticket, parametros)
+CTR --> CTR : 3: validarVsUmbrales(parametros)
+CTR --> ENT_REC : 4: update(estado='Aceptada', valores)
+ENT_REC ..> ENT2 : 4.1: <<trigger DB>> insert(audit)
+CTR --> ENT_K : 5: insert(INGRESO_LECHE, litros)
+ENT_K ..> ENT2 : 5.1: <<trigger DB>> insert(audit)
+CTR --> IU : 6: Mostrar dictamen y nuevo stock
+@enduml
+```
+
+#### CU19: Registrar Receta Base BOM
+
+**Descripción del diagrama:** Secuencia de comunicación para la configuración de una receta de formulación. El controlador vincula cada ingrediente con el catálogo maestro del Ciclo 1, insertando atómicamente la receta con todas sus líneas de detalle.
+
+```plantuml
+@startuml DCom_CU19
+left to right direction
+skinparam backgroundColor transparent
+actor "Jefe Producción" as Actor
+boundary "IU_Recetas" as IU
+control "CTR_BOM" as CTR
+entity "CE_Catalogo" as ENT_CAT
+entity "CE_RecetaBOM" as ENT_REC
+entity "CE_DetalleReceta" as ENT_DET
+entity "CE_Bitacora" as ENT2
+Actor --> IU : 1: Definir receta e ingredientes
+IU --> CTR : 2: guardarReceta(producto, ingredientes[])
+CTR --> ENT_CAT : 3: verificarInsumosExisten(ids[])
+ENT_CAT --> CTR : 4: ítems validados
+CTR --> ENT_REC : 5: insert(receta)
+CTR --> ENT_DET : 6: insert(ingredientes[])
+ENT_REC ..> ENT2 : 5.1: <<trigger DB>> insert(audit)
+CTR --> IU : 7: Mostrar receta guardada
+@enduml
+```
+
+
+### Diagramas de Comunicación — Ciclo 3
+
+A continuación se presentan los diagramas de comunicación del Ciclo 3 bajo el patrón arquitectónico MVC, mapeados a los elementos de Análisis: Frontera (IU), Control (CTR) y Entidad (CE).
+
+#### CU10: Registrar Ajuste Manual o Merma Aislada
+
+**Descripción del diagrama:** Secuencia de mensajes para el registro de un ajuste de inventario no productivo. El controlador valida la justificación obligatoria, verifica que el stock resultante no sea negativo y genera el movimiento en el Kardex con trazabilidad del operador responsable.
+
+```plantuml
+@startuml DCom_CU10
+left to right direction
+skinparam backgroundColor transparent
+actor "Jefe Producción" as Actor
+boundary "IU_Ajustes" as IU
+control "CTR_Inventario" as CTR
+entity "CE_Catalogo_Items" as ENT_CAT
+entity "CE_Kardex" as ENT_K
+entity "CE_Bitacora" as ENT2
+Actor --> IU : 1: Seleccionar ítem y tipo ajuste
+IU --> CTR : 2: registrarAjuste(item, tipo, cantidad, motivo)
+CTR --> ENT_CAT : 3: getStockActual(item)
+ENT_CAT --> CTR : 4: stock actual
+CTR --> CTR : 5: validarStockResultante()
+CTR --> ENT_K : 6: insert(AJUSTE_NEGATIVO, cantidad)
+ENT_K ..> ENT2 : 6.1: <<trigger DB>> insert(audit)
+CTR --> IU : 7: Mostrar nuevo stock
+@enduml
+```
+
+#### CU11: Configurar Alertas de Stock Mínimo
+
+**Descripción del diagrama:** Flujo de comunicación para la configuración paramétrica de umbrales de alerta. El controlador actualiza el umbral en el catálogo maestro y evalúa inmediatamente si el stock actual ya se encuentra por debajo del nuevo valor configurado.
+
+```plantuml
+@startuml DCom_CU11
+left to right direction
+skinparam backgroundColor transparent
+actor "Admin" as Actor
+boundary "IU_Alertas" as IU
+control "CTR_Inventario" as CTR
+entity "CE_Catalogo_Items" as ENT
+entity "CE_Bitacora" as ENT2
+Actor --> IU : 1: Editar umbral de ítem
+IU --> CTR : 2: configurarAlerta(item, umbral)
+CTR --> ENT : 3: update(stock_minimo)
+ENT ..> ENT2 : 3.1: <<trigger DB>> insert(audit)
+CTR --> ENT : 4: getStockActual(item)
+ENT --> CTR : 5: stock actual
+CTR --> CTR : 6: evaluarEstadoAlerta()
+CTR --> IU : 7: Actualizar badge estado
+@enduml
+```
+
+#### CU20: Aperturar Orden de Producción
+
+**Descripción del diagrama:** Flujo de comunicación más complejo del Ciclo 3. El controlador extrae la receta BOM, calcula proporciones según el volumen de leche, valida disponibilidad de cada insumo en el Kardex, y ejecuta la deducción atómica masiva de todos los ingredientes al confirmar la apertura.
+
+```plantuml
+@startuml DCom_CU20
+left to right direction
+skinparam backgroundColor transparent
+actor "Jefe Producción" as Actor
+boundary "IU_Produccion" as IU
+control "CTR_Produccion" as CTR
+entity "CE_RecetaBOM" as ENT_BOM
+entity "CE_DetalleReceta" as ENT_DET
+entity "CE_Kardex" as ENT_K
+entity "CE_OrdenProduccion" as ENT_OP
+entity "CE_Bitacora" as ENT2
+Actor --> IU : 1: Seleccionar receta y volumen
+IU --> CTR : 2: aperturarOrden(receta, litros)
+CTR --> ENT_BOM : 3: getRecetaActiva(id)
+ENT_BOM --> CTR : 4: receta + ingredientes
+CTR --> ENT_DET : 5: calcularProporciones(litros)
+ENT_DET --> CTR : 6: cantidades calculadas
+CTR --> ENT_K : 7: validarStockDisponible(items[])
+ENT_K --> CTR : 8: stocks OK
+CTR --> ENT_OP : 9: insert(orden, estado='En Proceso')
+ENT_OP ..> ENT2 : 9.1: <<trigger DB>> insert(audit)
+CTR --> ENT_K : 10: insert(EGRESO_PRODUCCION, items[])
+ENT_K ..> ENT2 : 10.1: <<trigger DB>> insert(audit)
+CTR --> IU : 11: Mostrar orden con N° lote
+@enduml
+```
+
+#### CU21: Registrar Parámetros Físicos del Proceso
+
+**Descripción del diagrama:** Secuencia de mensajes para el registro progresivo de variables de proceso. El controlador valida cada parámetro contra rangos configurados y permite guardados parciales con indicador de completitud.
+
+```plantuml
+@startuml DCom_CU21
+left to right direction
+skinparam backgroundColor transparent
+actor "Jefe Producción" as Actor
+boundary "IU_Parametros" as IU
+control "CTR_Proceso" as CTR
+entity "CE_OrdenProduccion" as ENT_OP
+entity "CE_ParametrosProceso" as ENT_PP
+entity "CE_Bitacora" as ENT2
+Actor --> IU : 1: Seleccionar orden e ingresar valores
+IU --> CTR : 2: registrarParametros(orden, params)
+CTR --> ENT_OP : 3: verificarEstado('En Proceso')
+ENT_OP --> CTR : 4: orden válida
+CTR --> CTR : 5: validarRangosPermitidos(params)
+CTR --> ENT_PP : 6: insert(parametros, timestamp)
+ENT_PP ..> ENT2 : 6.1: <<trigger DB>> insert(audit)
+CTR --> IU : 7: Mostrar resumen con completitud
+@enduml
+```
+
+#### CU22: Codificar Lote Físico Terminado
+
+**Descripción del diagrama:** Flujo de comunicación para el cierre de la orden de producción. El controlador calcula el rendimiento transformativo, genera el lote trazable con sus presentaciones y actualiza el estado de la orden.
+
+```plantuml
+@startuml DCom_CU22
+left to right direction
+skinparam backgroundColor transparent
+actor "Jefe Producción" as Actor
+boundary "IU_CierreLote" as IU
+control "CTR_Produccion" as CTR
+entity "CE_OrdenProduccion" as ENT_OP
+entity "CE_LoteProduccion" as ENT_LOT
+entity "CE_PresentacionesLote" as ENT_PRES
+entity "CE_Bitacora" as ENT2
+Actor --> IU : 1: Ingresar peso bruto y presentaciones
+IU --> CTR : 2: codificarLote(orden, peso, moldes, presentaciones[])
+CTR --> ENT_OP : 3: getVolumenLeche(orden)
+ENT_OP --> CTR : 4: litros procesados
+CTR --> CTR : 5: calcularRendimiento(peso/litros)
+CTR --> ENT_LOT : 6: insert(lote, estado='Pendiente QA')
+ENT_LOT ..> ENT2 : 6.1: <<trigger DB>> insert(audit)
+CTR --> ENT_PRES : 7: insert(presentaciones[])
+CTR --> ENT_OP : 8: update(estado='Cerrada')
+CTR --> IU : 9: Mostrar lote con rendimiento
+@enduml
+```
+
+#### CU23: Registrar Ficha de Control de Calidad
+
+**Descripción del diagrama:** Secuencia de comunicación para la evaluación de calidad del lote. El controlador recibe los parámetros físico-químicos, los compara contra estándares del producto, emite el dictamen preliminar y registra la ficha vinculada al lote.
+
+```plantuml
+@startuml DCom_CU23
+left to right direction
+skinparam backgroundColor transparent
+actor "Ing. Calidad" as Actor
+boundary "IU_Calidad" as IU
+control "CTR_Calidad" as CTR
+entity "CE_LoteProduccion" as ENT_LOT
+entity "CE_FichaCalidad" as ENT_FC
+entity "CE_Bitacora" as ENT2
+Actor --> IU : 1: Seleccionar lote e ingresar resultados
+IU --> CTR : 2: registrarFichaQA(lote, parametros)
+CTR --> ENT_LOT : 3: verificarEstado('Pendiente QA')
+ENT_LOT --> CTR : 4: lote válido
+CTR --> CTR : 5: evaluarVsEstandares(parametros)
+CTR --> CTR : 6: determinarDictamen()
+CTR --> ENT_FC : 7: insert(ficha, dictamen)
+ENT_FC ..> ENT2 : 7.1: <<trigger DB>> insert(audit)
+CTR --> IU : 8: Mostrar dictamen final
+@enduml
+```
+
+#### CU24: Aprobar/Liberar Lote a Almacén
+
+**Descripción del diagrama:** Flujo de comunicación para la liberación de lotes conformes. El controlador verifica la ficha de calidad, actualiza el estado del lote y genera los movimientos de ingreso en el Kardex de producto terminado, cerrando la cadena de trazabilidad.
+
+```plantuml
+@startuml DCom_CU24
+left to right direction
+skinparam backgroundColor transparent
+actor "Ing. Calidad" as Actor
+boundary "IU_Liberacion" as IU
+control "CTR_Calidad" as CTR
+entity "CE_FichaCalidad" as ENT_FC
+entity "CE_LoteProduccion" as ENT_LOT
+entity "CE_Kardex" as ENT_K
+entity "CE_Bitacora" as ENT2
+Actor --> IU : 1: Seleccionar lote conforme
+IU --> CTR : 2: liberarLote(id_lote)
+CTR --> ENT_FC : 3: verificarDictamen('Conforme')
+ENT_FC --> CTR : 4: dictamen OK
+CTR --> ENT_LOT : 5: update(estado='Liberado')
+ENT_LOT ..> ENT2 : 5.1: <<trigger DB>> insert(audit)
+CTR --> ENT_K : 6: insert(INGRESO_PRODUCCION, presentaciones[])
+ENT_K ..> ENT2 : 6.1: <<trigger DB>> insert(audit)
+CTR --> IU : 7: Mostrar stock actualizado
+@enduml
+```
+
+#### CU25: Enviar Lote a Cuarentena/Reproceso
+
+**Descripción del diagrama:** Secuencia de comunicación para la disposición de lotes no conformes. El controlador bloquea el acceso al Kardex comercial y registra la justificación técnica obligatoria. Si la disposición es reproceso, genera una notificación al Jefe de Producción.
+
+```plantuml
+@startuml DCom_CU25
+left to right direction
+skinparam backgroundColor transparent
+actor "Ing. Calidad" as Actor
+boundary "IU_Disposicion" as IU
+control "CTR_Calidad" as CTR
+entity "CE_FichaCalidad" as ENT_FC
+entity "CE_LoteProduccion" as ENT_LOT
+entity "CE_Bitacora" as ENT2
+Actor --> IU : 1: Seleccionar lote y disposición
+IU --> CTR : 2: enviarDisposicion(lote, tipo, justificacion)
+CTR --> ENT_FC : 3: verificarDictamen('No Conforme')
+ENT_FC --> CTR : 4: dictamen No Conforme
+CTR --> ENT_LOT : 5: update(estado='En Cuarentena'|'En Reproceso')
+ENT_LOT ..> ENT2 : 5.1: <<trigger DB>> insert(audit)
+CTR --> CTR : 6: bloquearKardexComercial(lote)
+CTR --> IU : 7: Confirmar disposición
+@enduml
+```
+
+
 
 ## 8.3. Análisis de Clases
 
@@ -3298,55 +4131,6 @@ class "CE_Bitacora" as ENT2 <<Entity>> {
 
 Actor --> IU
 IU --> CTR
-CTR --> ENT
-ENT ..> ENT2 : <<trigger>>
-@enduml
-```
-
-### CU34: Rehabilitar Empleado (Alta Lógica)
-
-**Descripción del diagrama:** Define la clase frontera con el selector de empleado inactivo, el controlador que orquesta la reactivación del acceso y la actualización de estados en ambas tablas, y las entidades de Empleado, Usuario y Bitácora que persisten la transacción.
-
-```plantuml
-@startuml DClases_CU34
-allowmixing
-left to right direction
-skinparam classAttributeIconSize 0
-skinparam backgroundColor transparent
-actor "Administrador" as Actor
-
-class "IU_RRHH" as IU <<Boundary>> {
-  + idEmpleadoSeleccionado : Integer
-  --
-  + seleccionarFilaInactiva()
-  + confirmarAltaLogica()
-  + actualizarGrillaVisual()
-}
-
-class "CTR_Usuario" as CTR <<Control>> {
-  --
-  + rehabilitarEmpleado(id_empleado)
-  + actualizarEstadoUsuario()
-}
-
-class "CE_Empleado" as ENT_EMP <<Entity>> {
-  - id_empleado : Integer
-  - estado_activo : Boolean
-}
-
-class "CE_Usuario" as ENT <<Entity>> {
-  - id_usuario : Integer
-  - is_active : Boolean
-}
-
-class "CE_Bitacora" as ENT2 <<Entity>> {
-  - accion_sql : String
-  - fecha_hora : DateTime
-}
-
-Actor --> IU
-IU --> CTR
-CTR --> ENT_EMP
 CTR --> ENT
 ENT ..> ENT2 : <<trigger>>
 @enduml
@@ -3733,271 +4517,52 @@ ENT1 ..> ENT2 : <<trigger>>
 @enduml
 ```
 
+### CU34: Rehabilitar Empleado (Alta Lógica)
 
-
-
-## 8B. CAPITULO 4: FLUJO DE TRABAJO: ANALISIS — CICLO 2
-
-### 8B.1. Análisis de Arquitectura
-
-#### 8B.1.1. Identificar Paquetes
-
-**Descripción del diagrama:** Se identifican 2 paquetes arquitectónicos para el Ciclo 2, agrupando los casos de uso por dominio funcional dentro de la cadena de suministro y pre-producción. La separación obedece al principio de **cohesión funcional**: cada paquete agrupa operaciones que comparten las mismas entidades de datos y reglas de negocio.
+**Descripción del diagrama:** Define la clase frontera con el selector de empleado inactivo, el controlador que orquesta la reactivación del acceso y la actualización de estados en ambas tablas, y las entidades de Empleado, Usuario y Bitácora que persisten la transacción.
 
 ```plantuml
-@startuml Paquetes_Ciclo2_Arquitectura
-skinparam packageStyle folder
-skinparam backgroundColor transparent
-
-package "Gestion de Proveedores y Compras" as P5
-package "Acopio de Leche y Formulacion" as P6
-
-@enduml
-```
-
-- **Gestión de Proveedores y Compras**: Agrupa las operaciones del ciclo comercial de entrada: la inhabilitación de proveedores problemáticos, la emisión formal de órdenes de compra de insumos, la recepción física de mercadería en almacén y el registro de pagos. Se empaquetaron juntos porque comparten las mismas entidades transaccionales (`proveedores`, `ordenes_compra`, `pagos_proveedores`) y representan el flujo completo de la relación empresa-proveedor, desde la solicitud hasta la liquidación financiera. Separarlos rompería la trazabilidad Orden→Recepción→Pago.
-
-- **Acopio de Leche y Formulación**: Encapsula las operaciones pre-productivas esenciales: por un lado, el punto de entrada de la materia prima principal (recepción de cisternas y triage bioquímico irrevocable); y por otro, la configuración de las recetas maestras (BOM) que dictarán cómo se transformará esa leche. Se agruparon en un solo paquete para evitar fragmentación (paquetes de un solo caso de uso) y porque ambos representan los prerrequisitos obligatorios antes de poder iniciar la manufactura en el Ciclo 3.
-
-#### 8B.1.2. Relacionar paquetes y casos de uso
-
-**Descripción del diagrama:** Establece la trazabilidad formal entre cada paquete arquitectónico del Ciclo 2 y los Casos de Uso específicos que contiene, utilizando estereotipos `<<trace>>` conformes a UML 2.5.
-
-```plantuml
-@startuml Paquetes_CU_Ciclo2
+@startuml DClases_CU34
+allowmixing
 left to right direction
-skinparam packageStyle folder
+skinparam classAttributeIconSize 0
 skinparam backgroundColor transparent
+actor "Administrador" as Actor
 
-package "Gestion de Proveedores y Compras" as P5
-usecase "Inhabilitar Proveedor\n(from CU13)" as CU13
-usecase "Elaborar Orden de Compra\n(from CU14)" as CU14
-usecase "Registrar Recepcion\nde Insumos\n(from CU15)" as CU15
-usecase "Registrar Pago\na Proveedor\n(from CU16)" as CU16
-P5 ..> CU13 : <<trace>>
-P5 ..> CU14 : <<trace>>
-P5 ..> CU15 : <<trace>>
-P5 ..> CU16 : <<trace>>
+class "IU_RRHH" as IU <<Boundary>> {
+  + idEmpleadoSeleccionado : Integer
+  --
+  + seleccionarFilaInactiva()
+  + confirmarAltaLogica()
+  + actualizarGrillaVisual()
+}
 
-package "Acopio de Leche y Formulacion" as P6
-usecase "Registrar Ticket\nde Cisterna\n(from CU17)" as CU17
-usecase "Registrar Dictamen\nde Triage\n(from CU18)" as CU18
-usecase "Registrar Receta\nBase BOM\n(from CU19)" as CU19
-P6 ..> CU17 : <<trace>>
-P6 ..> CU18 : <<trace>>
-P6 ..> CU19 : <<trace>>
+class "CTR_Usuario" as CTR <<Control>> {
+  --
+  + rehabilitarEmpleado(id_empleado)
+  + actualizarEstadoUsuario()
+}
 
-@enduml
-```
+class "CE_Empleado" as ENT_EMP <<Entity>> {
+  - id_empleado : Integer
+  - estado_activo : Boolean
+}
 
-#### 8B.1.3. Dependencias de Paquetes Arquitectónicos
+class "CE_Usuario" as ENT <<Entity>> {
+  - id_usuario : Integer
+  - is_active : Boolean
+}
 
-**Descripción del diagrama:** Esquematiza las dependencias direccionadas entre los paquetes del Ciclo 2 y su relación con los paquetes heredados del Ciclo 1. Se evidencia que todos los paquetes del Ciclo 2 dependen del paquete de Seguridad (autenticación obligatoria), el cual a su vez importa la Gestión de Usuario. Además, tanto "Gestión de Proveedores" como "Acopio de Leche y Formulación" dependen de "Gestión Comercial" (para resolver la entidad Proveedor) y de "Gestión de Inventario" (para vincular insumos del catálogo maestro).
+class "CE_Bitacora" as ENT2 <<Entity>> {
+  - accion_sql : String
+  - fecha_hora : DateTime
+}
 
-```plantuml
-@startuml Paquetes_Dependencias_Ciclo2
-skinparam packageStyle folder
-skinparam backgroundColor transparent
-top to bottom direction
-
-package "SEGURIDAD\n(Ciclo 1)" as P1
-package "Gestion de Usuario\n(Ciclo 1)" as P2
-package "Gestion de Inventario\n(Ciclo 1)" as P3
-package "Gestion Comercial\n(Ciclo 1)" as P4
-
-package "Gestion de Proveedores\ny Compras" as P5
-package "Acopio de Leche\ny Formulacion" as P6
-
-P1 ..> P2 : <<import>>
-
-P5 ..> P1 : <<use>>
-P5 ..> P4 : <<use>>
-P5 ..> P3 : <<use>>
-
-P6 ..> P1 : <<use>>
-P6 ..> P4 : <<use>>
-P6 ..> P3 : <<use>>
-
-@enduml
-```
-
-
-### 8B.2. Diagramas de Comunicación — Ciclo 2
-
-A continuación se presentan los diagramas de comunicación del Ciclo 2 bajo el patrón arquitectónico MVC, mapeados a los elementos de Análisis: Frontera (IU), Control (CTR) y Entidad (CE).
-
-#### CU13: Inhabilitar Proveedor
-
-**Descripción del diagrama:** Secuencia de mensajes para el bloqueo comercial de un proveedor. El controlador verifica primero la existencia de órdenes pendientes antes de ejecutar la actualización de estado, y el trigger de base de datos registra automáticamente la acción en la bitácora.
-
-```plantuml
-@startuml DCom_CU13
-left to right direction
-skinparam backgroundColor transparent
-actor "Admin" as Actor
-boundary "IU_Proveedores" as IU
-control "CTR_Proveedor" as CTR
-entity "CE_Proveedor" as ENT
-entity "CE_OrdenCompra" as ENT_OC
-entity "CE_Bitacora" as ENT2
-Actor --> IU : 1: Clic 'Inhabilitar'
-IU --> CTR : 2: inhabilitarProveedor(id)
-CTR --> ENT_OC : 3: checkOrdenesPendientes(id)
-ENT_OC --> CTR : 4: count = 0
-CTR --> ENT : 5: update(is_activo=false)
-ENT ..> ENT2 : 5.1: <<trigger DB>> insert(audit)
-ENT --> CTR : 6: Confirmación BD
-CTR --> IU : 7: Actualizar lista visual
-@enduml
-```
-
-#### CU14: Elaborar Orden de Compra de Insumos
-
-**Descripción del diagrama:** Flujo de comunicación para la emisión de una orden de compra. El controlador consulta el stock actual del Kardex para sugerir cantidades y luego inserta atómicamente la orden con todas sus líneas de detalle.
-
-```plantuml
-@startuml DCom_CU14
-left to right direction
-skinparam backgroundColor transparent
-actor "Admin" as Actor
-boundary "IU_OrdenCompra" as IU
-control "CTR_Compra" as CTR
-entity "CE_Kardex" as ENT_K
-entity "CE_OrdenCompra" as ENT_OC
-entity "CE_DetalleOrden" as ENT_DET
-entity "CE_Bitacora" as ENT2
-Actor --> IU : 1: Seleccionar proveedor e ítems
-IU --> CTR : 2: emitirOrden(proveedor, items[])
-CTR --> ENT_K : 3: consultarStockActual(items[])
-ENT_K --> CTR : 4: Array de stocks
-CTR --> ENT_OC : 5: insert(orden, estado='Pendiente')
-CTR --> ENT_DET : 6: insert(detalles[])
-ENT_OC ..> ENT2 : 5.1: <<trigger DB>> insert(audit)
-CTR --> IU : 7: Mostrar N° Orden generado
-@enduml
-```
-
-#### CU15: Registrar Recepción Física de Insumos
-
-**Descripción del diagrama:** Secuencia de comunicación que documenta la llegada física de mercadería. El controlador compara cantidades recibidas contra las solicitadas, actualiza el Kardex con movimientos de ingreso y modifica el estado de la orden de compra correspondiente.
-
-```plantuml
-@startuml DCom_CU15
-left to right direction
-skinparam backgroundColor transparent
-actor "Receptor" as Actor
-boundary "IU_Recepcion" as IU
-control "CTR_Recepcion" as CTR
-entity "CE_OrdenCompra" as ENT_OC
-entity "CE_Kardex" as ENT_K
-entity "CE_Bitacora" as ENT2
-Actor --> IU : 1: Confirmar cantidades recibidas
-IU --> CTR : 2: registrarRecepcion(orden, cantidades[])
-CTR --> ENT_OC : 3: obtenerDetalle(orden)
-CTR --> ENT_K : 4: insert(INGRESO_COMPRA, items[])
-ENT_K ..> ENT2 : 4.1: <<trigger DB>> insert(audit)
-CTR --> ENT_OC : 5: update(estado='Recibida')
-CTR --> IU : 6: Mostrar resumen con nuevo stock
-@enduml
-```
-
-#### CU16: Registrar Pago a Proveedor
-
-**Descripción del diagrama:** Flujo de comunicación para el cierre financiero de una orden de compra. El controlador valida que el monto no exceda el saldo pendiente, registra el pago y actualiza el estado financiero de la orden.
-
-```plantuml
-@startuml DCom_CU16
-left to right direction
-skinparam backgroundColor transparent
-actor "Admin" as Actor
-boundary "IU_Pagos" as IU
-control "CTR_Pago" as CTR
-entity "CE_OrdenCompra" as ENT_OC
-entity "CE_PagoProveedor" as ENT_PAGO
-entity "CE_Bitacora" as ENT2
-Actor --> IU : 1: Ingresar datos de pago
-IU --> CTR : 2: registrarPago(orden, monto, metodo)
-CTR --> ENT_OC : 3: getSaldoPendiente(orden)
-ENT_OC --> CTR : 4: saldo restante
-CTR --> ENT_PAGO : 5: insert(pago)
-ENT_PAGO ..> ENT2 : 5.1: <<trigger DB>> insert(audit)
-CTR --> ENT_OC : 6: update(estado='Pagada')
-CTR --> IU : 7: Mostrar recibo digital
-@enduml
-```
-
-#### CU17: Registrar Ticket de Ingreso de Cisterna
-
-**Descripción del diagrama:** Secuencia de comunicación para el registro de una cisterna de leche cruda. El controlador valida la existencia y estado activo del proveedor ganadero antes de crear el ticket, dejándolo en estado pendiente de triage bioquímico.
-
-```plantuml
-@startuml DCom_CU17
-left to right direction
-skinparam backgroundColor transparent
-actor "Receptor" as Actor
-boundary "IU_Acopio" as IU
-control "CTR_Acopio" as CTR
-entity "CE_Proveedor" as ENT_PROV
-entity "CE_RecepcionLeche" as ENT_REC
-entity "CE_Bitacora" as ENT2
-Actor --> IU : 1: Seleccionar ganadero y volumen
-IU --> CTR : 2: registrarTicket(proveedor, litros, temp)
-CTR --> ENT_PROV : 3: verificarActivo(id_proveedor)
-ENT_PROV --> CTR : 4: proveedor válido
-CTR --> ENT_REC : 5: insert(ticket, estado='Pendiente Triage')
-ENT_REC ..> ENT2 : 5.1: <<trigger DB>> insert(audit)
-CTR --> IU : 6: Mostrar ticket con N° y habilitar Triage
-@enduml
-```
-
-#### CU18: Registrar Dictamen de Triage Bioquímico
-
-**Descripción del diagrama:** Flujo de comunicación más complejo del Ciclo 2. El controlador recibe los parámetros bioquímicos, los compara contra umbrales SENASAG, emite el dictamen y, solo en caso de aceptación, extiende el flujo actualizando el Kardex de materia prima.
-
-```plantuml
-@startuml DCom_CU18
-left to right direction
-skinparam backgroundColor transparent
-actor "Laboratorista" as Actor
-boundary "IU_Triage" as IU
-control "CTR_Triage" as CTR
-entity "CE_RecepcionLeche" as ENT_REC
-entity "CE_Kardex" as ENT_K
-entity "CE_Bitacora" as ENT2
-Actor --> IU : 1: Ingresar parámetros bioquímicos
-IU --> CTR : 2: registrarTriage(ticket, parametros)
-CTR --> CTR : 3: validarVsUmbrales(parametros)
-CTR --> ENT_REC : 4: update(estado='Aceptada', valores)
-ENT_REC ..> ENT2 : 4.1: <<trigger DB>> insert(audit)
-CTR --> ENT_K : 5: insert(INGRESO_LECHE, litros)
-ENT_K ..> ENT2 : 5.1: <<trigger DB>> insert(audit)
-CTR --> IU : 6: Mostrar dictamen y nuevo stock
-@enduml
-```
-
-#### CU19: Registrar Receta Base BOM
-
-**Descripción del diagrama:** Secuencia de comunicación para la configuración de una receta de formulación. El controlador vincula cada ingrediente con el catálogo maestro del Ciclo 1, insertando atómicamente la receta con todas sus líneas de detalle.
-
-```plantuml
-@startuml DCom_CU19
-left to right direction
-skinparam backgroundColor transparent
-actor "Jefe Producción" as Actor
-boundary "IU_Recetas" as IU
-control "CTR_BOM" as CTR
-entity "CE_Catalogo" as ENT_CAT
-entity "CE_RecetaBOM" as ENT_REC
-entity "CE_DetalleReceta" as ENT_DET
-entity "CE_Bitacora" as ENT2
-Actor --> IU : 1: Definir receta e ingredientes
-IU --> CTR : 2: guardarReceta(producto, ingredientes[])
-CTR --> ENT_CAT : 3: verificarInsumosExisten(ids[])
-ENT_CAT --> CTR : 4: ítems validados
-CTR --> ENT_REC : 5: insert(receta)
-CTR --> ENT_DET : 6: insert(ingredientes[])
-ENT_REC ..> ENT2 : 5.1: <<trigger DB>> insert(audit)
-CTR --> IU : 7: Mostrar receta guardada
+Actor --> IU
+IU --> CTR
+CTR --> ENT_EMP
+CTR --> ENT
+ENT ..> ENT2 : <<trigger>>
 @enduml
 ```
 
@@ -4421,8 +4986,1278 @@ CTR --> ENT_CAT
 ENT_REC ..> ENT2 : <<trigger>>
 @enduml
 ```
+### 8.3.1. Análisis de Clases — Ciclo 3
+
+A continuación se presentan los Diagramas de Clases de Análisis (MVC) del Ciclo 3, los cuales definen de manera estática los prototipos de atributos y métodos abstractos para todas las fronteras, controladores y entidades del núcleo manufacturero y control de calidad.
+
+#### CU10: Registrar Ajuste Manual o Merma Aislada
+
+**Descripción del diagrama:** Define la clase frontera con el formulario de ajuste (selector de ítem, tipo, cantidad y justificación), el controlador que valida stocks resultantes y la entidad Kardex que persiste el movimiento con trazabilidad del operador.
+
+```plantuml
+@startuml DClases_CU10
+allowmixing
+left to right direction
+skinparam classAttributeIconSize 0
+skinparam backgroundColor transparent
+actor "Jefe Producción" as Actor
+
+class "IU_Ajustes" as IU <<Boundary>> {
+  + idItem : Integer
+  + tipoAjuste : String
+  + cantidad : Decimal
+  + motivo : String
+  + observacion : String
+  --
+  + seleccionarItem()
+  + ingresarCantidad()
+  + validarJustificacion()
+  + confirmarAjuste()
+}
+
+class "CTR_Inventario" as CTR <<Control>> {
+  --
+  + registrarAjuste(item, tipo, cantidad, motivo)
+  + validarStockResultante()
+  + generarMovimientoKardex()
+}
+
+class "CE_Catalogo_Items" as ENT_CAT <<Entity>> {
+  - id_item : Integer
+  - nombre_articulo : String
+  - stock_actual : Decimal
+}
+
+class "CE_Kardex_Movimientos" as ENT_K <<Entity>> {
+  - id_movimiento : Integer
+  - id_item : Integer
+  - tipo_transaccion : String
+  - cantidad : Decimal
+  - motivo : String
+  - observacion : String
+  - id_usuario : Integer
+  - fecha_registro : DateTime
+}
+
+class "CE_Bitacora" as ENT2 <<Entity>> {
+  - accion_sql : String
+  - fecha_hora : DateTime
+}
+
+Actor --> IU
+IU --> CTR
+CTR --> ENT_CAT
+CTR --> ENT_K
+ENT_K ..> ENT2 : <<trigger>>
+@enduml
+```
+
+#### CU11: Configurar Alertas de Stock Mínimo
+
+**Descripción del diagrama:** Define la clase frontera con la tabla editable inline de umbrales, el controlador que evalúa el estado de alerta inmediato, y la entidad del catálogo con su campo de stock mínimo.
+
+```plantuml
+@startuml DClases_CU11
+allowmixing
+left to right direction
+skinparam classAttributeIconSize 0
+skinparam backgroundColor transparent
+actor "Administrador" as Actor
+
+class "IU_Alertas" as IU <<Boundary>> {
+  + idItem : Integer
+  + nuevoUmbral : Decimal
+  --
+  + cargarListaItems()
+  + editarUmbralInline()
+  + guardarConfiguracion()
+  + actualizarBadgeEstado()
+}
+
+class "CTR_Inventario" as CTR <<Control>> {
+  --
+  + configurarAlerta(item, umbral)
+  + evaluarEstadoAlerta()
+  + validarUmbralPositivo()
+}
+
+class "CE_Catalogo_Items" as ENT <<Entity>> {
+  - id_item : Integer
+  - nombre_articulo : String
+  - stock_actual : Decimal
+  - stock_minimo : Decimal
+}
+
+class "CE_Bitacora" as ENT2 <<Entity>> {
+  - accion_sql : String
+  - fecha_hora : DateTime
+}
+
+Actor --> IU
+IU --> CTR
+CTR --> ENT
+ENT ..> ENT2 : <<trigger>>
+@enduml
+```
+
+#### CU20: Aperturar Orden de Producción
+
+**Descripción del diagrama:** Diagrama de clases más complejo del Ciclo 3. La frontera incluye el selector de receta y la tabla de pre-visualización de insumos. El controlador implementa la lógica de cálculo proporcional, validación de stock y deducción atómica. Las entidades abarcan la RecetaBOM (lectura), la OrdenProducción (creación) y el Kardex (deducción masiva).
+
+```plantuml
+@startuml DClases_CU20
+allowmixing
+left to right direction
+skinparam classAttributeIconSize 0
+skinparam backgroundColor transparent
+actor "Jefe Producción" as Actor
+
+class "IU_Produccion" as IU <<Boundary>> {
+  + idReceta : Integer
+  + volumenLitros : Decimal
+  + tablaPreview : Array
+  --
+  + seleccionarReceta()
+  + ingresarVolumen()
+  + mostrarPreviewInsumos()
+  + confirmarApertura()
+}
+
+class "CTR_Produccion" as CTR <<Control>> {
+  --
+  + aperturarOrden(receta, litros)
+  + calcularProporcionesInsumos()
+  + validarStockDisponible()
+  + deducirInsumosKardex()
+  + generarNumeroLote()
+}
+
+class "CE_RecetaBOM" as ENT_BOM <<Entity>> {
+  - id_receta : Integer
+  - nombre : String
+  - id_producto_final : Integer
+  - volumen_base_litros : Decimal
+  - is_activa : Boolean
+}
+
+class "CE_DetalleReceta" as ENT_DET <<Entity>> {
+  - id_detalle : Integer
+  - id_receta : Integer
+  - id_insumo : Integer
+  - cantidad : Decimal
+  - tolerancia_pct : Decimal
+}
+
+class "CE_OrdenProduccion" as ENT_OP <<Entity>> {
+  - id_orden : Integer
+  - id_receta : Integer
+  - numero_lote : String
+  - volumen_leche : Decimal
+  - fecha_inicio : DateTime
+  - id_operario : Integer
+  - estado : String
+}
+
+class "CE_Kardex_Movimientos" as ENT_K <<Entity>> {
+  - id_movimiento : Integer
+  - id_item : Integer
+  - tipo_transaccion : String
+  - cantidad : Decimal
+  - id_orden_produccion : Integer
+}
+
+class "CE_Bitacora" as ENT2 <<Entity>> {
+  - accion_sql : String
+  - fecha_hora : DateTime
+}
+
+Actor --> IU
+IU --> CTR
+CTR --> ENT_BOM
+CTR --> ENT_DET
+CTR --> ENT_OP
+CTR --> ENT_K
+ENT_OP ..> ENT2 : <<trigger>>
+ENT_K ..> ENT2 : <<trigger>>
+@enduml
+```
+
+#### CU21: Registrar Parámetros Físicos del Proceso
+
+**Descripción del diagrama:** Define la clase frontera con formularios dinámicos por tipo de producto, el controlador que valida rangos de cada parámetro, y la entidad de Parámetros de Proceso con timestamp automático.
+
+```plantuml
+@startuml DClases_CU21
+allowmixing
+left to right direction
+skinparam classAttributeIconSize 0
+skinparam backgroundColor transparent
+actor "Jefe Producción" as Actor
+
+class "IU_Parametros" as IU <<Boundary>> {
+  + idOrden : Integer
+  + temperatura : Decimal
+  + ph : Decimal
+  + brix : Decimal
+  + presion : Decimal
+  + horaRegistro : DateTime
+  --
+  + cargarFormularioDinamico()
+  + ingresarParametros()
+  + guardarParcial()
+  + guardarCompleto()
+  + mostrarCompletitud()
+}
+
+class "CTR_Proceso" as CTR <<Control>> {
+  --
+  + registrarParametros(orden, params)
+  + validarRangosPermitidos()
+  + calcularCompletitud()
+  + verificarOrdenActiva()
+}
+
+class "CE_OrdenProduccion" as ENT_OP <<Entity>> {
+  - id_orden : Integer
+  - estado : String
+}
+
+class "CE_ParametrosProceso" as ENT_PP <<Entity>> {
+  - id_parametro : Integer
+  - id_orden : Integer
+  - nombre_parametro : String
+  - valor : Decimal
+  - unidad : String
+  - timestamp : DateTime
+  - etapa_proceso : String
+}
+
+class "CE_Bitacora" as ENT2 <<Entity>> {
+  - accion_sql : String
+  - fecha_hora : DateTime
+}
+
+Actor --> IU
+IU --> CTR
+CTR --> ENT_OP
+CTR --> ENT_PP
+ENT_PP ..> ENT2 : <<trigger>>
+@enduml
+```
+
+#### CU22: Codificar Lote Físico Terminado
+
+**Descripción del diagrama:** Define la clase frontera con el formulario de cierre y el indicador de rendimiento, el controlador que calcula rendimiento y merma técnica, y las entidades de Lote y Presentaciones que codifican el producto terminado.
+
+```plantuml
+@startuml DClases_CU22
+allowmixing
+left to right direction
+skinparam classAttributeIconSize 0
+skinparam backgroundColor transparent
+actor "Jefe Producción" as Actor
+
+class "IU_CierreLote" as IU <<Boundary>> {
+  + pesoBruto : Decimal
+  + numMoldes : Integer
+  + horaFinal : DateTime
+  + presentaciones : Array
+  --
+  + ingresarPesoBruto()
+  + desglosarPresentaciones()
+  + mostrarRendimientoGauge()
+  + cerrarLote()
+}
+
+class "CTR_Produccion" as CTR <<Control>> {
+  --
+  + codificarLote(orden, peso, moldes, presentaciones[])
+  + calcularRendimiento()
+  + validarConsistenciaPesos()
+  + cerrarOrdenProduccion()
+}
+
+class "CE_OrdenProduccion" as ENT_OP <<Entity>> {
+  - id_orden : Integer
+  - volumen_leche : Decimal
+  - estado : String
+  - hora_finalizacion : DateTime
+}
+
+class "CE_LoteProduccion" as ENT_LOT <<Entity>> {
+  - id_lote : Integer
+  - id_orden : Integer
+  - numero_lote : String
+  - peso_bruto_kg : Decimal
+  - num_moldes : Integer
+  - rendimiento_pct : Decimal
+  - fecha_produccion : DateTime
+  - estado : String
+}
+
+class "CE_PresentacionesLote" as ENT_PRES <<Entity>> {
+  - id_presentacion : Integer
+  - id_lote : Integer
+  - tipo_presentacion : String
+  - unidades : Integer
+  - peso_unitario : Decimal
+}
+
+class "CE_Bitacora" as ENT2 <<Entity>> {
+  - accion_sql : String
+  - fecha_hora : DateTime
+}
+
+Actor --> IU
+IU --> CTR
+CTR --> ENT_OP
+CTR --> ENT_LOT
+CTR --> ENT_PRES
+ENT_LOT ..> ENT2 : <<trigger>>
+@enduml
+```
+
+#### CU23: Registrar Ficha de Control de Calidad
+
+**Descripción del diagrama:** Define la clase frontera con indicadores semáforo por parámetro y panel de dictamen, el controlador que evalúa contra estándares del producto, y la entidad de Ficha de Calidad con todos los campos de laboratorio vinculados al lote.
+
+```plantuml
+@startuml DClases_CU23
+allowmixing
+left to right direction
+skinparam classAttributeIconSize 0
+skinparam backgroundColor transparent
+actor "Ing. Calidad" as Actor
+
+class "IU_Calidad" as IU <<Boundary>> {
+  + idLote : Integer
+  + phFinal : Decimal
+  + brix : Decimal
+  + humedad : Decimal
+  + textura : Integer
+  + aspectoVisual : String
+  + observaciones : String
+  + refContramuestra : String
+  --
+  + cargarLotesPendientes()
+  + ingresarResultados()
+  + mostrarSemaforos()
+  + mostrarDictamenPreliminar()
+  + registrarFicha()
+}
+
+class "CTR_Calidad" as CTR <<Control>> {
+  --
+  + registrarFichaQA(lote, parametros)
+  + evaluarVsEstandares()
+  + determinarDictamen()
+  + verificarSegregacionFunciones()
+}
+
+class "CE_LoteProduccion" as ENT_LOT <<Entity>> {
+  - id_lote : Integer
+  - estado : String
+  - id_operario : Integer
+}
+
+class "CE_FichaCalidad" as ENT_FC <<Entity>> {
+  - id_ficha : Integer
+  - id_lote : Integer
+  - ph_final : Decimal
+  - brix : Decimal
+  - humedad : Decimal
+  - textura : Integer
+  - aspecto_visual : String
+  - dictamen : String
+  - observaciones : String
+  - ref_contramuestra : String
+  - id_evaluador : Integer
+  - fecha_evaluacion : DateTime
+}
+
+class "CE_Bitacora" as ENT2 <<Entity>> {
+  - accion_sql : String
+  - fecha_hora : DateTime
+}
+
+Actor --> IU
+IU --> CTR
+CTR --> ENT_LOT
+CTR --> ENT_FC
+ENT_FC ..> ENT2 : <<trigger>>
+@enduml
+```
+
+#### CU24: Aprobar/Liberar Lote a Almacén
+
+**Descripción del diagrama:** Define la clase frontera con el panel de liberación, el controlador que verifica la ficha conforme y genera los ingresos al Kardex de producto terminado, y las entidades de Lote, Ficha y Kardex involucradas en la transacción.
+
+```plantuml
+@startuml DClases_CU24
+allowmixing
+left to right direction
+skinparam classAttributeIconSize 0
+skinparam backgroundColor transparent
+actor "Ing. Calidad" as Actor
+
+class "IU_Liberacion" as IU <<Boundary>> {
+  + idLote : Integer
+  --
+  + cargarLotesConformes()
+  + mostrarResumenCompleto()
+  + confirmarLiberacion()
+  + mostrarStockActualizado()
+}
+
+class "CTR_Calidad" as CTR <<Control>> {
+  --
+  + liberarLote(id_lote)
+  + verificarFichaConforme()
+  + generarIngresoKardex()
+  + evaluarAlertasStock()
+}
+
+class "CE_FichaCalidad" as ENT_FC <<Entity>> {
+  - id_ficha : Integer
+  - id_lote : Integer
+  - dictamen : String
+}
+
+class "CE_LoteProduccion" as ENT_LOT <<Entity>> {
+  - id_lote : Integer
+  - estado : String
+  - fecha_liberacion : DateTime
+}
+
+class "CE_Kardex_Movimientos" as ENT_K <<Entity>> {
+  - id_movimiento : Integer
+  - id_item : Integer
+  - tipo_transaccion : String
+  - cantidad : Decimal
+  - id_lote : Integer
+}
+
+class "CE_Bitacora" as ENT2 <<Entity>> {
+  - accion_sql : String
+  - fecha_hora : DateTime
+}
+
+Actor --> IU
+IU --> CTR
+CTR --> ENT_FC
+CTR --> ENT_LOT
+CTR --> ENT_K
+ENT_LOT ..> ENT2 : <<trigger>>
+ENT_K ..> ENT2 : <<trigger>>
+@enduml
+```
+
+#### CU25: Enviar Lote a Cuarentena/Reproceso
+
+**Descripción del diagrama:** Define la clase frontera con las opciones de disposición (Cuarentena/Reproceso) y la justificación obligatoria, el controlador que bloquea el Kardex comercial y gestiona notificaciones de reproceso, y la entidad de Lote con los estados restrictivos.
+
+```plantuml
+@startuml DClases_CU25
+allowmixing
+left to right direction
+skinparam classAttributeIconSize 0
+skinparam backgroundColor transparent
+actor "Ing. Calidad" as Actor
+
+class "IU_Disposicion" as IU <<Boundary>> {
+  + idLote : Integer
+  + tipoDisposicion : String
+  + justificacion : String
+  + instruccionesReproceso : String
+  --
+  + cargarLotesNoConformes()
+  + seleccionarDisposicion()
+  + ingresarJustificacion()
+  + confirmarDisposicion()
+}
+
+class "CTR_Calidad" as CTR <<Control>> {
+  --
+  + enviarDisposicion(lote, tipo, justificacion)
+  + verificarFichaNoConforme()
+  + bloquearKardexComercial()
+  + notificarJefeProduccion()
+}
+
+class "CE_FichaCalidad" as ENT_FC <<Entity>> {
+  - id_ficha : Integer
+  - id_lote : Integer
+  - dictamen : String
+}
+
+class "CE_LoteProduccion" as ENT_LOT <<Entity>> {
+  - id_lote : Integer
+  - estado : String
+  - justificacion_disposicion : String
+  - instrucciones_reproceso : String
+}
+
+class "CE_Bitacora" as ENT2 <<Entity>> {
+  - accion_sql : String
+  - fecha_hora : DateTime
+}
+
+Actor --> IU
+IU --> CTR
+CTR --> ENT_FC
+CTR --> ENT_LOT
+ENT_LOT ..> ENT2 : <<trigger>>
+@enduml
+```
 
 
+
+# 10. CAPÍTULO 5: FLUJO DE TRABAJO - DISEÑO
+
+
+## 10.1 Diseño de Arquitectura Lógica
+
+El diseño lógico de la arquitectura del sistema se organiza en un modelo de 4 capas, garantizando la separación de responsabilidades desde la interfaz de usuario hasta la persistencia de datos y el despliegue en la nube.
+
+```plantuml
+
+@startuml ArquitecturaLogica_Capas
+allowmixing
+skinparam packageStyle folder
+skinparam backgroundColor transparent
+top to bottom direction
+
+rectangle "capa de presentación (UI)" {
+  package "Seguridad" as UI_Seg
+  package "Usuarios y RRHH" as UI_Usu
+  package "Inventario (WMS)" as UI_Inv
+  package "Proveedores y Compras" as UI_Prov
+  package "Acopio y Formulación" as UI_Acop
+  package "Producción en Planta" as UI_Prod
+  package "Control de Calidad" as UI_Cal
+  package "Ventas Comerciales" as UI_Vent
+}
+
+rectangle "capa de controladores" {
+  package "Seguridad_Ctrl" as C_Seg {
+    class "AuthController"
+  }
+  package "Usuarios_Ctrl" as C_Usu {
+    class "EmpleadoController"
+    class "RolController"
+  }
+  package "Inventario_Ctrl" as C_Inv {
+    class "KardexController"
+    class "CatalogoController"
+  }
+  package "Proveedores_Ctrl" as C_Prov {
+    class "ProveedorController"
+    class "OrdenCompraController"
+  }
+  package "Acopio_Ctrl" as C_Acop {
+    class "TriageController"
+    class "RecetaController"
+  }
+  package "Produccion_Ctrl" as C_Prod {
+    class "ProduccionController"
+    class "ProcesoController"
+  }
+  package "Calidad_Ctrl" as C_Cal {
+    class "CalidadController"
+  }
+  package "Ventas_Ctrl" as C_Vent {
+    class "ClienteController"
+    class "DespachoController"
+  }
+}
+
+rectangle "capa intermedia" {
+  package "Next.js (Framework)" as Frm_Next {
+    component "Server Actions"
+    component "Middleware"
+    component "Modelos (ORM)"
+    component "Rutas API"
+  }
+  package "Supabase Client" as Frm_DB {
+    component "Auth Client"
+    component "PostgREST"
+  }
+}
+
+rectangle "capa de software de sistema" {
+  package "Servidor Web / Hosting" as Sys_Web {
+    component "Vercel Edge Network"
+    component "Node.js Runtime"
+  }
+  package "Servicio de Base de Datos" as Sys_DB {
+    component "AWS RDS PostgreSQL"
+  }
+}
+
+UI_Seg --> C_Seg
+UI_Usu --> C_Usu
+UI_Inv --> C_Inv
+UI_Prov --> C_Prov
+UI_Acop --> C_Acop
+UI_Prod --> C_Prod
+UI_Cal --> C_Cal
+UI_Vent --> C_Vent
+
+C_Seg --> Frm_Next
+C_Usu --> Frm_Next
+C_Inv --> Frm_Next
+C_Prov --> Frm_Next
+C_Acop --> Frm_Next
+C_Prod --> Frm_Next
+C_Cal --> Frm_Next
+C_Vent --> Frm_Next
+
+Frm_Next --> Sys_Web
+Frm_Next --> Frm_DB
+Frm_DB --> Sys_DB
+@enduml
+
+```
+
+## 10.2 Diseño Físico de la Arquitectura (Modelo de Despliegue)
+
+Este diagrama representa los nodos físicos o virtuales donde se ejecutarán los componentes del sistema, así como los protocolos de comunicación bidireccional entre ellos.
+
+```plantuml
+@startuml ArquitecturaFisica_Despliegue
+skinparam backgroundColor transparent
+left to right direction
+
+node "Dispositivo Cliente (Planta / Laboratorio / Oficina)" <<Device>> as NodoCliente {
+  node "Navegador Web" <<Execution Environment>> {
+    artifact "SPA Frontend (React/Next.js)" as Frontend
+  }
+}
+
+node "Nube Vercel (Edge Network)" <<Cloud Server>> as NodoVercel {
+  node "Next.js Runtime" <<Execution Environment>> {
+    artifact "Servidor SSR & Server Actions" as VercelApp
+  }
+}
+
+node "Infraestructura Cloud (Supabase)" <<Cloud Database>> as NodoDB {
+  database "PostgreSQL 15" <<Database>> as DB
+  node "Supabase Auth & Storage" <<Service>> as SupaService
+}
+
+NodoCliente -- NodoVercel : <<protocol>>\nHTTPS / Full Duplex
+NodoVercel -- NodoDB : <<protocol>>\nTCP/IP (Puerto 5432) / PostgREST
+NodoVercel -- SupaService : <<protocol>>\nHTTPS / JWT
+@enduml
+```
+
+## 10.3 Diagramas de Secuencia (Casos de Uso)
+
+A continuación, se presentan los diagramas de secuencia para los casos de uso representativos del sistema, detallando las líneas de vida, focos de control (activación), mensajes síncronos/asíncronos y creación de objetos.
+
+### CU03: Registrar Nuevo Empleado
+
+```plantuml
+@startuml Secuencia_CU03
+skinparam backgroundColor transparent
+autonumber
+
+actor "Administrador" as Admin
+boundary "UI_RRHH" as UI
+control "ControladorUsuario" as Ctrl
+entity "SupabaseAuth" as Auth
+entity "Empleado" as Emp
+entity "Usuario" as Usu
+
+activate Admin
+Admin -> UI : Llenar formulario y click "Registrar"
+activate UI
+
+UI -> Ctrl : registrarEmpleado(datos)
+activate Ctrl
+
+Ctrl -> Emp : verificarDNI(datos.dni)
+activate Emp
+Emp --> Ctrl : Resultado nulo (OK)
+deactivate Emp
+
+Ctrl -> Auth : <<asíncrono>> inviteUserByEmail(datos.email)
+activate Auth
+Auth --> Ctrl : auth_uid (Generado)
+deactivate Auth
+
+Ctrl -> Emp : <<create>>
+activate Emp
+Emp --> Ctrl : empleado creado (id_empleado)
+deactivate Emp
+
+Ctrl -> Usu : <<create>> (id_empleado, auth_uid)
+activate Usu
+Usu --> Ctrl : usuario vinculado
+deactivate Usu
+
+Ctrl --> UI : Éxito, usuario registrado
+deactivate Ctrl
+
+UI --> Admin : Mostrar mensaje y limpiar formulario
+deactivate UI
+deactivate Admin
+@enduml
+```
+
+### CU14: Elaborar Orden de Compra de Insumos
+
+```plantuml
+@startuml Secuencia_CU14
+skinparam backgroundColor transparent
+autonumber
+
+actor "Administrador" as Admin
+boundary "UI_OrdenCompra" as UI
+control "ControladorCompra" as Ctrl
+entity "Kardex" as Kardex
+entity "OrdenCompra" as OC
+entity "DetalleOrden" as Detalle
+
+activate Admin
+Admin -> UI : Seleccionar proveedor e ítems
+activate UI
+
+UI -> Ctrl : consultarStockPrevio(items[])
+activate Ctrl
+Ctrl -> Kardex : getStockActual(items[])
+activate Kardex
+Kardex --> Ctrl : arrayStocks
+deactivate Kardex
+Ctrl --> UI : Mostrar stocks actuales
+deactivate Ctrl
+
+Admin -> UI : Ingresar cantidades y click "Emitir Orden"
+UI -> Ctrl : emitirOrdenCompra(prov, items[])
+activate Ctrl
+
+Ctrl -> OC : <<create>> (id_proveedor, total)
+activate OC
+OC --> Ctrl : id_orden
+deactivate OC
+
+loop Para cada ítem
+  Ctrl -> Detalle : <<create>> (id_orden, id_item, cantidad)
+  activate Detalle
+  Detalle --> Ctrl : ok
+  deactivate Detalle
+end
+
+Ctrl --> UI : Orden generada con éxito (id_orden)
+deactivate Ctrl
+
+UI --> Admin : Mostrar resumen de la orden
+deactivate UI
+deactivate Admin
+@enduml
+```
+
+### CU18: Registrar Dictamen de Triage Bioquímico
+
+```plantuml
+@startuml Secuencia_CU18
+skinparam backgroundColor transparent
+autonumber
+
+actor "Laboratorista" as Lab
+boundary "UI_Triage" as UI
+control "ControladorTriage" as Ctrl
+entity "RecepcionLeche" as Rec
+entity "ReglasSENASAG" as Reglas
+entity "KardexMovimiento" as Kardex
+
+activate Lab
+Lab -> UI : Ingresar parámetros bioquímicos y evaluar
+activate UI
+
+UI -> Ctrl : registrarDictamen(id_recepcion, parametros)
+activate Ctrl
+
+Ctrl -> Reglas : validarUmbrales(parametros)
+activate Reglas
+Reglas --> Ctrl : es_conforme = true
+deactivate Reglas
+
+Ctrl -> Rec : updateEstado("Aceptada", parametros)
+activate Rec
+Rec --> Ctrl : ok
+deactivate Rec
+
+alt es_conforme == true
+  Ctrl -> Kardex : <<create>> (INGRESO_LECHE, volumen)
+  activate Kardex
+  Kardex --> Ctrl : stock incrementado
+  deactivate Kardex
+else es_conforme == false
+  Ctrl -> Rec : updateEstado("Rechazada")
+  activate Rec
+  Rec --> Ctrl : ok
+  deactivate Rec
+end
+
+Ctrl --> UI : Mostrar resultado del dictamen
+deactivate Ctrl
+
+UI --> Lab : Mostrar badge verde o rojo
+deactivate UI
+deactivate Lab
+@enduml
+```
+### Diagramas de Secuencia — Ciclo 3
+
+A continuación se presentan los diagramas de secuencia para los casos de uso del Ciclo 3, detallando las líneas de vida, focos de control (activación), mensajes síncronos/asíncronos y creación de objetos.
+
+#### CU10: Registrar Ajuste Manual o Merma Aislada
+
+```plantuml
+@startuml Secuencia_CU10
+skinparam backgroundColor transparent
+autonumber
+
+actor "Jefe Producción" as Jefe
+boundary "UI_Ajustes" as UI
+control "ControladorInventario" as Ctrl
+entity "CatalogoItems" as Cat
+entity "KardexMovimiento" as Kardex
+
+activate Jefe
+Jefe -> UI : Seleccionar ítem y tipo de ajuste
+activate UI
+
+UI -> Ctrl : registrarAjuste(item, tipo, cantidad, motivo, obs)
+activate Ctrl
+
+Ctrl -> Ctrl : validarJustificacion(obs)
+note right : Obligatoria para auditoría
+
+Ctrl -> Cat : getStockActual(id_item)
+activate Cat
+Cat --> Ctrl : stock_actual
+deactivate Cat
+
+alt Ajuste Negativo
+  Ctrl -> Ctrl : validarStockResultante(stock - cantidad)
+  alt Stock resultante < 0
+    Ctrl --> UI : Error: "El ajuste excede el stock disponible"
+  else Stock OK
+    Ctrl -> Kardex : <<create>> (AJUSTE_NEGATIVO, id_item, cantidad, motivo)
+    activate Kardex
+    Kardex --> Ctrl : movimiento registrado
+    deactivate Kardex
+    Ctrl --> UI : Nuevo stock actualizado
+  end
+else Ajuste Positivo
+  Ctrl -> Kardex : <<create>> (AJUSTE_POSITIVO, id_item, cantidad, motivo)
+  activate Kardex
+  Kardex --> Ctrl : movimiento registrado
+  deactivate Kardex
+  Ctrl --> UI : Nuevo stock actualizado
+end
+deactivate Ctrl
+
+UI --> Jefe : Mostrar resumen del ajuste
+deactivate UI
+deactivate Jefe
+@enduml
+```
+
+#### CU11: Configurar Alertas de Stock Mínimo
+
+```plantuml
+@startuml Secuencia_CU11
+skinparam backgroundColor transparent
+autonumber
+
+actor "Administrador" as Admin
+boundary "UI_Alertas" as UI
+control "ControladorInventario" as Ctrl
+entity "CatalogoItems" as Cat
+
+activate Admin
+Admin -> UI : Seleccionar ítem y editar umbral
+activate UI
+
+UI -> Ctrl : configurarAlerta(id_item, nuevoUmbral)
+activate Ctrl
+
+Ctrl -> Ctrl : validarUmbralPositivo(nuevoUmbral)
+
+Ctrl -> Cat : update(stock_minimo = nuevoUmbral)
+activate Cat
+Cat --> Ctrl : ok
+deactivate Cat
+
+Ctrl -> Cat : getStockActual(id_item)
+activate Cat
+Cat --> Ctrl : stock_actual
+deactivate Cat
+
+Ctrl -> Ctrl : evaluarEstadoAlerta(stock_actual, nuevoUmbral)
+
+alt Stock actual <= Umbral
+  Ctrl --> UI : Badge rojo "¡Stock Bajo!" activado
+else Stock actual > Umbral
+  Ctrl --> UI : Badge verde "OK"
+end
+deactivate Ctrl
+
+UI --> Admin : Mostrar configuración actualizada
+deactivate UI
+deactivate Admin
+@enduml
+```
+
+#### CU20: Aperturar Orden de Producción
+
+```plantuml
+@startuml Secuencia_CU20
+skinparam backgroundColor transparent
+autonumber
+
+actor "Jefe Producción" as Jefe
+boundary "UI_Produccion" as UI
+control "ControladorProduccion" as Ctrl
+entity "RecetaBOM" as BOM
+entity "DetalleReceta" as DetBOM
+entity "KardexMovimiento" as Kardex
+entity "OrdenProduccion" as Orden
+
+activate Jefe
+Jefe -> UI : Seleccionar receta y volumen de leche
+activate UI
+
+UI -> Ctrl : aperturarOrden(id_receta, litros)
+activate Ctrl
+
+Ctrl -> BOM : getRecetaActiva(id_receta)
+activate BOM
+BOM --> Ctrl : receta (nombre, volumen_base)
+deactivate BOM
+
+Ctrl -> DetBOM : getIngredientes(id_receta)
+activate DetBOM
+DetBOM --> Ctrl : lista de insumos y proporciones
+deactivate DetBOM
+
+Ctrl -> Ctrl : calcularCantidades(litros, proporciones)
+
+loop Para cada insumo
+  Ctrl -> Kardex : getStockActual(id_insumo)
+  activate Kardex
+  Kardex --> Ctrl : stock disponible
+  deactivate Kardex
+end
+
+alt Todos los insumos disponibles
+  Ctrl -> Orden : <<create>> (receta, litros, lote_auto, estado='En Proceso')
+  activate Orden
+  Orden --> Ctrl : id_orden, numero_lote
+  deactivate Orden
+
+  loop Para cada insumo
+    Ctrl -> Kardex : <<create>> (EGRESO_PRODUCCION, id_insumo, cantidad)
+    activate Kardex
+    Kardex --> Ctrl : ok
+    deactivate Kardex
+  end
+
+  Ctrl --> UI : Orden aperturada (N° Lote, insumos consumidos)
+else Insumo insuficiente
+  Ctrl --> UI : Error: Faltantes detallados
+end
+deactivate Ctrl
+
+UI --> Jefe : Mostrar resumen de la orden
+deactivate UI
+deactivate Jefe
+@enduml
+```
+
+#### CU23: Registrar Ficha de Control de Calidad
+
+```plantuml
+@startuml Secuencia_CU23
+skinparam backgroundColor transparent
+autonumber
+
+actor "Ing. Calidad" as QA
+boundary "UI_Calidad" as UI
+control "ControladorCalidad" as Ctrl
+entity "LoteProduccion" as Lote
+entity "EstandaresProducto" as Estandares
+entity "FichaCalidad" as Ficha
+
+activate QA
+QA -> UI : Seleccionar lote pendiente QA
+activate UI
+
+UI -> Ctrl : cargarLote(id_lote)
+activate Ctrl
+Ctrl -> Lote : getDetalle(id_lote)
+activate Lote
+Lote --> Ctrl : datos del lote (producto, peso, receta)
+deactivate Lote
+Ctrl --> UI : Mostrar datos del lote y formulario QA
+deactivate Ctrl
+
+QA -> UI : Ingresar parámetros (pH, Brix, humedad, textura)
+UI -> Ctrl : registrarFichaQA(id_lote, parametros)
+activate Ctrl
+
+Ctrl -> Estandares : getRangos(tipo_producto)
+activate Estandares
+Estandares --> Ctrl : rangos esperados por parámetro
+deactivate Estandares
+
+Ctrl -> Ctrl : evaluarParametros(valores, rangos)
+Ctrl -> Ctrl : determinarDictamen()
+
+alt Parámetro crítico fuera de rango
+  Ctrl -> Ctrl : forzarDictamen('No Conforme')
+end
+
+Ctrl -> Ficha : <<create>> (id_lote, parametros, dictamen)
+activate Ficha
+Ficha --> Ctrl : ficha registrada (id_ficha)
+deactivate Ficha
+
+Ctrl --> UI : Dictamen final (Conforme/No Conforme/Observado)
+deactivate Ctrl
+
+UI --> QA : Mostrar badge de dictamen y acciones disponibles
+deactivate UI
+deactivate QA
+@enduml
+```
+
+#### CU21: Registrar Parámetros Físicos del Proceso
+
+```plantuml
+@startuml Secuencia_CU21
+skinparam backgroundColor transparent
+autonumber
+
+actor "Jefe Producción" as Jefe
+boundary "UI_Parametros" as UI
+control "ControladorProceso" as Ctrl
+entity "OrdenProduccion" as Orden
+entity "ParametrosProceso" as Params
+
+activate Jefe
+Jefe -> UI : Seleccionar orden activa
+activate UI
+
+UI -> Ctrl : cargarOrden(id_orden)
+activate Ctrl
+Ctrl -> Orden : verificarEstado('En Proceso')
+activate Orden
+Orden --> Ctrl : orden válida (producto, receta)
+deactivate Orden
+Ctrl --> UI : Mostrar formulario dinámico según producto
+deactivate Ctrl
+
+Jefe -> UI : Ingresar valores (pH, temp, tiempos, Brix)
+UI -> Ctrl : registrarParametros(id_orden, params[])
+activate Ctrl
+
+loop Para cada parámetro
+  Ctrl -> Ctrl : validarRangoPermitido(param, valor)
+  alt Valor fuera de rango
+    Ctrl --> UI : Advertencia: "Valor fuera de rango esperado"
+  end
+end
+
+Ctrl -> Params : <<create>> (id_orden, parametros[], timestamps)
+activate Params
+Params --> Ctrl : parámetros registrados
+deactivate Params
+
+Ctrl --> UI : Resumen con indicador de completitud
+deactivate Ctrl
+
+UI --> Jefe : Mostrar parámetros guardados
+deactivate UI
+deactivate Jefe
+@enduml
+```
+
+#### CU22: Codificar Lote Físico Terminado
+
+```plantuml
+@startuml Secuencia_CU22
+skinparam backgroundColor transparent
+autonumber
+
+actor "Jefe Producción" as Jefe
+boundary "UI_CierreLote" as UI
+control "ControladorProduccion" as Ctrl
+entity "OrdenProduccion" as Orden
+entity "LoteProduccion" as Lote
+entity "PresentacionesLote" as Pres
+
+activate Jefe
+Jefe -> UI : Ingresar peso bruto y presentaciones
+activate UI
+
+UI -> Ctrl : codificarLote(id_orden, peso, moldes, presentaciones[])
+activate Ctrl
+
+Ctrl -> Orden : getVolumenLeche(id_orden)
+activate Orden
+Orden --> Ctrl : litros procesados
+deactivate Orden
+
+Ctrl -> Ctrl : calcularRendimiento(peso / litros * 100)
+
+alt Rendimiento fuera de rango esperado
+  Ctrl --> UI : Advertencia: "Rendimiento anómalo (X%). Verificar valores"
+end
+
+Ctrl -> Lote : <<create>> (codigo_lote, peso, estado='Pendiente QA')
+activate Lote
+Lote --> Ctrl : id_lote, numero_lote
+deactivate Lote
+
+loop Para cada presentación
+  Ctrl -> Pres : <<create>> (id_lote, tipo, unidades, peso)
+  activate Pres
+  Pres --> Ctrl : ok
+  deactivate Pres
+end
+
+Ctrl -> Orden : update(estado='Cerrada', hora_fin)
+activate Orden
+Orden --> Ctrl : ok
+deactivate Orden
+
+Ctrl --> UI : Lote codificado (N° Lote, rendimiento)
+deactivate Ctrl
+
+UI --> Jefe : Mostrar resumen con badge "Pendiente QA"
+deactivate UI
+deactivate Jefe
+@enduml
+```
+
+#### CU24: Aprobar/Liberar Lote a Almacén
+
+```plantuml
+@startuml Secuencia_CU24
+skinparam backgroundColor transparent
+autonumber
+
+actor "Ing. Calidad" as QA
+boundary "UI_Liberacion" as UI
+control "ControladorCalidad" as Ctrl
+entity "FichaCalidad" as Ficha
+entity "LoteProduccion" as Lote
+entity "PresentacionesLote" as Pres
+entity "KardexMovimiento" as Kardex
+
+activate QA
+QA -> UI : Seleccionar lote conforme a liberar
+activate UI
+
+UI -> Ctrl : liberarLote(id_lote)
+activate Ctrl
+
+Ctrl -> Ficha : getDictamen(id_lote)
+activate Ficha
+Ficha --> Ctrl : dictamen = 'Conforme'
+deactivate Ficha
+
+Ctrl -> Lote : verificarNoLiberado(id_lote)
+activate Lote
+Lote --> Ctrl : estado = 'Pendiente QA' (OK)
+deactivate Lote
+
+Ctrl -> Lote : update(estado='Liberado', fecha_liberacion)
+activate Lote
+Lote --> Ctrl : ok
+deactivate Lote
+
+Ctrl -> Pres : getPresentaciones(id_lote)
+activate Pres
+Pres --> Ctrl : array de presentaciones (tipo, unidades, peso)
+deactivate Pres
+
+loop Para cada presentación
+  Ctrl -> Kardex : <<create>> (INGRESO_PRODUCCION, id_item, cantidad, id_lote)
+  activate Kardex
+  Kardex --> Ctrl : stock incrementado
+  deactivate Kardex
+end
+
+Ctrl --> UI : Lote liberado, stock actualizado
+deactivate Ctrl
+
+UI --> QA : Mostrar badge verde y nuevo stock
+deactivate UI
+deactivate QA
+@enduml
+```
+
+#### CU25: Enviar Lote a Cuarentena/Reproceso
+
+```plantuml
+@startuml Secuencia_CU25
+skinparam backgroundColor transparent
+autonumber
+
+actor "Ing. Calidad" as QA
+boundary "UI_Disposicion" as UI
+control "ControladorCalidad" as Ctrl
+entity "FichaCalidad" as Ficha
+entity "LoteProduccion" as Lote
+
+activate QA
+QA -> UI : Seleccionar lote y tipo de disposición
+activate UI
+
+UI -> Ctrl : enviarDisposicion(id_lote, tipo, justificacion)
+activate Ctrl
+
+Ctrl -> Ctrl : validarJustificacion(justificacion)
+note right : Obligatoria para\nauditoría SENASAG
+
+Ctrl -> Ficha : verificarDictamen(id_lote)
+activate Ficha
+Ficha --> Ctrl : dictamen = 'No Conforme' | 'Observado'
+deactivate Ficha
+
+Ctrl -> Lote : verificarNoDispuesto(id_lote)
+activate Lote
+Lote --> Ctrl : estado = 'Pendiente QA' (OK)
+deactivate Lote
+
+alt Disposición = Cuarentena
+  Ctrl -> Lote : update(estado='En Cuarentena')
+  activate Lote
+  Lote --> Ctrl : ok
+  deactivate Lote
+else Disposición = Reproceso
+  Ctrl -> Lote : update(estado='En Reproceso')
+  activate Lote
+  Lote --> Ctrl : ok
+  deactivate Lote
+  Ctrl -> Ctrl : notificarJefeProduccion(lote, instrucciones)
+end
+
+Ctrl -> Ctrl : bloquearKardexComercial(id_lote)
+
+Ctrl --> UI : Disposición confirmada
+deactivate Ctrl
+
+UI --> QA : Mostrar badge rojo y estado actualizado
+deactivate UI
+deactivate QA
+@enduml
+```
 
 ANEXOS
 
