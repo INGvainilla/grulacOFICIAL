@@ -5655,7 +5655,9 @@ NodoVercel -- SupaService : <<protocol>>\nHTTPS / JWT
 
 A continuación, se presentan los diagramas de secuencia para los casos de uso representativos del sistema, detallando las líneas de vida, focos de control (activación), mensajes síncronos/asíncronos y creación de objetos.
 
-### CU03: Registrar Nuevo Empleado
+### Diagramas de Secuencia — Ciclo 1
+
+#### CU03: Registrar Nuevo Empleado
 
 ```plantuml
 @startuml Secuencia_CU03
@@ -5705,7 +5707,61 @@ deactivate Admin
 @enduml
 ```
 
-### CU14: Elaborar Orden de Compra de Insumos
+### Diagramas de Secuencia — Ciclo 2
+
+A continuación se presentan los diagramas de secuencia para los casos de uso del Ciclo 2 (Dominio Logístico y de Reglas SCM), modelando la interacción dinámica entre actores, fronteras, controladores y entidades.
+
+#### CU13: Inhabilitar Proveedor
+
+```plantuml
+@startuml Secuencia_CU13
+title CU13: Inhabilitar Proveedor
+skinparam backgroundColor transparent
+autonumber
+
+actor "Administrador" as Admin
+boundary "IU_Proveedores" as UI
+control "CTR_Proveedor" as Ctrl
+entity "CE_Proveedor" as Prov
+entity "CE_OrdenCompra" as OC
+entity "CE_Bitacora" as Bit
+
+activate Admin
+Admin -> UI : seleccionarFila()
+activate UI
+Admin -> UI : confirmarInhabilitacion()
+UI -> Ctrl : inhabilitarProveedor(id)
+activate Ctrl
+
+Ctrl -> OC : verificarOrdenesPendientes(id)
+activate OC
+OC --> Ctrl : tiene_pendientes = false
+deactivate OC
+
+alt tiene_pendientes == false
+  Ctrl -> Prov : actualizarEstadoProveedor(id, false)
+  activate Prov
+  Prov --> Ctrl : estado actualizado
+  
+  Prov -> Bit : <<trigger>> registrar(accion)
+  activate Bit
+  Bit --> Prov : ok
+  deactivate Bit
+  deactivate Prov
+else tiene_pendientes == true
+  Ctrl --> UI : Error: "Proveedor tiene órdenes pendientes"
+end
+
+Ctrl --> UI : Éxito, proveedor inhabilitado
+deactivate Ctrl
+UI -> UI : actualizarGrillaVisual()
+UI --> Admin : Mostrar actualización en tabla
+deactivate UI
+deactivate Admin
+@enduml
+```
+
+#### CU14: Elaborar Orden de Compra de Insumos
 
 ```plantuml
 @startuml Secuencia_CU14
@@ -5757,7 +5813,155 @@ deactivate Admin
 @enduml
 ```
 
-### CU18: Registrar Dictamen de Triage Bioquímico
+#### CU15: Registrar Recepción Física de Insumos
+
+```plantuml
+@startuml Secuencia_CU15
+title CU15: Registrar Recepción Física de Insumos
+skinparam backgroundColor transparent
+autonumber
+
+actor "Receptor" as Rec
+boundary "IU_Recepcion" as UI
+control "CTR_Recepcion" as Ctrl
+entity "CE_OrdenCompra" as OC
+entity "CE_Kardex_Movimientos" as Kardex
+
+activate Rec
+Rec -> UI : cargarDetalleOrden(idOrden)
+activate UI
+UI -> Ctrl : obtenerDetalles(idOrden)
+activate Ctrl
+Ctrl -> OC : obtenerDetalles(idOrden)
+activate OC
+OC --> Ctrl : lineasOrden
+deactivate OC
+Ctrl --> UI : lineasOrden
+deactivate Ctrl
+
+Rec -> UI : ingresar cantidades y confirmarRecepcion()
+UI -> UI : verificarCantidades()
+UI -> Ctrl : registrarRecepcion(orden, cantidades[])
+activate Ctrl
+
+loop Para cada ítem recibido
+  Ctrl -> Kardex : actualizarKardexIngreso(item, cantidad)
+  activate Kardex
+  Kardex --> Ctrl : ok
+  deactivate Kardex
+end
+
+Ctrl -> OC : actualizarEstadoOrden("Recepcionada")
+activate OC
+OC --> Ctrl : estado actualizado
+deactivate OC
+
+Ctrl --> UI : Recepción registrada exitosamente
+deactivate Ctrl
+UI --> Rec : Mostrar comprobante de recepción
+deactivate UI
+deactivate Rec
+@enduml
+```
+
+#### CU16: Registrar Pago a Proveedor
+
+```plantuml
+@startuml Secuencia_CU16
+title CU16: Registrar Pago a Proveedor
+skinparam backgroundColor transparent
+autonumber
+
+actor "Administrador" as Admin
+boundary "IU_Pagos" as UI
+control "CTR_Pago" as Ctrl
+entity "CE_OrdenCompra" as OC
+entity "CE_PagoProveedor" as Pago
+
+activate Admin
+Admin -> UI : cargarSaldoPendiente(idOrden)
+activate UI
+UI -> Ctrl : obtenerSaldo(idOrden)
+activate Ctrl
+Ctrl -> OC : getSaldoPendiente(idOrden)
+activate OC
+OC --> Ctrl : saldo
+deactivate OC
+Ctrl --> UI : saldo
+deactivate Ctrl
+
+Admin -> UI : ingresarDatosPago() y confirmarPago()
+UI -> Ctrl : registrarPago(orden, monto, metodo)
+activate Ctrl
+
+Ctrl -> Ctrl : validarMontoNoExcede(monto, saldo)
+
+alt monto <= saldo
+  Ctrl -> Pago : <<create>> (id_orden, monto, metodo)
+  activate Pago
+  Pago --> Ctrl : id_pago
+  deactivate Pago
+  
+  Ctrl -> OC : actualizarEstadoOrden("Pagado")
+  activate OC
+  OC --> Ctrl : estado actualizado
+  deactivate OC
+  
+  Ctrl --> UI : Éxito, pago registrado
+else monto > saldo
+  Ctrl --> UI : Error: "El monto excede el saldo pendiente"
+end
+
+deactivate Ctrl
+UI --> Admin : Mostrar confirmación de pago
+deactivate UI
+deactivate Admin
+@enduml
+```
+
+#### CU17: Registrar Ticket de Ingreso de Cisterna
+
+```plantuml
+@startuml Secuencia_CU17
+title CU17: Registrar Ticket de Ingreso de Cisterna
+skinparam backgroundColor transparent
+autonumber
+
+actor "Ing. Industrial" as Ing
+boundary "IU_Acopio" as UI
+control "CTR_Acopio" as Ctrl
+entity "CE_Proveedor" as Prov
+entity "CE_RecepcionLeche" as Rec
+
+activate Ing
+Ing -> UI : seleccionarGanadero() e ingresarVolumen()
+activate UI
+Ing -> UI : registrarTicket()
+UI -> Ctrl : registrarTicketCisterna(prov, litros, temp)
+activate Ctrl
+
+Ctrl -> Prov : verificarProveedorActivo(prov)
+activate Prov
+Prov --> Ctrl : is_activo = true
+deactivate Prov
+
+Ctrl -> Ctrl : validarRangosEntrada(litros, temp)
+
+Ctrl -> Rec : <<create>> (id_proveedor, litros, temp)
+activate Rec
+Rec --> Ctrl : id_recepcion
+deactivate Rec
+
+Ctrl --> UI : Ticket registrado con éxito
+deactivate Ctrl
+
+UI --> Ing : Mostrar e imprimir ticket
+deactivate UI
+deactivate Ing
+@enduml
+```
+
+#### CU18: Registrar Dictamen de Triage Bioquímico
 
 ```plantuml
 @startuml Secuencia_CU18
@@ -5808,6 +6012,57 @@ deactivate UI
 deactivate Lab
 @enduml
 ```
+
+#### CU19: Registrar Receta Base BOM
+
+```plantuml
+@startuml Secuencia_CU19
+title CU19: Registrar Receta Base BOM
+skinparam backgroundColor transparent
+autonumber
+
+actor "Jefe Producción" as Jefe
+boundary "IU_Recetas" as UI
+control "CTR_BOM" as Ctrl
+entity "CE_Catalogo_Items" as Cat
+entity "CE_RecetaBOM" as BOM
+entity "CE_DetalleReceta" as Det
+
+activate Jefe
+Jefe -> UI : Llenar datos de receta y agregarIngrediente()
+activate UI
+UI -> UI : calcularProporcionTotal()
+Jefe -> UI : guardarReceta()
+UI -> Ctrl : guardarReceta(producto, ingredientes[])
+activate Ctrl
+
+Ctrl -> Cat : verificarInsumosEnCatalogo(ingredientes)
+activate Cat
+Cat --> Ctrl : insumos verificados
+deactivate Cat
+
+Ctrl -> Ctrl : validarCoherenciaQuimica(ingredientes)
+
+Ctrl -> BOM : <<create>> (id_producto, volumenBase)
+activate BOM
+BOM --> Ctrl : id_receta
+deactivate BOM
+
+loop Para cada ingrediente
+  Ctrl -> Det : <<create>> (id_receta, id_item, cantidad)
+  activate Det
+  Det --> Ctrl : ok
+  deactivate Det
+end
+
+Ctrl --> UI : Receta guardada exitosamente
+deactivate Ctrl
+UI --> Jefe : Mostrar confirmación
+deactivate UI
+deactivate Jefe
+@enduml
+```
+
 ### Diagramas de Secuencia — Ciclo 3
 
 A continuación se presentan los diagramas de secuencia para los casos de uso del Ciclo 3, detallando las líneas de vida, focos de control (activación), mensajes síncronos/asíncronos y creación de objetos.
