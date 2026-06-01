@@ -45,10 +45,14 @@ export default async function DashboardLayout({ children }) {
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">
-      <Sidebar user={userData} />
+      <div className="print:hidden">
+        <Sidebar user={userData} />
+      </div>
       <div className="flex-1 flex flex-col min-w-0">
-        <Topbar user={userData} />
-        <main className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8">
+        <div className="print:hidden">
+          <Topbar user={userData} />
+        </div>
+        <main className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8 print:p-0">
           {children}
         </main>
       </div>
