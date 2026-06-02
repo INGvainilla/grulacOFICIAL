@@ -8,8 +8,9 @@ import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { toast } from 'sonner'
-import { History, ArrowDownToLine, ArrowUpToLine, Search, Printer } from 'lucide-react'
+import { History, ArrowDownToLine, ArrowUpToLine, Search, Printer, FilterX } from 'lucide-react'
 
 // CU09: Consultar Kardex Dinámico (Historial)
 export default function KardexPage() {
@@ -18,6 +19,11 @@ export default function KardexPage() {
   const [filterItem, setFilterItem] = useState('')
   const [filterDesde, setFilterDesde] = useState('')
   const [filterHasta, setFilterHasta] = useState('')
+  const [filterTipo, setFilterTipo] = useState('ALL')
+  const [filterUsuario, setFilterUsuario] = useState('ALL')
+  const [filterConcepto, setFilterConcepto] = useState('')
+  const [filterMinVol, setFilterMinVol] = useState('')
+  const [filterMaxVol, setFilterMaxVol] = useState('')
   const [showPrintKardex, setShowPrintKardex] = useState(false)
   const supabase = createClient()
 
@@ -42,7 +48,21 @@ export default function KardexPage() {
     fetchMovimientos()
   }, [])
 
-  // Filtrar movimientos por ítem y rango de fechas
+  // Obtener lista de responsables únicos de forma dinámica
+  const responsables = useMemo(() => {
+    const list = []
+    const seen = new Set()
+    movimientos.forEach(m => {
+      const email = m.usuarios?.email_corporativo
+      if (email && !seen.has(email)) {
+        seen.add(email)
+        list.push(email)
+      }
+    })
+    return list.sort()
+  }, [movimientos])
+
+  // Filtrar movimientos por todos los criterios avanzados de forma reactiva
   const filteredMovimientos = useMemo(() => {
     let result = movimientos
 
@@ -64,8 +84,291 @@ export default function KardexPage() {
       result = result.filter(m => new Date(m.fecha_hora) <= hasta)
     }
 
+    if (filterTipo && filterTipo !== 'ALL') {
+      result = result.filter(m => m.tipo_operacion === filterTipo)
+    }
+
+    if (filterUsuario && filterUsuario !== 'ALL') {
+      result = result.filter(m => m.usuarios?.email_corporativo === filterUsuario)
+    }
+
+    if (filterConcepto.trim()) {
+      const q = filterConcepto.toLowerCase()
+      result = result.filter(m => m.concepto_operacion?.toLowerCase().includes(q))
+    }
+
+    if (filterMinVol.trim()) {
+      const min = parseFloat(filterMinVol)
+      if (!isNaN(min)) {
+        result = result.filter(m => parseFloat(m.cantidad_kilos) >= min)
+      }
+    }
+
+    if (filterMaxVol.trim()) {
+      const max = parseFloat(filterMaxVol)
+      if (!isNaN(max)) {
+        result = result.filter(m => parseFloat(m.cantidad_kilos) <= max)
+      }
+    }
+
     return result
-  }, [movimientos, filterItem, filterDesde, filterHasta])
+  }, [movimientos, filterItem, filterDesde, filterHasta, filterTipo, filterUsuario, filterConcepto, filterMinVol, filterMaxVol])
+
+  const handleClearFilters = () => {
+    setFilterItem('')
+    setFilterDesde('')
+    setFilterHasta('')
+    setFilterTipo('ALL')
+    setFilterUsuario('ALL')
+    setFilterConcepto('')
+    setFilterMinVol('')
+    setFilterMaxVol('')
+    toast.success('Filtros restablecidos')
+  }
+
+  const handleDownloadHTML = () => {
+    const htmlContent = `<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Reporte de Kardex - GRULAC S.R.L.</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      margin: 40px;
+      color: #1f2937;
+      background: #ffffff;
+      line-height: 1.5;
+    }
+    .header {
+      text-align: center;
+      border-bottom: 2px solid #111827;
+      padding-bottom: 15px;
+      margin-bottom: 25px;
+    }
+    .header h1 {
+      font-family: Georgia, serif;
+      margin: 0;
+      font-size: 26px;
+      color: #111827;
+    }
+    .header p {
+      margin: 5px 0 0 0;
+      font-size: 13px;
+      color: #4b5563;
+    }
+    .doc-title-container {
+      margin-top: 15px;
+      display: inline-block;
+      padding: 6px 20px;
+      border: 2px solid #111827;
+      font-family: 'Courier New', monospace;
+      font-weight: bold;
+      font-size: 17px;
+      color: #1e3a8a;
+      letter-spacing: 1px;
+    }
+    .grid-meta {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      border: 1px solid #e5e7eb;
+      border-radius: 6px;
+      padding: 15px;
+      font-size: 12px;
+      margin-bottom: 25px;
+      background-color: #f9fafb;
+    }
+    .grid-meta span {
+      font-weight: bold;
+      color: #374151;
+    }
+    .summary-cards {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 15px;
+      margin-bottom: 25px;
+    }
+    .card {
+      border: 1px solid #e5e7eb;
+      border-radius: 6px;
+      padding: 12px;
+      text-align: center;
+      background-color: #ffffff;
+    }
+    .card span.title {
+      font-size: 10px;
+      color: #6b7280;
+      text-transform: uppercase;
+      display: block;
+      margin-bottom: 4px;
+      letter-spacing: 0.5px;
+    }
+    .card span.value {
+      font-size: 16px;
+      font-weight: bold;
+      font-family: monospace;
+    }
+    .text-green { color: #16a34a; }
+    .text-red { color: #dc2626; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+      margin-bottom: 30px;
+    }
+    th, td {
+      border: 1px solid #d1d5db;
+      padding: 8px 12px;
+      text-align: left;
+    }
+    th {
+      background-color: #f3f4f6;
+      color: #374151;
+      font-weight: bold;
+    }
+    .text-right { text-align: right; }
+    .text-center { text-align: center; }
+    .font-mono { font-family: monospace; font-weight: bold; }
+    .signatures {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 50px;
+      margin-top: 50px;
+      padding-top: 20px;
+    }
+    .signature-block {
+      text-align: center;
+    }
+    .signature-line {
+      border-top: 1px solid #111827;
+      margin: 0 40px;
+      padding-top: 8px;
+    }
+    .footer-note {
+      margin-top: 40px;
+      border-top: 1px solid #e5e7eb;
+      padding-top: 15px;
+      text-align: center;
+      font-size: 11px;
+      color: #9ca3af;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>GRULAC S.R.L.</h1>
+    <p>Departamento de Control de Inventarios e Insumos</p>
+    <p>Historial de Existencias y Libro Diario de Operaciones de Kárdex</p>
+    <div class="doc-title-container">
+      REPORTE DE MOVIMIENTOS DE KÁRDEX
+    </div>
+  </div>
+
+  <div class="grid-meta">
+    <div><span>Filtro de Ítem:</span> ${filterItem || 'Todos los ítems'}</div>
+    <div><span>Fecha de Emisión:</span> ${new Date().toLocaleString('es-BO')}</div>
+    <div><span>Rango de Fechas:</span> ${filterDesde ? `Desde ` + new Date(filterDesde).toLocaleDateString('es-BO') : 'Inicio'} — ${filterHasta ? `Hasta ` + new Date(filterHasta).toLocaleDateString('es-BO') : 'Fin'}</div>
+    <div><span>Operaciones Emitidas:</span> ${displayMovimientos.length}</div>
+    <div><span>Tipo de Operación / Flujo:</span> ${filterTipo === 'ALL' ? 'Todos' : filterTipo === 'IN' ? 'Ingreso (IN)' : filterTipo === 'OUT' ? 'Egreso (OUT)' : 'Ajuste (AJUSTE)'}</div>
+    <div><span>Responsable:</span> ${filterUsuario === 'ALL' ? 'Todos' : filterUsuario}</div>
+    <div><span>Filtro de Concepto:</span> ${filterConcepto || 'Todos'}</div>
+    <div><span>Rango de Volumen (Kg):</span> ${filterMinVol || 'Min'} Kg — ${filterMaxVol || 'Max'} Kg</div>
+  </div>
+
+  <div class="summary-cards">
+    <div class="card">
+      <span class="title">Total Ingresos (IN)</span>
+      <span class="value text-green">+${totalEntradas.toFixed(2)} Units/Kgs</span>
+    </div>
+    <div class="card">
+      <span class="title">Total Egresos (OUT)</span>
+      <span class="value text-red">-${totalSalidas.toFixed(2)} Units/Kgs</span>
+    </div>
+    <div class="card" style="background-color: #f9fafb;">
+      <span class="title">Balance Neto Filtro</span>
+      <span class="value ${(totalEntradas - totalSalidas + totalAjustes) >= 0 ? 'text-green' : 'text-red'}">
+        ${(totalEntradas - totalSalidas + totalAjustes).toFixed(2)} Units/Kgs
+      </span>
+    </div>
+  </div>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Fecha/Hora</th>
+        <th>Ítem / SKU</th>
+        <th class="text-center">Operación</th>
+        <th class="text-right">Volumen</th>
+        <th class="text-right">Balance</th>
+        <th>Concepto</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${displayMovimientos.length === 0 ? `
+        <tr>
+          <td colspan="6" class="text-center" style="color: #6b7280; padding: 20px;">
+            No hay transacciones registradas para este filtro.
+          </td>
+        </tr>
+      ` : displayMovimientos.map(mov => `
+        <tr>
+          <td style="font-family: monospace; font-size: 11px; color: #4b5563;">
+            ${new Date(mov.fecha_hora).toLocaleString('es-BO')}
+          </td>
+          <td>
+            <strong>${mov.catalogo_items ? mov.catalogo_items.nombre_producto : 'Ítem #' + mov.id_item}</strong><br/>
+            <span style="font-size: 10px; color: #6b7280; font-family: monospace;">${mov.catalogo_items?.codigo_sku || ''}</span>
+          </td>
+          <td class="text-center font-mono">
+            ${mov.tipo_operacion}
+          </td>
+          <td class="text-right font-mono ${mov.tipo_operacion === 'OUT' ? 'text-red' : 'text-green'}">
+            ${mov.tipo_operacion === 'OUT' ? '-' : '+'}${mov.cantidad_kilos}
+          </td>
+          <td class="text-right font-mono" style="color: #111827;">
+            ${mov.balance_acumulado.toFixed(2)}
+          </td>
+          <td style="font-size: 11px; color: #4b5563;">
+            ${mov.concepto_operacion || '—'}
+          </td>
+        </tr>
+      `).join('')}
+    </tbody>
+  </table>
+
+  <div class="signatures">
+    <div class="signature-block">
+      <div class="signature-line">
+        <strong>Jefe de Almacén e Inventarios</strong>
+        <p style="margin: 3px 0 0 0; font-size: 11px; color: #6b7280;">Firma Autorizada</p>
+      </div>
+    </div>
+    <div class="signature-block">
+      <div class="signature-line">
+        <strong>Director General / Operaciones</strong>
+        <p style="margin: 3px 0 0 0; font-size: 11px; color: #6b7280;">Visto Bueno</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer-note">
+    <p>Reporte oficial de auditoría de existencias - Generado digitalmente por el ERP de GRULAC S.R.L.</p>
+  </div>
+</body>
+</html>`;
+
+    const blob = new Blob([htmlContent], { type: 'text/html;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", `reporte_kardex_${new Date().toISOString().slice(0,10)}.html`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    toast.success('Reporte HTML descargado con éxito');
+  };
 
   // Calcular balance acumulado dinámico (suma corrida)
   const movimientosConBalance = useMemo(() => {
@@ -111,9 +414,9 @@ export default function KardexPage() {
         </Button>
       </div>
 
-      {/* Filtros (CU09 spec: filtrar por lotes/fechas) */}
+      {/* Filtros (CU09 spec: filtrar por lotes/fechas y filtros avanzados) */}
       <Card className="bg-zinc-900/50 border-border/50 print:hidden">
-        <CardContent className="py-4">
+        <CardContent className="py-4 space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="space-y-1">
               <Label className="text-xs text-zinc-400">Buscar Ítem / SKU</Label>
@@ -135,6 +438,80 @@ export default function KardexPage() {
               <Label className="text-xs text-zinc-400">Hasta</Label>
               <Input type="date" value={filterHasta} onChange={(e) => setFilterHasta(e.target.value)} className="bg-background/50" />
             </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 pt-2 border-t border-border/20">
+            <div className="space-y-1">
+              <Label className="text-xs text-zinc-400">Tipo de Flujo</Label>
+              <Select value={filterTipo} onValueChange={setFilterTipo}>
+                <SelectTrigger className="bg-background/50">
+                  <SelectValue placeholder="Seleccione flujo..." />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ALL">Todos los flujos</SelectItem>
+                  <SelectItem value="IN">Ingreso (IN)</SelectItem>
+                  <SelectItem value="OUT">Egreso (OUT)</SelectItem>
+                  <SelectItem value="AJUSTE">Ajuste (AJUSTE)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-1">
+              <Label className="text-xs text-zinc-400">Responsable</Label>
+              <Select value={filterUsuario} onValueChange={setFilterUsuario}>
+                <SelectTrigger className="bg-background/50">
+                  <SelectValue placeholder="Seleccione usuario..." />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ALL">Todos los responsables</SelectItem>
+                  {responsables.map(resp => (
+                    <SelectItem key={resp} value={resp}>{resp}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-1">
+              <Label className="text-xs text-zinc-400">Buscar Concepto</Label>
+              <Input
+                placeholder="Ej: Merma, compra..."
+                value={filterConcepto}
+                onChange={(e) => setFilterConcepto(e.target.value)}
+                className="bg-background/50"
+              />
+            </div>
+
+            <div className="space-y-1">
+              <Label className="text-xs text-zinc-400">Rango de Volumen (Kg)</Label>
+              <div className="flex gap-2">
+                <Input
+                  type="number"
+                  placeholder="Min"
+                  value={filterMinVol}
+                  onChange={(e) => setFilterMinVol(e.target.value)}
+                  className="bg-background/50 w-full"
+                />
+                <Input
+                  type="number"
+                  placeholder="Max"
+                  value={filterMaxVol}
+                  onChange={(e) => setFilterMaxVol(e.target.value)}
+                  className="bg-background/50 w-full"
+                />
+              </div>
+            </div>
+          </div>
+
+          <div className="flex justify-end pt-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleClearFilters}
+              className="text-zinc-400 border-border hover:bg-zinc-800 hover:text-white flex items-center gap-1.5"
+            >
+              <FilterX className="h-3.5 w-3.5" />
+              Limpiar Filtros
+            </Button>
           </div>
         </CardContent>
       </Card>
@@ -229,6 +606,9 @@ export default function KardexPage() {
             <Button onClick={() => window.print()} className="bg-blue-600 hover:bg-blue-700 gap-2">
               <Printer className="w-4 h-4" /> Imprimir Reporte / PDF
             </Button>
+            <Button onClick={handleDownloadHTML} className="bg-emerald-600 hover:bg-emerald-700 gap-2 text-white">
+              <ArrowDownToLine className="w-4 h-4" /> Descargar HTML
+            </Button>
             <Button variant="outline" onClick={() => setShowPrintKardex(false)}>
               Cerrar
             </Button>
@@ -251,7 +631,7 @@ export default function KardexPage() {
             </div>
 
             {/* Parámetros de Filtro del Reporte */}
-            <div className="grid grid-cols-2 gap-4 border border-gray-200 rounded p-4 text-xs mb-6">
+            <div className="grid grid-cols-2 gap-4 border border-gray-200 rounded p-4 text-xs mb-6 text-black">
               <div>
                 <span className="font-bold">Filtro de Ítem:</span>{' '}
                 {filterItem || 'Todos los ítems'}
@@ -267,6 +647,22 @@ export default function KardexPage() {
               <div>
                 <span className="font-bold">Operaciones Emitidas:</span>{' '}
                 {displayMovimientos.length}
+              </div>
+              <div>
+                <span className="font-bold">Tipo de Operación / Flujo:</span>{' '}
+                {filterTipo === 'ALL' ? 'Todos' : filterTipo === 'IN' ? 'Ingreso (IN)' : filterTipo === 'OUT' ? 'Egreso (OUT)' : 'Ajuste (AJUSTE)'}
+              </div>
+              <div>
+                <span className="font-bold">Responsable:</span>{' '}
+                {filterUsuario === 'ALL' ? 'Todos' : filterUsuario}
+              </div>
+              <div>
+                <span className="font-bold">Filtro de Concepto:</span>{' '}
+                {filterConcepto || 'Todos'}
+              </div>
+              <div>
+                <span className="font-bold">Rango de Volumen (Kg):</span>{' '}
+                {filterMinVol || 'Min'} Kg — {filterMaxVol || 'Max'} Kg
               </div>
             </div>
 

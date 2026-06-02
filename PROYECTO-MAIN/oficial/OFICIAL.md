@@ -6067,6 +6067,57 @@ deactivate Jefe
 
 A continuación se presentan los diagramas de secuencia para los casos de uso del Ciclo 3, detallando las líneas de vida, focos de control (activación), mensajes síncronos/asíncronos y creación de objetos.
 
+#### CU09: Consultar Kardex Dinámico (Historial)
+
+```plantuml
+@startuml Secuencia_CU09
+title CU09: Consultar Kárdex Dinámico (Filtros Avanzados y Reporte)
+skinparam backgroundColor transparent
+autonumber
+
+actor "Encargado de Inventario" as Actor
+boundary "IU_Kardex" as UI
+control "CTR_Kardex" as Ctrl
+entity "CE_Kardex_Movimientos" as Kardex
+database "SupabaseCentral" as DB
+
+activate Actor
+Actor -> UI : ingresar a Kárdex Dinámico
+activate UI
+
+UI -> Ctrl : fetchMovimientos()
+activate Ctrl
+Ctrl -> DB : select(*, catalogo_items, usuarios)
+activate DB
+DB --> Ctrl : lista de movimientos (JSON)
+deactivate DB
+Ctrl --> UI : renderizarMovimientos(lista)
+deactivate Ctrl
+UI --> Actor : Mostrar Libro de Operaciones y filtros por defecto
+deactivate UI
+
+== Filtrado Reactivo en Pantalla ==
+Actor -> UI : aplicarFiltros(Ítem, Fechas, Flujo, Responsable, Concepto, Rango Volumen)
+activate UI
+UI -> UI : filteredMovimientos()
+note right : Filtrado reactivo en memoria \nsin nuevas consultas a BD
+UI -> UI : calcularTotales(entradas, salidas, balance)
+UI --> Actor : Actualizar tabla y resumen numérico en tiempo real
+deactivate UI
+
+== Generación de Reporte Imprimible / PDF ==
+Actor -> UI : hacer click "Generar Reporte Kárdex"
+activate UI
+UI -> UI : abrirModalImpresion()
+UI -> UI : renderizarDocumento(movimientosFiltrados, resumenFiltros)
+Actor -> UI : hacer click "Imprimir Reporte / PDF"
+UI -> UI : window.print()
+UI --> Actor : Mostrar vista de impresión del sistema operativo
+deactivate UI
+deactivate Actor
+@enduml
+```
+
 #### CU10: Registrar Ajuste Manual o Merma Aislada
 
 ```plantuml

@@ -157,7 +157,7 @@ export function SidebarContent({ user, onItemClick }) {
 
 export function Sidebar({ user }) {
   return (
-    <div className="w-64 border-r border-border/50 bg-card hidden md:flex flex-col">
+    <div className="w-64 border-r border-border/50 bg-card hidden md:flex flex-col h-full">
       <SidebarContent user={user} />
     </div>
   )
