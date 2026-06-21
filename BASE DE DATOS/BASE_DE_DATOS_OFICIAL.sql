@@ -333,7 +333,7 @@ CREATE TABLE pedidos_ventas (
             'En_Despacho','Entregado_Completo','Cancelado'
         )
     ),
-    monto_total_bs DECIMAL(10,2),
+    total_pedido DECIMAL(10,2), -- Renombrado de monto_total_bs
     fecha_reserva TIMESTAMPTZ DEFAULT NOW(),
     fecha_entrega_programada DATE,
     metodo_pago VARCHAR(30) CHECK (
@@ -366,15 +366,28 @@ CREATE TABLE factura (
     fecha_emision TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- CU28 - Pasarela de Pagos (PayPal Sandbox)
+CREATE TABLE pagos_clientes (
+    id_pago BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    id_factura BIGINT REFERENCES factura(id_factura) ON DELETE CASCADE,
+    monto_total DECIMAL(12,2) NOT NULL,
+    moneda VARCHAR(3) DEFAULT 'USD',
+    estado VARCHAR(20) DEFAULT 'Pendiente',
+    paypal_order_id VARCHAR(100),
+    paypal_capture_id VARCHAR(100),
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
 -- CU29: Ejecutar Despacho Físico por FEFO
 CREATE TABLE despachos_logisticos (
     id_despacho SERIAL PRIMARY KEY,
     id_pedido INT NOT NULL REFERENCES pedidos_ventas(id_pedido),
-    id_encargado INT NOT NULL REFERENCES usuarios(id_usuario),
+    id_encargado INT REFERENCES usuarios(id_usuario), -- Se permite nulo de acuerdo al CU de despacho
     placa_camion VARCHAR(20),
     nombre_chofer VARCHAR(100),
     temperatura_salida DECIMAL(5,2),
-    fecha_salida_ruta TIMESTAMPTZ DEFAULT NOW(),
+    fecha_despacho TIMESTAMPTZ DEFAULT NOW(), -- Renombrado de fecha_salida_ruta
     observaciones TEXT
 );
 
@@ -387,10 +400,12 @@ CREATE TABLE devoluciones_qa (
     motivo_rechazo TEXT NOT NULL,
     kilos_devueltos DECIMAL(10,2) NOT NULL,
     requiere_reposicion BOOLEAN DEFAULT false,
+    id_pedido_reposicion INTEGER REFERENCES pedidos_ventas(id_pedido) ON DELETE SET NULL, -- Agregada columna de reposición
     estado_devolucion VARCHAR(30) DEFAULT 'Registrada' CHECK (
         estado_devolucion IN ('Registrada','Procesada','Cerrada')
     ),
-    fecha_registro TIMESTAMPTZ DEFAULT NOW()
+    observaciones TEXT DEFAULT '', -- Agregada columna
+    created_at TIMESTAMPTZ DEFAULT NOW() -- Renombrado de fecha_registro
 );
 
 
@@ -457,8 +472,8 @@ ALTER TABLE movimientos_kardex
 
 INSERT INTO roles (nombre_rol, descripcion, permisos_json) VALUES
   ('Administrador', 'Acceso total al sistema ERP', '{"modulos": ["ALL"]}'),
-  ('Jefe Produccion', 'Control de órdenes, recetas y kardex', '{"modulos": ["produccion","kardex","catalogo"]}'),
-  ('Control Calidad QA', 'Fichas de calidad, recepción, laboratorio', '{"modulos": ["calidad","recepcion"]}'),
+  ('Jefe Produccion', 'Control de órdenes, recetas y kardex', '{"modulos": ["produccion","kardex","catalogo","respaldos"]}'),
+  ('Control Calidad QA', 'Fichas de calidad, recepción, laboratorio', '{"modulos": ["calidad","recepcion","respaldos"]}'),
   ('Recepcionista', 'Acopio de leche y triage bioquímico', '{"modulos": ["recepcion","compras"]}'),
   ('Almacenero', 'Despacho, temperaturas y kardex', '{"modulos": ["almacen","kardex","despacho"]}'),
   ('Asesor Comercial', 'Ventas, compras, clientes, pedidos y facturación', '{"modulos": ["ventas","clientes","pedidos","compras","proveedores"]}')

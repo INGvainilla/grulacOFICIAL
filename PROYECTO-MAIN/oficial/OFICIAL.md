@@ -578,19 +578,10 @@ Textos informativos y prioridades del correo electrónico (Alta, Media)
 
 Correos destino (Directores) y Listas de Evento Activador
 
-ENTREVISTA
+### 1.8 ENTREVISTA
 
-PERFIL DE PROYECTO
+La entrevista completa para la obtención de requisitos fue trasladada al **Anexo A** del presente documento por recomendación metodológica y directrices de la cátedra, con el fin de mantener el cuerpo del perfil de proyecto enfocado en la descripción del sistema.
 
-Entrevista para Obtención de Requisitos
-
-Resumen de la Entrevista
-
-PERFIL DE PROYECTO
-
-Entrevista para Obtención de Requisitos
-
-Resumen de la Entrevista
 
 ELEMENTOS DEL SISTEMA BASADO EN COMPUTADORAS
 
@@ -1669,6 +1660,8 @@ Derivados estrictamente del bloque de alcance del proyecto y refinados tras la r
 - **CU32**: Recuperar Contraseña Olvidada (Reset vía email)
 - **CU33**: Establecer Primera Contraseña (Onboarding de Invitación)
 - **CU34**: Rehabilitar Empleado (Alta Lógica)
+- **CU35**: Generar Reporte por Comando de Voz (IA)
+
 
 ## 3.3 Priorización y Planificación de Iteraciones (Ciclos RUP)
 
@@ -1727,6 +1720,8 @@ Siguiendo estrictamente las directrices del **Proceso Unificado de Desarrollo de
   - **CU28**: Emitir Factura Comercial (Prioridad: Alta)
   - **CU29**: Ejecutar Despacho Físico por FEFO (Prioridad: Alta)
   - **CU30**: Registrar Devolución de Queso (Prioridad: Alta)
+  - **CU35**: Generar Reporte por Comando de Voz (IA) (Prioridad: Media)
+
 
 ## 3.4 Especificación Detallada de Casos de Uso
 
@@ -2779,8 +2774,48 @@ CU25 ..> Bloquear : <<include>>
 > "Pantalla de disposición de lotes no conformes. Estética de alerta industrial con tonos rojos y amarillos. Lista de lotes no conformes con badges rojos. Al seleccionar un lote, se muestra la ficha de calidad con los parámetros fuera de rango resaltados. Dos opciones grandes tipo card seleccionable: Card 'CUARENTENA' con ícono de reloj y fondo amarillo (subtítulo: 'Retención para observación y re-evaluación'), Card 'REPROCESO' con ícono de reciclar y fondo naranja (subtítulo: 'Derivar a tina para corrección del defecto'). Textarea obligatorio para 'Justificación Técnica'. Botón rojo: 'Confirmar Disposición'. Diseño que transmita seriedad y responsabilidad."
 
 
+### CICLO 4: Integración Comercial y Automatización
+
+#### CU35: Generar Reporte por Comando de Voz (IA)
+
+**A. Estructura del Modelo de CU (Diagrama Específico)**
+```plantuml
+@startuml
+left to right direction
+actor "Usuario Autenticado" as Usuario
+rectangle "Sistema ERP GRULAC - Automatización (IA)" {
+  usecase "CU35: Generar Reporte por Comando de Voz" as CU35
+  usecase "Procesar Audio (NLP)" as NLP
+  usecase "Consultar Datos Consolidados" as Consultar
+}
+Usuario --> CU35
+CU35 ..> NLP : <<include>>
+CU35 ..> Consultar : <<include>>
+@enduml
+```
+
+**B. Ficha de Especificación del Caso de Uso**
+
+| Campo                              | Descripción                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| ---------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **CASO DE USO**                    | CU35 - Generar Reporte por Comando de Voz (IA).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| **PROPÓSITO**                      | Permitir a los usuarios del ERP realizar consultas rápidas de reportes (inventario, despacho, alertas) mediante comandos verbales de lenguaje natural, mejorando la agilidad operativa en planta.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| **DESCRIPCIÓN**                    | El usuario presiona un botón en el sistema para grabar un audio, el cual se envía al backend. A través de un servicio de Inteligencia Artificial (transcripción y NLP), se interpreta la intención del usuario para extraer los parámetros de consulta del reporte solicitado. El sistema ejecuta las consultas necesarias y renderiza el reporte de forma estructurada en pantalla, dando además una respuesta de voz confirmatoria.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| **ACTORES**                        | Tablas de BD (`bitacora_auditoria`, `kardex_movimientos`, etc.), Servicio de IA externo (API NLP/Transcripción).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| **ACTOR INICIADOR**                | Usuario Autenticado (Cualquier empleado de GRULAC con permisos de acceso).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| **PRECONDICIÓN**                   | El usuario debe estar autenticado en la plataforma y contar con permisos de consulta. El dispositivo debe tener habilitado el acceso al micrófono.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| **FLUJO PRINCIPAL (Camino Feliz)** | <br>1. El usuario presiona el botón de micrófono en la UI para iniciar la grabación.<br>2. El usuario dicta su consulta en lenguaje natural (ej. "Muestra el stock actual de queso cheddar").<br>3. El usuario presiona detener/enviar en la UI.<br>4. La UI captura el stream de audio, genera un archivo tipo Blob y lo envía al controlador del sistema (`CTR_ProcesadorVoz`).<br>5. El controlador llama al servicio de IA (`CE_ServicioIA`) enviando el archivo de audio.<br>6. El servicio de IA realiza la transcripción Speech-to-Text e interpreta el texto (NLP) para retornar un JSON estructurado con la intención y los parámetros de consulta.<br>7. El controlador interpreta la intención y realiza la consulta en las entidades de la base de datos correspondientes (ej. `CE_Kardex`).<br>8. El controlador procesa la información y la envía a la UI en formato estructurado.<br>9. El sistema registra la consulta en `bitacora_auditoria` (acción: `IA_QUERY`).<br>10. La UI renderiza el reporte gráfico correspondiente en pantalla y reproduce un audio corto sintetizado (Text-to-Speech) que resume el reporte (ej. "Se encontraron 45 kg de queso cheddar disponible"). |
+| **POST CONDICIÓN**                 | El reporte se visualiza correctamente en la interfaz y el evento queda guardado de manera inmutable en la bitácora de auditoría.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| **EXCEPCIONES (Flujo Secundario)** | <br>- *E1: Audio Incomprensible.* El servicio de IA no logra transcribir o interpretar la intención. El sistema informa al usuario: "No he podido entender tu comando, por favor inténtalo de nuevo".<br>- *E2: Sin Conexión al Servicio de IA.* El sistema notifica al usuario del fallo de comunicación externa y le sugiere usar los filtros manuales tradicionales de la interfaz.<br>- *E3: Micrófono Bloqueado.* El sistema detecta que el navegador no tiene permiso para acceder al hardware e instruye al usuario a habilitarlo.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+
+**C. Prototipo UI (Directriz para Generador)**
+*Prompt a ingresar textual en tu IA:*
+> "Diseñar un widget de asistente de voz integrado en el dashboard de un ERP industrial. El widget debe ser un botón flotante circular de color azul degradado con un icono de micrófono en color blanco. Al hacer clic, el botón debe mostrar una animación de ondas sonoras de voz dinámicas (estética de pulsaciones suaves en colores aqua y violeta). Arriba de la animación, debe aparecer un cuadro de texto que diga 'Escuchando tu comando...' y muestre en tiempo real la transcripción de texto. Al terminar de procesar, debe renderizar un panel flotante con un reporte resumido en formato de tarjeta (card) limpia con tipografía moderna, mostrando un gráfico de barras pequeño o un indicador numérico grande de stock."
+
+
 ## 7.5. Estructurar caso de uso
 ### 7.5.1. Ciclo #1
+
 
 ```plantuml
 @startuml UC_Ciclo1
@@ -2997,6 +3032,64 @@ CU25 .> B_Kardex : <<include>>
 ```
 
 
+### 7.5.4. Ciclo #4
+
+**Descripción del diagrama:** Diagrama unificado de Casos de Uso del Ciclo 4 que integra los 7 casos de uso de Integración Comercial y Automatización. Muestra las interacciones del Administrador General con las herramientas de infraestructura de auditoría y respaldo, del Asesor Comercial con las de venta y devoluciones, del Encargado de Despacho con el despacho físico por FEFO, y de cualquier usuario autenticado con el sistema de consulta de reportes por comandos de voz asistidos por IA.
+
+```plantuml
+@startuml UC_Ciclo4
+left to right direction
+skinparam packageStyle rectangle
+
+actor "Administrador General\n(from CU06)" as Admin
+actor "Asesor Comercial\n(from CU27)" as Asesor
+actor "Encargado de Despacho\n(from CU29)" as Despacho
+actor "Usuario Autenticado\n(from CU35)" as Usuario
+
+usecase "Consultar Bitacora\nde Auditoria\n(from CU06)" as CU06
+usecase "Respaldar Fichas\na Storage Externo\n(from CU07)" as CU07
+
+usecase "Generar Pedido\nde Venta / Reserva\n(from CU27)" as CU27
+usecase "Verificar Stock Disponible\n(from CU27)" as V_Stock
+usecase "Reservar Stock Temporal\n(from CU27)" as R_Stock
+
+usecase "Emitir Factura\nComercial\n(from CU28)" as CU28
+
+usecase "Ejecutar Despacho\nFisico por FEFO\n(from CU29)" as CU29
+usecase "Descontar de Kardex\n(from CU29)" as D_Kardex_Venta
+
+usecase "Registrar Devolucion\nde Queso\n(from CU30)" as CU30
+usecase "Reingresar a Almacen\no Descartar\n(from CU30)" as R_Descarte
+
+usecase "Generar Reporte por\nComando de Voz (IA)\n(from CU35)" as CU35
+usecase "Procesar Audio (NLP)\n(from CU35)" as P_Audio
+usecase "Consultar Datos Consolidados\n(from CU35)" as C_Datos
+
+Admin --> CU06
+Admin --> CU07
+
+Asesor --> CU27
+Asesor --> CU28
+Asesor --> CU30
+
+Despacho --> CU29
+
+CU27 .> V_Stock : <<include>>
+CU27 .> R_Stock : <<include>>
+CU29 .> D_Kardex_Venta : <<include>>
+CU30 .> R_Descarte : <<include>>
+
+Usuario --> CU35
+CU35 .> P_Audio : <<include>>
+CU35 .> C_Datos : <<include>>
+
+@enduml
+```
+
+
+
+
+
 
 # 8. CAPITULO 4: FLUJO DE TRABAJO: ANALISIS
 
@@ -3071,6 +3164,29 @@ package "Control de Calidad y Bioseguridad" as P8 <<nuevo>>
 
 - **Control de Calidad y Bioseguridad**: Encapsula las operaciones de evaluación, dictamen y disposición de lotes terminados: registro de fichas de control de calidad (CU23), liberación de lotes conformes al inventario comercial (CU24) y envío de lotes no conformes a cuarentena o reproceso (CU25). Se agruparon en un paquete separado porque representan una **función de auditoría independiente** que no puede ser contaminada por el paquete de Producción — el Ingeniero de Calidad actúa como barrera sanitaria irrevocable y debe operar con independencia del proceso productivo.
 
+
+#### Identificar Paquetes - Ciclo 4
+
+**Descripción del diagrama:** Se identifican 2 nuevos paquetes arquitectónicos para el Ciclo 4 (Auditoría e Inteligencia Artificial y Ventas/Despacho), que interactúan directamente con los paquetes heredados del Ciclo 1 (Seguridad, Inventario, Comercial) y Ciclo 3 (Calidad). Esto obedece a la integración comercial exterior y automatización del ERP.
+
+```plantuml
+@startuml Paquetes_Ciclo4_Arquitectura
+skinparam packageStyle folder
+skinparam backgroundColor transparent
+
+package "SEGURIDAD\n(Ciclo 1)" as P1 <<existente>>
+package "Gestion de Inventario\n(Ciclos 1, 3)" as P3 <<existente>>
+package "Gestion Comercial\n(Ciclo 1)" as P4 <<existente>>
+package "Control de Calidad\ny Bioseguridad\n(Ciclo 3)" as P8 <<existente>>
+
+package "Auditoria y Soporte del Sistema" as P9 <<nuevo>>
+package "Ventas y Despacho Comercial" as P10 <<nuevo>>
+@enduml
+```
+
+- **Auditoría y Soporte del Sistema (Paquete Nuevo - P9)**: Comprende los componentes tecnológicos de infraestructura para auditoría del sistema (bitácoras del sistema y logins de usuarios CU06), backups externos en la nube para la base de datos de control e inocuidad (CU07) y servicios de inteligencia artificial por comandos de voz (CU35) que asisten en la generación e interpretación de reportes en tiempo real. Se agruparon por representar herramientas informáticas transversales que gestionan y auditan la estabilidad, seguridad e inteligencia del ERP.
+
+- **Ventas y Despacho Comercial (Paquete Nuevo - P10)**: Concentra el flujo comercial de salidas y entregas del producto final a la calle. Agrupa los casos de uso para generación de reservas y pedidos comerciales (CU27), emisión de la factura fiscal correspondiente (CU28), despacho y carga física optimizados por FEFO en los camiones de ruta (CU29) y el registro formal de devoluciones comerciales o logísticas inversas de producto (CU30). Comparte las mismas entidades transaccionales y opera exclusivamente en la salida y liquidación de inventario terminado.
 
 
 ### 8.1.2. Relacionar paquetes y casos de uso
@@ -3187,6 +3303,42 @@ P8 ..> CU25 : <<trace>>
 ```
 
 
+#### Relacionar paquetes y casos de uso Ciclo 4
+
+**Descripción del diagrama:** Establece la trazabilidad formal entre cada paquete arquitectónico del Ciclo 4 y los Casos de Uso específicos que contiene (incluyendo el caso de uso de reportes de voz asistidos por IA), utilizando estereotipos `<<trace>>` conformes a UML 2.5.
+
+```plantuml
+@startuml Paquetes_CU_Ciclo4
+left to right direction
+skinparam packageStyle folder
+skinparam backgroundColor transparent
+
+package "Auditoria y Soporte del Sistema" as P9 {
+  usecase "Consultar Bitacora\nde Auditoria\n(from CU06)" as CU06
+  usecase "Respaldar Fichas\na Storage Externo\n(from CU07)" as CU07
+  usecase "Generar Reporte por\nComando de Voz (IA)\n(from CU35)" as CU35
+}
+
+package "Ventas y Despacho Comercial" as P10 {
+  usecase "Generar Pedido\nde Venta / Reserva\n(from CU27)" as CU27
+  usecase "Emitir Factura\nComercial\n(from CU28)" as CU28
+  usecase "Ejecutar Despacho\nFisico por FEFO\n(from CU29)" as CU29
+  usecase "Registrar Devolucion\nde Queso\n(from CU30)" as CU30
+}
+
+P9 ..> CU06 : <<trace>>
+P9 ..> CU07 : <<trace>>
+P9 ..> CU35 : <<trace>>
+
+P10 ..> CU27 : <<trace>>
+P10 ..> CU28 : <<trace>>
+P10 ..> CU29 : <<trace>>
+P10 ..> CU30 : <<trace>>
+
+@enduml
+```
+
+
 ### 8.1.3. Dependencias de Paquetes Arquitectónicos
 
 A continuación se esquematiza el acoplamiento y las dependencias lógicas direccionadas entre estos módulos (Ciclo 1):
@@ -3270,6 +3422,40 @@ P8 ..> P6 : <<use>>
 @enduml
 ```
 
+
+#### Dependencias de Paquetes Arquitectónicos Ciclo 4
+
+**Descripción del diagrama:** Esquematiza las dependencias direccionadas entre los paquetes del Ciclo 4 y su relación con los paquetes heredados de los Ciclos 1, 2 y 3. 
+- El paquete **Auditoría y Soporte del Sistema (P9)** depende de **Seguridad (P1)** (autenticación obligatoria) y a su vez, el motor de inteligencia de consulta de reportes (`CU35`) depende de **Inventario (P3)**, **Comercial (P4)**, **Calidad (P8)** y **Ventas (P10)** para acceder y consolidar los registros correspondientes.
+- El paquete **Ventas y Despacho Comercial (P10)** depende de **Seguridad (P1)**, de **Inventario (P3)** (Kardex de producto terminado y egresos por FEFO), de **Gestión Comercial (P4)** (para los datos maestros de Clientes) y del paquete de **Control de Calidad (P8)** (para verificar que el lote a despachar cuente con la liberación física/bioquímica del QA antes de salir a la calle).
+
+```plantuml
+@startuml Paquetes_Dependencias_Ciclo4
+skinparam packageStyle folder
+skinparam backgroundColor transparent
+top to bottom direction
+
+package "SEGURIDAD\n(Ciclo 1)" as P1
+package "Gestion de Inventario\n(Ciclos 1, 3)" as P3
+package "Gestion Comercial\n(Ciclo 1)" as P4
+package "Control de Calidad\ny Bioseguridad\n(Ciclo 3)" as P8
+
+package "Auditoria y Soporte del Sistema" as P9
+package "Ventas y Despacho Comercial" as P10
+
+P9 ..> P1 : <<use>>
+P9 ..> P3 : <<use>>
+P9 ..> P4 : <<use>>
+P9 ..> P8 : <<use>>
+P9 ..> P10 : <<use>>
+
+P10 ..> P1 : <<use>>
+P10 ..> P3 : <<use>>
+P10 ..> P4 : <<use>>
+P10 ..> P8 : <<use>>
+
+@enduml
+```
 
 
 ## 8.2. Diagramas de Comunicación
@@ -3947,6 +4133,211 @@ CTR --> IU : 7: Confirmar disposición
 @enduml
 ```
 
+
+### Diagramas de Comunicación — Ciclo 4
+
+A continuación se presentan los diagramas de comunicación del Ciclo 4 bajo el patrón arquitectónico MVC, mapeados a los elementos de Análisis: Frontera (IU), Control (CTR) y Entidad (CE).
+
+#### CU35: Generar Reporte por Comando de Voz (IA)
+
+**Descripción del diagrama:** Flujo de mensajes del procesamiento de lenguaje natural interactuando con la interfaz de voz. El usuario dicta su consulta verbal, la interfaz envía el stream de audio al controlador, el cual invoca los servicios externos del motor de IA para traducir el audio e interpretar la intención del usuario. Tras obtener la intención (ej. consultar inventario consolidado), el controlador ejecuta las consultas pertinentes contra la base de datos, graba una auditoría en la bitácora y entrega el reporte estructurado renderizable junto con una confirmación sonora (Text-to-Speech).
+
+```plantuml
+@startuml DCom_CU35
+left to right direction
+skinparam backgroundColor transparent
+actor "Usuario" as Actor
+boundary "IU_ReporteVoz" as IU
+control "CTR_ProcesadorVoz" as CTR
+entity "CE_ServicioIA" as IA
+entity "CE_Kardex" as ENT_K
+entity "CE_Bitacora" as ENT_B
+
+Actor --> IU : 1: Presionar botón 'Grabar' y dictar comando
+IU --> CTR : 2: procesarAudio(archivoAudio)
+CTR --> IA : 3: transcribirEInterpretar(archivoAudio)
+IA --> CTR : 4: consultaIntencion (Ej: "reporte stock actual")
+CTR --> ENT_K : 5: obtenerDatosConsolidados()
+ENT_K --> CTR : 6: datos del stock
+CTR --> ENT_B : 7: insert(CONSULTA_VOZ)
+CTR --> IU : 8: Renderizar reporte estructurado y reproducir feedback de voz
+@enduml
+```
+
+#### CU06: Consultar Bitácora de Auditoría
+
+**Descripción del diagrama:** Secuencia de mensajes para la supervisión y control de auditoría del sistema. El Administrador define los filtros de búsqueda (fechas, tablas, acciones) en la interfaz. El controlador Server Action intercepta la petición, verifica que el rol del usuario contenga los permisos necesarios para auditar, ejecuta la consulta parametrizada sobre la entidad de base de datos `CE_Bitacora` aplicando paginación, y asocia los datos del usuario correspondiente para devolver los logs formateados a la interfaz.
+
+```plantuml
+@startuml DCom_CU06
+left to right direction
+skinparam backgroundColor transparent
+actor "Administrador" as Actor
+boundary "IU_Bitacora" as IU
+control "CTR_Bitacora" as CTR
+entity "CE_Bitacora" as ENT_B
+entity "CE_Usuario" as ENT_U
+
+Actor --> IU : 1: Ingresar criterios de búsqueda y paginación
+IU --> CTR : 2: obtenerLogs(filtros, pagina)
+CTR --> ENT_U : 3: verificarPermisoRol()
+ENT_U --> CTR : 4: rol autorizado
+CTR --> ENT_B : 5: select(filtros, limit, offset)
+ENT_B --> CTR : 6: datos de auditoría con usuarios
+CTR --> CTR : 7: extraerDescripcion(log)
+CTR --> IU : 8: Renderizar grilla de registros con detalles
+@enduml
+```
+
+#### CU07: Respaldar Fichas a Storage Externo
+
+**Descripción del diagrama:** Flujo de comunicación para la exportación de documentos oficiales a la nube. El Administrador selecciona un registro elegible para respaldo en la grilla visual. El controlador Server Action recupera la entidad correspondiente de la base de datos, construye en memoria el archivo PDF con un hash criptográfico de integridad SHA-256, invoca al servicio externo de Supabase Storage para subir el archivo, obtiene la URL pública del archivo de respaldo, registra los metadatos en la entidad de respaldos documentales y registra la traza del respaldo en la bitácora de auditoría.
+
+```plantuml
+@startuml DCom_CU07
+left to right direction
+skinparam backgroundColor transparent
+actor "Administrador" as Actor
+boundary "IU_Respaldos" as IU
+control "CTR_Respaldos" as CTR
+entity "CE_SupabaseStorage" as Storage
+entity "CE_RespaldosDocumentales" as ENT_R
+entity "CE_Bitacora" as ENT_B
+
+Actor --> IU : 1: Seleccionar registro y hacer clic en 'Respaldar'
+IU --> CTR : 2: generarYRespaldar(entidad, idEntidad)
+CTR --> CTR : 3: getRecordData() y generarPDFBuffer()
+CTR --> Storage : 4: upload(filePath, pdfBuffer)
+Storage --> CTR : 5: url_publica_storage
+CTR --> ENT_R : 6: insert(respaldo_metadatos)
+ENT_R ..> ENT_B : 6.1: <<trigger DB>> insert(audit)
+CTR --> IU : 7: Confirmar respaldo exitoso y devolver URL de acceso
+@enduml
+```
+
+#### CU27: Generar Pedido de Venta / Reserva
+
+**Descripción del diagrama:** Secuencia de comunicación para registrar preventas y reservar stock en firme. El Asesor selecciona el cliente e ingresa los productos con sus respectivas cantidades. La interfaz realiza consultas reactivas del stock disponible (calculado a partir de ingresos y egresos de lotes liberados en el Kardex). Al guardar, el controlador realiza una doble validación de stock en caliente para evitar condiciones de carrera, inserta el pedido con estado 'Pendiente' en la entidad de pedidos, inserta las líneas en la entidad de detalles, y registra el evento en la bitácora.
+
+```plantuml
+@startuml DCom_CU27
+left to right direction
+skinparam backgroundColor transparent
+actor "Asesor Comercial" as Actor
+boundary "IU_Pedidos" as IU
+control "CTR_Pedidos" as CTR
+entity "CE_Kardex" as ENT_K
+entity "CE_PedidosVentas" as ENT_P
+entity "CE_DetallePedidos" as ENT_D
+entity "CE_Bitacora" as ENT_B
+
+Actor --> IU : 1: Seleccionar cliente y agregar productos
+IU --> CTR : 2: obtenerStockDisponible(id_item)
+CTR --> ENT_K : 3: obtenerStockReal()
+ENT_K --> CTR : 4: stock disponible
+Actor --> IU : 5: Confirmar y guardar pedido
+IU --> CTR : 6: crearPedido(formData)
+CTR --> CTR : 7: validarDatos() y doubleCheckStock()
+CTR --> ENT_P : 8: insert(pedido, estado='Pendiente')
+CTR --> ENT_D : 9: insert(detalle_lineas)
+ENT_P ..> ENT_B : 8.1: <<trigger DB>> insert(audit)
+CTR --> IU : 10: Confirmar pedido guardado con éxito
+@enduml
+```
+
+#### CU28: Emitir Factura Comercial
+
+**Descripción del diagrama:** Flujo de mensajes del módulo de facturación con pasarela de pagos. El Asesor selecciona un pedido confirmado. El controlador calcula subtotales e impuestos, valida la unicidad del número de factura y registra la emisión con estado 'Emitida' en la entidad Factura. Asimismo, se actualiza el estado de la reserva del pedido. Opcionalmente, se interactúa con el servicio externo de PayPal para generar una orden de cobro en dólares, capturar la transacción digital en caliente, insertar el comprobante de pago en la base de datos y registrar la auditoría correspondiente.
+
+```plantuml
+@startuml DCom_CU28
+left to right direction
+skinparam backgroundColor transparent
+actor "Asesor Comercial" as Actor
+boundary "IU_Facturacion" as IU
+control "CTR_Facturacion" as CTR
+entity "CE_Factura" as ENT_F
+entity "CE_PedidosVentas" as ENT_P
+entity "CE_ServicioPayPal" as PayPal
+entity "CE_Bitacora" as ENT_B
+
+Actor --> IU : 1: Seleccionar pedido y click en 'Emitir Factura'
+IU --> CTR : 2: emitirFactura(datos)
+CTR --> CTR : 3: validarFacturaUnica() y calcularImpuestos()
+CTR --> ENT_F : 4: insert(factura, estado='Emitida')
+CTR --> ENT_P : 5: update(estado_reserva='Confirmado')
+ENT_F ..> ENT_B : 4.1: <<trigger DB>> insert(audit)
+Actor --> IU : 6: Clic en 'Pagar con PayPal' (Opcional)
+IU --> CTR : 7: capturePayPalOrder(idFactura, orderId)
+CTR --> PayPal : 8: capturarPagoExterno()
+PayPal --> CTR : 9: transaccion_completada
+CTR --> ENT_F : 10: update(estado='Pagado')
+ENT_F ..> ENT_B : 10.1: <<trigger DB>> insert(audit)
+CTR --> IU : 11: Mostrar estado de pago actualizado y factura emitida
+@enduml
+```
+
+#### CU29: Ejecutar Despacho Físico por FEFO
+
+**Descripción del diagrama:** Flujo logístico y de control de inventarios. El Encargado de Despacho selecciona un pedido confirmado. El controlador consulta las existencias en lote ordenadas ascendentemente por fecha de vencimiento (FEFO) y retorna los lotes candidatos. El encargado asigna cantidades de cada lote, introduce placa, conductor y la lectura de temperatura de la cadena de frío (debidamente validada). Al despachar, el controlador registra el despacho logístico, crea movimientos de salida (OUT) en el Kardex por lote, actualiza los lotes agotados, actualiza el pedido a 'Entregado_Completo' u 'En_Despacho', y escribe en la bitácora de auditoría.
+
+```plantuml
+@startuml DCom_CU29
+left to right direction
+skinparam backgroundColor transparent
+actor "Encargado Despacho" as Actor
+boundary "IU_Despachos" as IU
+control "CTR_Despachos" as CTR
+entity "CE_LoteProduccion" as ENT_L
+entity "CE_DespachosLogisticos" as ENT_D
+entity "CE_Kardex" as ENT_K
+entity "CE_Bitacora" as ENT_B
+
+Actor --> IU : 1: Seleccionar pedido confirmado
+IU --> CTR : 2: obtenerLotesDisponibles(idPedido)
+CTR --> ENT_L : 3: getLotesFEFO(id_item, 'Liberado_Comercial')
+ENT_L --> CTR : 4: lista de lotes candidatos (orden vencimiento ASC)
+Actor --> IU : 5: Ingresar chofer, placa, temperatura y confirmar despacho
+IU --> CTR : 6: ejecutarDespacho(formData)
+CTR --> CTR : 7: validarTemperaturaCamion()
+CTR --> ENT_D : 8: insert(despacho)
+CTR --> ENT_K : 9: insert(OUT_MOVEMENTS, cantidad) (por lote)
+CTR --> ENT_L : 10: update(estado='Agotado') (si stock = 0)
+ENT_D ..> ENT_B : 8.1: <<trigger DB>> insert(audit)
+CTR --> IU : 11: Confirmar despacho y salida física
+@enduml
+```
+
+#### CU30: Registrar Devolución de Queso
+
+**Descripción del diagrama:** Secuencia de comunicación para la recepción de devoluciones de producto no conforme. El Asesor Comercial selecciona el despacho que origina la devolución. El controlador valida que el despacho sea entregado y que los kilos devueltos no excedan lo entregado. Al guardar, el controlador inserta el registro en la entidad de devoluciones, añade una entrada de reingreso al Kardex, y si el cliente solicitó reposición, clona de forma atómica el pedido original (reposición en caliente) asociándolo a la devolución. Se finaliza auditando la transacción.
+
+```plantuml
+@startuml DCom_CU30
+left to right direction
+skinparam backgroundColor transparent
+actor "Asesor Comercial" as Actor
+boundary "IU_Devoluciones" as IU
+control "CTR_Devoluciones" as CTR
+entity "CE_DevolucionesQA" as ENT_DQA
+entity "CE_Kardex" as ENT_K
+entity "CE_PedidosVentas" as ENT_P
+entity "CE_Bitacora" as ENT_B
+
+Actor --> IU : 1: Seleccionar despacho e ingresar kilos devueltos y motivo
+IU --> CTR : 2: registrarDevolucion(formData)
+CTR --> CTR : 3: validarDespacho() y verificarKilosDevueltos()
+CTR --> ENT_DQA : 4: insert(devolucion, estado='Registrada')
+CTR --> ENT_K : 5: insert(DEVOLUCION, kilos)
+alt Si requiere reposición de emergencia
+  CTR --> ENT_P : 6: crearPedidoReposicion(datosOriginales)
+  ENT_P --> CTR : 7: id_pedido_reposicion
+  CTR --> ENT_DQA : 8: update(id_pedido_reposicion)
+end
+ENT_DQA ..> ENT_B : 4.1: <<trigger DB>> insert(audit)
+CTR --> IU : 9: Mostrar devolución confirmada y pedido de reposición
+@enduml
+```
 
 
 ## 8.3. Análisis de Clases
@@ -5511,6 +5902,462 @@ ENT_LOT ..> ENT2 : <<trigger>>
 ```
 
 
+### Diagramas de Clases de Análisis — Ciclo 4
+
+A continuación se presentan los Diagramas de Clases de Análisis (MVC), los cuales definen de manera estática los prototipos de atributos y métodos abstractos para todas las fronteras, controladores y entidades del Ciclo 4 vinculados a los servicios de voz e inteligencia artificial.
+
+#### CU35: Generar Reporte por Comando de Voz (IA)
+
+**Descripción del diagrama:** Define los prototipos del modelo MVC de análisis para la consulta inteligente de reportes. La clase frontera `IU_ReporteVoz` expone las propiedades del micrófono e inicia y detiene el dictado de audio; el controlador `CTR_ProcesadorVoz` consume el Blob de audio, delega a `CE_ServicioIA` el procesamiento cognitivo y las intenciones NLP, orquesta la consulta de los saldos consolidados en PostgreSQL (`CE_Kardex`) e inyecta la auditoría del comando de voz en `CE_Bitacora`.
+
+```plantuml
+@startuml DClases_CU35
+allowmixing
+left to right direction
+skinparam classAttributeIconSize 0
+skinparam backgroundColor transparent
+actor "Usuario Autenticado" as Actor
+
+class "IU_ReporteVoz" as IU <<Boundary>> {
+  + isRecording : Boolean
+  + audioBlob : Blob
+  --
+  + iniciarGrabacion()
+  + detenerGrabacion()
+  + enviarAudioCTR()
+  + mostrarReporte(datos)
+  + reproducirRespuestaVoz()
+}
+
+class "CTR_ProcesadorVoz" as CTR <<Control>> {
+  --
+  + procesarAudio(audioBlob)
+  + interpretarComando(transcripcion)
+  + generarConsultaBD(intencion)
+  + auditarConsulta()
+}
+
+class "CE_ServicioIA" as IA <<Entity>> {
+  - endpointAPI : String
+  - claveAcceso : String
+  --
+  + transcribirAudio(audioBlob) : String
+  + parsearIntencion(texto) : Map
+}
+
+class "CE_Kardex" as ENT_K <<Entity>> {
+  - id_kardex : Integer
+  - saldo_actual : Float
+  --
+  + obtenerInventarioConsolidado()
+}
+
+class "CE_Bitacora" as ENT_B <<Entity>> {
+  - id_bitacora : Integer
+  - accion_sql : String
+  - detalle : String
+}
+
+Actor --> IU
+IU --> CTR
+CTR --> IA
+CTR --> ENT_K
+CTR --> ENT_B
+@enduml
+```
+
+#### CU06: Consultar Bitácora de Auditoría
+
+**Descripción del diagrama:** Muestra la estructura de clases de análisis MVC para el módulo de bitácora y auditoría. La frontera `IU_Bitacora` proporciona los selectores de búsqueda e interactúa con el controlador `CTR_Bitacora` para cargar los registros. El controlador comprueba los permisos a través de la relación de usuarios y roles, y realiza la consulta sobre la entidad `CE_Bitacora`.
+
+```plantuml
+@startuml DClases_CU06
+allowmixing
+left to right direction
+skinparam classAttributeIconSize 0
+skinparam backgroundColor transparent
+actor "Administrador" as Actor
+
+class "IU_Bitacora" as IU <<Boundary>> {
+  + filtroTabla : String
+  + filtroAccion : String
+  + fechaDesde : Date
+  + fechaHasta : Date
+  + paginaActual : Integer
+  --
+  + capturarFiltros()
+  + renderizarGrillaLogs(logs)
+  + cambiarPagina(pagina)
+}
+
+class "CTR_Bitacora" as CTR <<Control>> {
+  --
+  + obtenerLogs(page, pageSize, filtros)
+  + obtenerTablasAfectadas()
+  + obtenerAccionesSQL()
+  + obtenerMetricas()
+}
+
+class "CE_Bitacora" as ENT_B <<Entity>> {
+  - id_bitacora : Integer
+  - id_usuario : Integer
+  - accion_sql : String
+  - tabla_afectada : String
+  - registro_id : Integer
+  - new_data : JSONB
+  - ip_address : String
+  - fecha_hora : DateTime
+}
+
+class "CE_Usuario" as ENT_U <<Entity>> {
+  - id_usuario : Integer
+  - email_corporativo : String
+  - id_rol : Integer
+}
+
+Actor --> IU
+IU --> CTR
+CTR --> ENT_B
+CTR --> ENT_U
+@enduml
+```
+
+#### CU07: Respaldar Fichas a Storage Externo
+
+**Descripción del diagrama:** Define los prototipos del modelo MVC de análisis para la generación de copias de seguridad de registros regulatorios en PDF. El controlador extrae el registro desde la base de datos, construye el PDF y computa su hash, y lo delega al servicio externo de almacenamiento `CE_SupabaseStorage`. La URL pública resultante se registra en `CE_RespaldosDocumentales` y genera una traza en `CE_Bitacora`.
+
+```plantuml
+@startuml DClases_CU07
+allowmixing
+left to right direction
+skinparam classAttributeIconSize 0
+skinparam backgroundColor transparent
+actor "Administrador" as Actor
+
+class "IU_Respaldos" as IU <<Boundary>> {
+  + entidadSeleccionada : String
+  --
+  + refrescarLista()
+  + clicGenerarYRespaldar(id)
+  + mostrarResultado(url)
+}
+
+class "CTR_Respaldos" as CTR <<Control>> {
+  --
+  + obtenerEntidades()
+  + obtenerRegistrosDisponibles(entidad)
+  + generarYRespaldar(entidad, idEntidad)
+  + obtenerHistorial(page, pageSize, filtros)
+}
+
+class "CE_SupabaseStorage" as Storage <<Entity>> {
+  - bucketName : String
+  --
+  + upload(filePath, fileBuffer, options)
+}
+
+class "CE_RespaldosDocumentales" as ENT_R <<Entity>> {
+  - id_documento : Integer
+  - entidad_afectada : String
+  - id_entidad : Integer
+  - url_publica_storage : String
+  - descripcion_archivo : String
+  - tamanio_bytes : Integer
+  - id_usuario_subida : Integer
+  - fecha_subida : DateTime
+}
+
+class "CE_Bitacora" as ENT_B <<Entity>> {
+  - id_bitacora : Integer
+  - accion_sql : String
+}
+
+Actor --> IU
+IU --> CTR
+CTR --> Storage
+CTR --> ENT_R
+ENT_R ..> ENT_B : <<trigger>>
+@enduml
+```
+
+#### CU27: Generar Pedido de Venta / Reserva
+
+**Descripción del diagrama:** Estructura MVC para la generación de preventas de queso. La frontera `IU_Pedidos` permite seleccionar el cliente, método de pago y las líneas de detalle con cantidades en kilos. El controlador `CTR_Pedidos` valida la coherencia de datos, consulta la disponibilidad de inventario físico en caliente llamando a `CE_Kardex` (para lotes en estado 'Liberado_Comercial'), e inserta los datos estructurados en las entidades correspondientes.
+
+```plantuml
+@startuml DClases_CU27
+allowmixing
+left to right direction
+skinparam classAttributeIconSize 0
+skinparam backgroundColor transparent
+actor "Asesor Comercial" as Actor
+
+class "IU_Pedidos" as IU <<Boundary>> {
+  + idCliente : Integer
+  + lineasPedido : List
+  + metodoPago : String
+  + fechaEntrega : Date
+  --
+  + seleccionarCliente()
+  + agregarLinea(item, cantidad)
+  + enviarConfirmarPedido()
+  + mostrarErrorStock(insuficientes)
+}
+
+class "CTR_Pedidos" as CTR <<Control>> {
+  --
+  + obtenerPedidos(page, pageSize, filtros)
+  + obtenerStockDisponible(idItem) : Decimal
+  + crearPedido(formData)
+  + cancelarPedido(idPedido)
+}
+
+class "CE_PedidosVentas" as ENT_P <<Entity>> {
+  - id_pedido : Integer
+  - id_cliente : Integer
+  - id_vendedor : Integer
+  - estado_reserva : String
+  - monto_total_bs : Decimal
+  - metodo_pago : String
+  - fecha_reserva : DateTime
+}
+
+class "CE_DetallePedidos" as ENT_D <<Entity>> {
+  - id_detalle : Integer
+  - id_pedido : Integer
+  - id_item : Integer
+  - cantidad_pedida : Decimal
+  - precio_unitario : Decimal
+}
+
+class "CE_Kardex" as ENT_K <<Entity>> {
+  - id_movimiento : Integer
+  - id_lote : Integer
+  - cantidad_kilos : Decimal
+  - tipo_operacion : String
+}
+
+class "CE_Bitacora" as ENT_B <<Entity>> {
+  - id_bitacora : Integer
+  - accion_sql : String
+}
+
+Actor --> IU
+IU --> CTR
+CTR --> ENT_P
+CTR --> ENT_D
+CTR --> ENT_K
+ENT_P ..> ENT_B : <<trigger>>
+@enduml
+```
+
+#### CU28: Emitir Factura Comercial
+
+**Descripción del diagrama:** Clases de análisis del proceso de facturación y pasarela de cobros externos. La clase frontera `IU_Facturacion` permite la emisión de la factura de un pedido confirmado y el inicio de la pasarela de PayPal. El controlador interactúa con `CE_Factura` para la creación local del registro, con `CE_ServicioPayPal` para la pasarela en el sandbox, y con `CE_PagosClientes` para el registro del comprobante transaccional en USD.
+
+```plantuml
+@startuml DClases_CU28
+allowmixing
+left to right direction
+skinparam classAttributeIconSize 0
+skinparam backgroundColor transparent
+actor "Asesor Comercial" as Actor
+
+class "IU_Facturacion" as IU <<Boundary>> {
+  + numeroFactura : String
+  + tasaImpuesto : Decimal
+  --
+  + clicEmitirFactura()
+  + iniciarPagoPayPal()
+  + mostrarFacturaEmitida()
+}
+
+class "CTR_Facturacion" as CTR <<Control>> {
+  --
+  + obtenerPedidosPendientes()
+  + emitirFactura(data)
+  + anularFactura(idFactura, justificacion)
+  + createPayPalOrder(idFactura) : String
+  + capturePayPalOrder(idFactura, orderId)
+}
+
+class "CE_Factura" as ENT_F <<Entity>> {
+  - id_factura : Integer
+  - id_pedido : Integer
+  - numero_factura : String
+  - subtotal : Decimal
+  - impuesto : Decimal
+  - total_factura : Decimal
+  - estado : String
+}
+
+class "CE_PagosClientes" as ENT_Pay <<Entity>> {
+  - id_pago : Integer
+  - id_factura : Integer
+  - monto_total : Decimal
+  - moneda : String
+  - estado : String
+  - paypal_order_id : String
+  - paypal_capture_id : String
+}
+
+class "CE_ServicioPayPal" as PayPal <<Entity>> {
+  - clientId : String
+  - clientSecret : String
+  --
+  + getAccessToken() : String
+  + createOrder(factura) : Map
+  + capturePayment(orderId) : Map
+}
+
+class "CE_Bitacora" as ENT_B <<Entity>> {
+  - id_bitacora : Integer
+  - accion_sql : String
+}
+
+Actor --> IU
+IU --> CTR
+CTR --> ENT_F
+CTR --> ENT_Pay
+CTR --> PayPal
+ENT_F ..> ENT_B : <<trigger>>
+@enduml
+```
+
+#### CU29: Ejecutar Despacho Físico por FEFO
+
+**Descripción del diagrama:** Clases MVC del despacho logístico optimizado. La interfaz `IU_Despacho` expone los datos del chofer, placa del camión y temperatura del termo del vehículo. El controlador `CTR_Despachos` invoca a la entidad de lotes para cargarlos priorizando fechas de caducidad, crea el registro físico de despacho en `CE_DespachosLogisticos` y reduce el stock del Kardex en `CE_Kardex` registrando egresos asociados a cada lote.
+
+```plantuml
+@startuml DClases_CU29
+allowmixing
+left to right direction
+skinparam classAttributeIconSize 0
+skinparam backgroundColor transparent
+actor "Encargado Despacho" as Actor
+
+class "IU_Despachos" as IU <<Boundary>> {
+  + placaCamion : String
+  + nombreChofer : String
+  + temperaturaSalida : Decimal
+  + asignacionesLotes : List
+  --
+  + seleccionarPedido()
+  + autoAsignarFEFO()
+  + clicConfirmarDespacho()
+}
+
+class "CTR_Despachos" as CTR <<Control>> {
+  --
+  + obtenerPedidosConfirmados()
+  + obtenerLotesDisponibles(idPedido)
+  + ejecutarDespacho(data)
+}
+
+class "CE_DespachosLogisticos" as ENT_DL <<Entity>> {
+  - id_despacho : Integer
+  - id_pedido : Integer
+  - id_encargado : Integer
+  - placa_camion : String
+  - nombre_chofer : String
+  - temperatura_salida : Decimal
+  - fecha_despacho : DateTime
+}
+
+class "CE_LoteProduccion" as ENT_L <<Entity>> {
+  - id_lote : Integer
+  - codigo_lote : String
+  - fecha_vencimiento : Date
+  - estado : String
+}
+
+class "CE_Kardex" as ENT_K <<Entity>> {
+  - id_movimiento : Integer
+  - id_item : Integer
+  - tipo_operacion : String
+  - cantidad_kilos : Decimal
+}
+
+class "CE_Bitacora" as ENT_B <<Entity>> {
+  - id_bitacora : Integer
+  - accion_sql : String
+}
+
+Actor --> IU
+IU --> CTR
+CTR --> ENT_DL
+CTR --> ENT_L
+CTR --> ENT_K
+ENT_DL ..> ENT_B : <<trigger>>
+@enduml
+```
+
+#### CU30: Registrar Devolución de Queso
+
+**Descripción del diagrama:** Diagrama de clases MVC para la logística inversa y devoluciones de productos. La frontera `IU_Devoluciones` captura el despacho de origen y las cantidades mermadas o devueltas. El controlador `CTR_Devoluciones` valida las restricciones del despacho, inserta en `CE_DevolucionesQA` la devolución, ingresa los kilos correspondientes de regreso al inventario en `CE_Kardex` y, en caso de reemplazo inmediato, delega a `CE_PedidosVentas` la emisión automática del pedido clonado.
+
+```plantuml
+@startuml DClases_CU30
+allowmixing
+left to right direction
+skinparam classAttributeIconSize 0
+skinparam backgroundColor transparent
+actor "Asesor Comercial" as Actor
+
+class "IU_Devoluciones" as IU <<Boundary>> {
+  + idDespacho : Integer
+  + idLote : Integer
+  + kilosDevueltos : Decimal
+  + requiereReposicion : Boolean
+  + motivoRechazo : String
+  --
+  + seleccionarDespacho()
+  + registrarDatosDevolucion()
+  + mostrarAlertaError()
+}
+
+class "CTR_Devoluciones" as CTR <<Control>> {
+  --
+  + obtenerDespachosEntregados(filtros)
+  + obtenerLotesDelDespacho(idDespacho)
+  + registrarDevolucion(data)
+}
+
+class "CE_DevolucionesQA" as ENT_DQA <<Entity>> {
+  - id_devolucion : Integer
+  - id_despacho : Integer
+  - id_lote : Integer
+  - motivo_rechazo : String
+  - kilos_devueltos : Decimal
+  - requiere_reposicion : Boolean
+  - id_pedido_reposicion : Integer
+  - estado_devolucion : String
+}
+
+class "CE_Kardex" as ENT_K <<Entity>> {
+  --
+  + insertarMovimientoDevolucion()
+}
+
+class "CE_PedidosVentas" as ENT_P <<Entity>> {
+  --
+  + crearPedidoReposicionCaliente()
+}
+
+class "CE_Bitacora" as ENT_B <<Entity>> {
+  - id_bitacora : Integer
+  - accion_sql : String
+}
+
+Actor --> IU
+IU --> CTR
+CTR --> ENT_DQA
+CTR --> ENT_K
+CTR --> ENT_P
+ENT_DQA ..> ENT_B : <<trigger>>
+@enduml
+```
+
 
 # 10. CAPÍTULO 5: FLUJO DE TRABAJO - DISEÑO
 
@@ -5522,99 +6369,65 @@ El diseño lógico de la arquitectura del sistema se organiza en un modelo de 4 
 ```plantuml
 
 @startuml ArquitecturaLogica_Capas
-allowmixing
 skinparam packageStyle folder
 skinparam backgroundColor transparent
 top to bottom direction
 
-rectangle "capa de presentación (UI)" {
-  package "Seguridad" as UI_Seg
-  package "Usuarios y RRHH" as UI_Usu
-  package "Inventario (WMS)" as UI_Inv
-  package "Proveedores y Compras" as UI_Prov
-  package "Acopio y Formulación" as UI_Acop
-  package "Producción en Planta" as UI_Prod
-  package "Control de Calidad" as UI_Cal
-  package "Ventas Comerciales" as UI_Vent
+rectangle "Capa específica de la aplicación" {
+  package "P7: Producción en Planta\n(from Ciclo 3)" as P7
+  package "P8: Control de Calidad\ny Bioseguridad\n(from Ciclo 3)" as P8
+  package "P10: Ventas y Despacho\nComercial\n(from Ciclo 4)" as P10
+  package "P9: Auditoría e\nInteligencia Artificial\n(from Ciclo 4)" as P9
 }
 
-rectangle "capa de controladores" {
-  package "Seguridad_Ctrl" as C_Seg {
-    class "AuthController"
-  }
-  package "Usuarios_Ctrl" as C_Usu {
-    class "EmpleadoController"
-    class "RolController"
-  }
-  package "Inventario_Ctrl" as C_Inv {
-    class "KardexController"
-    class "CatalogoController"
-  }
-  package "Proveedores_Ctrl" as C_Prov {
-    class "ProveedorController"
-    class "OrdenCompraController"
-  }
-  package "Acopio_Ctrl" as C_Acop {
-    class "TriageController"
-    class "RecetaController"
-  }
-  package "Produccion_Ctrl" as C_Prod {
-    class "ProduccionController"
-    class "ProcesoController"
-  }
-  package "Calidad_Ctrl" as C_Cal {
-    class "CalidadController"
-  }
-  package "Ventas_Ctrl" as C_Vent {
-    class "ClienteController"
-    class "DespachoController"
-  }
+rectangle "Capa general de la aplicación" {
+  package "P1: Seguridad\n(from Ciclo 1)" as P1
+  package "P2: Gestión de Usuario\n(from Ciclo 1)" as P2
+  package "P3: Gestión de Inventario\n(WMS)\n(from Ciclo 1)" as P3
+  package "P4: Gestión Comercial\n(from Ciclo 1)" as P4
+  package "P5: Gestión de Proveedores\ny Compras\n(from Ciclo 2)" as P5
+  package "P6: Acopio y Formulación\n(from Ciclo 2)" as P6
 }
 
-rectangle "capa intermedia" {
-  package "Next.js (Framework)" as Frm_Next {
-    component "Server Actions"
-    component "Middleware"
-    component "Modelos (ORM)"
-    component "Rutas API"
-  }
-  package "Supabase Client" as Frm_DB {
-    component "Auth Client"
-    component "PostgREST"
-  }
+rectangle "Capa de software del sistema" {
+  package "Motor de Base de Datos\n(PostgreSQL 15)" as Sys_DB
+  package "Supabase Client & Auth\n(Persistencia)" as Sys_Supa
+  package "Entorno Next.js 15\n& Node.js Runtime" as Sys_Next
+  package "Integraciones y APIs\n(PayPal/Storage/Speech API)" as Sys_APIs
 }
 
-rectangle "capa de software de sistema" {
-  package "Servidor Web / Hosting" as Sys_Web {
-    component "Vercel Edge Network"
-    component "Node.js Runtime"
-  }
-  package "Servicio de Base de Datos" as Sys_DB {
-    component "AWS RDS PostgreSQL"
-  }
-}
+' Relaciones Capa Específica
+P7 ..> P6 : <<use>>
+P7 ..> P3 : <<use>>
+P8 ..> P7 : <<use>>
+P8 ..> P3 : <<use>>
+P10 ..> P8 : <<use>>
+P10 ..> P3 : <<use>>
+P9 ..> P1 : <<use>>
+P9 ..> P3 : <<use>>
+P9 ..> P8 : <<use>>
 
-UI_Seg --> C_Seg
-UI_Usu --> C_Usu
-UI_Inv --> C_Inv
-UI_Prov --> C_Prov
-UI_Acop --> C_Acop
-UI_Prod --> C_Prod
-UI_Cal --> C_Cal
-UI_Vent --> C_Vent
+' Relaciones Capa General
+P2 ..> P1 : <<use>>
+P3 ..> P1 : <<use>>
+P4 ..> P1 : <<use>>
+P5 ..> P1 : <<use>>
+P6 ..> P5 : <<use>>
 
-C_Seg --> Frm_Next
-C_Usu --> Frm_Next
-C_Inv --> Frm_Next
-C_Prov --> Frm_Next
-C_Acop --> Frm_Next
-C_Prod --> Frm_Next
-C_Cal --> Frm_Next
-C_Vent --> Frm_Next
+' Relaciones a Capa de Software del Sistema
+P1 ..> Sys_Supa
+P2 ..> Sys_Supa
+P3 ..> Sys_Supa
+P4 ..> Sys_Supa
+P5 ..> Sys_Supa
+P6 ..> Sys_Supa
+P7 ..> Sys_Supa
+P8 ..> Sys_Supa
+P10 ..> Sys_APIs
+P9 ..> Sys_APIs
 
-Frm_Next --> Sys_Web
-Frm_Next --> Frm_DB
-Frm_DB --> Sys_DB
+Sys_Next ..> Sys_Supa
+Sys_Supa ..> Sys_DB
 @enduml
 
 ```
@@ -5628,26 +6441,35 @@ Este diagrama representa los nodos físicos o virtuales donde se ejecutarán los
 skinparam backgroundColor transparent
 left to right direction
 
-node "Dispositivo Cliente (Planta / Laboratorio / Oficina)" <<Device>> as NodoCliente {
+node "Dispositivo Cliente (PC/Móvil)" <<Device>> as NodoCliente {
   node "Navegador Web" <<Execution Environment>> {
     artifact "SPA Frontend (React/Next.js)" as Frontend
+    artifact "Web Speech API" as SpeechAPI
   }
 }
 
-node "Nube Vercel (Edge Network)" <<Cloud Server>> as NodoVercel {
-  node "Next.js Runtime" <<Execution Environment>> {
-    artifact "Servidor SSR & Server Actions" as VercelApp
+node "Servidor Cloud (Vercel Hosting)" <<Cloud Server>> as NodoVercel {
+  node "Entorno Next.js 15" <<Execution Environment>> {
+    artifact "Server Actions & SSR" as NextServer
+    component "Supabase SSR Middleware" as Middleware
   }
 }
 
-node "Infraestructura Cloud (Supabase)" <<Cloud Database>> as NodoDB {
-  database "PostgreSQL 15" <<Database>> as DB
-  node "Supabase Auth & Storage" <<Service>> as SupaService
+node "Servidor BD Cloud (Supabase Dedicated)" <<Cloud Database>> as NodoDB {
+  node "PostgreSQL 15 Engine" <<Execution Environment>> {
+    artifact "Esquema grulac_db" as DBSchema
+  }
 }
 
-NodoCliente -- NodoVercel : <<protocol>>\nHTTPS / Full Duplex
-NodoVercel -- NodoDB : <<protocol>>\nTCP/IP (Puerto 5432) / PostgREST
-NodoVercel -- SupaService : <<protocol>>\nHTTPS / JWT
+node "Cloud API Supabase Auth" <<External>> as SupaAuth
+node "Cloud API Supabase Storage" <<External>> as SupaStorage
+node "Cloud API PayPal" <<External>> as PayPalAPI
+
+NodoCliente -- NodoVercel : <<protocol>>\nHTTPS / JSON API (Port 443)
+NextServer -- NodoDB : <<protocol>>\nTCP/IP (Port 5432)
+NextServer -- SupaAuth : <<protocol>>\nHTTPS (REST API)
+NextServer -- SupaStorage : <<protocol>>\nHTTPS (REST API)
+NextServer -- PayPalAPI : <<protocol>>\nHTTPS (REST API)
 @enduml
 ```
 
@@ -6643,6 +7465,509 @@ deactivate QA
 @enduml
 ```
 
+### Diagramas de Secuencia — Ciclo 4
+
+A continuación se presentan los diagramas de secuencia para los casos de uso del Ciclo 4, detallando la interacción temporal y de mensajes entre el Actor, Fronteras (UI), Controladores (Server Actions) y Entidades relacionales en Supabase.
+
+#### CU06: Consultar Bitácora de Auditoría
+
+```plantuml
+@startuml Secuencia_CU06
+title CU06: Consultar Bitácora de Auditoría
+skinparam backgroundColor transparent
+autonumber
+
+actor "Administrador" as Actor
+boundary "IU_Bitacora" as UI
+control "CTR_Bitacora" as Ctrl
+database "Supabase" as DB
+
+activate Actor
+Actor -> UI : Cargar panel de auditoría y aplicar filtros
+activate UI
+UI -> Ctrl : obtenerLogs(page, pageSize, filtros)
+activate Ctrl
+
+Ctrl -> DB : getUser()
+activate DB
+DB --> Ctrl : authenticated user info
+deactivate DB
+
+Ctrl -> DB : select(usuarios, roles) WHERE auth_uid = user.id
+activate DB
+DB --> Ctrl : id_usuario, permissions (modulos)
+deactivate DB
+
+Ctrl -> Ctrl : verificarPermisoAuditoria()
+
+alt Rol Autorizado
+  Ctrl -> DB : select(* from bitacora_auditoria) with pagination & filters
+  activate DB
+  DB --> Ctrl : raw logs data & total count
+  deactivate DB
+  
+  loop Para cada registro de log
+    Ctrl -> Ctrl : extraerDescripcion(log)
+  end
+  
+  Ctrl --> UI : success: true, logs (con descripcion), total
+else Acceso Denegado
+  Ctrl --> UI : success: false, error: "Acceso denegado"
+end
+deactivate Ctrl
+
+UI --> Actor : Renderizar grilla de bitácora y paginador
+deactivate UI
+deactivate Actor
+@enduml
+```
+
+#### CU07: Respaldar Fichas a Storage Externo
+
+```plantuml
+@startuml Secuencia_CU07
+title CU07: Respaldar Fichas a Storage Externo
+skinparam backgroundColor transparent
+autonumber
+
+actor "Administrador" as Actor
+boundary "IU_Respaldos" as UI
+control "CTR_Respaldos" as Ctrl
+database "Supabase" as DB
+entity "SupabaseStorage" as Storage
+
+activate Actor
+Actor -> UI : Seleccionar registro y hacer click en "Respaldar"
+activate UI
+UI -> Ctrl : generarYRespaldar(entidad, idEntidad)
+activate Ctrl
+
+Ctrl -> DB : select from tabla (lote/ficha/recepcion/compra) WHERE id = idEntidad
+activate DB
+DB --> Ctrl : recordData
+deactivate DB
+
+Ctrl -> Ctrl : New PDFDocument()
+Ctrl -> Ctrl : Generar encabezado, datos de registro y firma digital
+Ctrl -> Ctrl : Computar Hash SHA-256 de integridad del PDF
+Ctrl -> Ctrl : asegurarBucket()
+
+Ctrl -> Storage : upload(filePath, pdfBuffer)
+activate Storage
+Storage --> Ctrl : uploadData, uploadError
+deactivate Storage
+
+alt Carga Exitosa
+  Ctrl -> DB : insert into respaldos_documentales(url_publica, size, desc)
+  activate DB
+  DB --> Ctrl : docRecord (id_documento)
+  deactivate DB
+  
+  DB -> DB : <<trigger>> insert into bitacora_auditoria
+  
+  Ctrl --> UI : success: true, url_publica_storage
+else Error en Carga
+  Ctrl --> UI : success: false, error: uploadError.message
+end
+deactivate Ctrl
+
+UI --> Actor : Mostrar enlace de descarga del PDF generado y mensaje de éxito
+deactivate UI
+deactivate Actor
+@enduml
+```
+
+#### CU27: Generar Pedido de Venta / Reserva
+
+```plantuml
+@startuml Secuencia_CU27
+title CU27: Generar Pedido de Venta / Reserva
+skinparam backgroundColor transparent
+autonumber
+
+actor "Asesor Comercial" as Actor
+boundary "IU_Pedidos" as UI
+control "CTR_Pedidos" as Ctrl
+database "Supabase" as DB
+
+activate Actor
+Actor -> UI : Seleccionar cliente y agregar productos
+activate UI
+
+loop Para cada item agregado
+  UI -> Ctrl : obtenerStockDisponible(idItem)
+  activate Ctrl
+  
+  Ctrl -> DB : select id_lote from lote_produccion WHERE id_item = idItem AND estado = 'Liberado_Comercial'
+  activate DB
+  DB --> Ctrl : lista de lotes id
+  deactivate DB
+  
+  Ctrl -> DB : select from movimientos_kardex WHERE id_lote IN (ids)
+  activate DB
+  DB --> Ctrl : movimientos (cantidades kilos, tipo IN/OUT)
+  deactivate DB
+  
+  Ctrl -> Ctrl : calcularStockDinamico() (IN - OUT)
+  Ctrl --> UI : stock disponible
+  deactivate Ctrl
+end
+
+Actor -> UI : Ingresar cantidad y presionar "Confirmar Pedido"
+UI -> Ctrl : crearPedido(formData)
+activate Ctrl
+
+loop Para cada línea del pedido
+  Ctrl -> Ctrl : obtenerStockDisponible(id_item)
+  alt cantidad_pedida > stock_disponible
+    Ctrl --> UI : Error: "Stock insuficiente al emitir — E6"
+  end
+end
+
+Ctrl -> DB : insert into pedidos_ventas (id_cliente, total, estado='Pendiente')
+activate DB
+DB --> Ctrl : pedido (id_pedido)
+deactivate DB
+
+Ctrl -> DB : insert into detalle_pedidos (lineas)
+activate DB
+DB --> Ctrl : ok
+deactivate DB
+
+DB -> DB : <<trigger>> insert into bitacora_auditoria
+
+Ctrl --> UI : success: true, id_pedido
+deactivate Ctrl
+
+UI --> Actor : Redirigir a listado con mensaje de reserva exitosa
+deactivate UI
+deactivate Actor
+@enduml
+```
+
+#### CU28: Emitir Factura Comercial (con PayPal)
+
+```plantuml
+@startuml Secuencia_CU28
+title CU28: Emitir Factura Comercial
+skinparam backgroundColor transparent
+autonumber
+
+actor "Asesor Comercial" as Actor
+boundary "IU_Facturacion" as UI
+control "CTR_Facturacion" as Ctrl
+database "Supabase" as DB
+entity "PayPal_API" as PP
+
+activate Actor
+Actor -> UI : Seleccionar pedido y hacer clic en "Emitir Factura"
+activate UI
+UI -> Ctrl : emitirFactura(data)
+activate Ctrl
+
+Ctrl -> DB : select id_factura from factura WHERE numero_factura = numero
+activate DB
+DB --> Ctrl : existente (si hay)
+deactivate DB
+
+alt Factura duplicada
+  Ctrl --> UI : Error: "El número de factura ya fue registrado — E2"
+else Factura única
+  Ctrl -> DB : select from pedidos_ventas WHERE id = id_pedido
+  activate DB
+  DB --> Ctrl : pedido (estado_reserva)
+  deactivate DB
+  
+  alt Pedido cancelado
+    Ctrl --> UI : Error: "El pedido está Cancelado — E3"
+  else Pedido válido
+    Ctrl -> Ctrl : calcularImpuestos(subtotal, tasa)
+    
+    Ctrl -> DB : insert into factura(numero, subtotal, impuesto, total, estado='Emitida')
+    activate DB
+    DB --> Ctrl : factura (id_factura)
+    deactivate DB
+    
+    Ctrl -> DB : update pedidos_ventas set estado_reserva = 'Confirmado'
+    activate DB
+    DB --> Ctrl : ok
+    deactivate DB
+    
+    DB -> DB : <<trigger>> insert into bitacora_auditoria
+    
+    Ctrl --> UI : success: true, id_factura, total
+  end
+end
+deactivate Ctrl
+
+UI --> Actor : Mostrar factura emitida en pantalla
+
+== Pago Asíncrono con PayPal (Sandbox) ==
+
+Actor -> UI : Clic en botón "Pagar con PayPal"
+UI -> Ctrl : createPayPalOrder(idFactura)
+activate Ctrl
+Ctrl -> DB : select total_factura from factura WHERE id = idFactura
+activate DB
+DB --> Ctrl : facturaData
+deactivate DB
+Ctrl -> PP : oauth2/token (Client credentials)
+activate PP
+PP --> Ctrl : access_token
+deactivate PP
+Ctrl -> PP : v2/checkout/orders (POST total_factura)
+activate PP
+PP --> Ctrl : order (orderId)
+deactivate PP
+Ctrl --> UI : success: true, orderId
+deactivate Ctrl
+
+UI -> Actor : Abrir ventana de pago PayPal
+Actor -> PP : Autorizar transacción
+PP --> UI : transaccion autorizada (onApprove)
+
+UI -> Ctrl : capturePayPalOrder(idFactura, orderId)
+activate Ctrl
+Ctrl -> PP : v2/checkout/orders/orderId/capture (POST)
+activate PP
+PP --> Ctrl : capture details (status=COMPLETED, captureId)
+deactivate PP
+
+Ctrl -> DB : update factura set estado = 'Pagado' WHERE id = idFactura
+activate DB
+DB --> Ctrl : ok
+deactivate DB
+
+Ctrl -> DB : insert into pagos_clientes(id_factura, monto, paypal_ids)
+activate DB
+DB --> Ctrl : ok
+deactivate DB
+
+DB -> DB : <<trigger>> insert into bitacora_auditoria
+
+Ctrl --> UI : success: true, status=Completado
+deactivate Ctrl
+UI --> Actor : Mostrar recibo pagado y badge "Pagado"
+deactivate UI
+deactivate Actor
+@enduml
+```
+
+#### CU29: Ejecutar Despacho Físico por FEFO
+
+```plantuml
+@startuml Secuencia_CU29
+title CU29: Ejecutar Despacho Físico por FEFO
+skinparam backgroundColor transparent
+autonumber
+
+actor "Encargado Despacho" as Actor
+boundary "IU_Despacho" as UI
+control "CTR_Despachos" as Ctrl
+database "Supabase" as DB
+
+activate Actor
+Actor -> UI : Seleccionar pedido para despachar
+activate UI
+UI -> Ctrl : obtenerLotesDisponibles(idPedido)
+activate Ctrl
+
+Ctrl -> DB : select lines from detalle_pedidos WHERE id_pedido = idPedido
+activate DB
+DB --> Ctrl : array items
+deactivate DB
+
+loop Para cada item del pedido
+  Ctrl -> DB : select lotes from lote_produccion WHERE id_item AND estado='Liberado_Comercial' ORDER BY fecha_vencimiento ASC
+  activate DB
+  DB --> Ctrl : lotes candidato
+  deactivate DB
+  
+  loop Para cada lote candidato
+    Ctrl -> DB : select SUM(cantidad_kilos) from movimientos_kardex WHERE id_lote = id_lote
+    activate DB
+    DB --> Ctrl : kardex_total
+    deactivate DB
+    Ctrl -> Ctrl : calcularStockReal(producido + kardex_total)
+  end
+end
+
+Ctrl --> UI : retornar items con lotes disponibles ordenados por FEFO
+deactivate Ctrl
+UI --> Actor : Mostrar lotes sugeridos por fecha de caducidad
+
+Actor -> UI : Ingresar datos de transporte, temperatura y confirmar despacho
+UI -> Ctrl : ejecutarDespacho(formData)
+activate Ctrl
+
+Ctrl -> DB : select estado_reserva from pedidos_ventas WHERE id = id_pedido
+activate DB
+DB --> Ctrl : pedido (estado)
+deactivate DB
+
+alt Pedido no Confirmado
+  Ctrl --> UI : Error: "El pedido debe estar Confirmado — E1"
+else Pedido Confirmado
+  Ctrl -> DB : select id_despacho from despachos_logisticos WHERE id_pedido = id_pedido
+  activate DB
+  DB --> Ctrl : existente (si hay)
+  deactivate DB
+  
+  alt Pedido ya despachado (E6)
+    Ctrl --> UI : Error: "El pedido ya fue despachado por otro operador — E6"
+  else Flujo normal
+    Ctrl -> Ctrl : validarTemperaturaCamion() (-2°C a 12°C)
+    
+    loop Para cada lote en la asignación
+      Ctrl -> Ctrl : verificarStockDisponible(lote, cantidadDespachar) (E5)
+      alt stock < cantidadDespachar
+        Ctrl --> UI : Error: "Conflicto de concurrencia: lote agotado — E5"
+      end
+    end
+    
+    Ctrl -> DB : insert into despachos_logisticos(chofer, placa, temperatura)
+    activate DB
+    DB --> Ctrl : despacho (id_despacho)
+    deactivate DB
+    
+    loop Para cada lote en la asignación
+      Ctrl -> DB : insert into movimientos_kardex(tipo_operacion='OUT', cantidad=-cantidad)
+      activate DB
+      DB --> Ctrl : ok
+      deactivate DB
+      
+      Ctrl -> DB : select stockRestante from lote_produccion
+      activate DB
+      DB --> Ctrl : stock
+      deactivate DB
+      alt stock <= 0
+        Ctrl -> DB : update lote_produccion set estado = 'Agotado'
+        activate DB
+        DB --> Ctrl : ok
+        deactivate DB
+      end
+    end
+    
+    Ctrl -> Ctrl : verificarCompletitudPedido()
+    
+    alt Todos los items cubiertos
+      Ctrl -> DB : update pedidos_ventas set estado_reserva = 'Entregado_Completo'
+      activate DB
+      DB --> Ctrl : ok
+      deactivate DB
+    else Items parcialmente cubiertos
+      Ctrl -> DB : update pedidos_ventas set estado_reserva = 'En_Despacho'
+      activate DB
+      DB --> Ctrl : ok
+      deactivate DB
+    end
+    
+    DB -> DB : <<trigger>> insert into bitacora_auditoria
+    
+    Ctrl --> UI : success: true, estado_final
+  end
+end
+deactivate Ctrl
+
+UI --> Actor : Mostrar despacho exitoso
+deactivate UI
+deactivate Actor
+@enduml
+```
+
+#### CU30: Registrar Devolución de Queso
+
+```plantuml
+@startuml Secuencia_CU30
+title CU30: Registrar Devolución de Queso
+skinparam backgroundColor transparent
+autonumber
+
+actor "Asesor Comercial" as Actor
+boundary "IU_Devoluciones" as UI
+control "CTR_Devoluciones" as Ctrl
+database "Supabase" as DB
+
+activate Actor
+Actor -> UI : Seleccionar despacho, lote e ingresar kilos a devolver
+activate UI
+UI -> Ctrl : registrarDevolucion(formData)
+activate Ctrl
+
+Ctrl -> DB : select from despachos_logisticos WHERE id = id_despacho
+activate DB
+DB --> Ctrl : despacho (id_pedido, estado_reserva)
+deactivate DB
+
+alt Estado del pedido no apto (no entregado)
+  Ctrl --> UI : Error: "No es posible registrar devoluciones sobre este estado — E1"
+else Estado apto
+  Ctrl -> Ctrl : validarMotivoLargo()
+  
+  Ctrl -> DB : select sum(cantidad_kilos) from movimientos_kardex WHERE id_despacho (OUT)
+  activate DB
+  DB --> Ctrl : totalEntregado
+  deactivate DB
+  
+  alt kilos > totalEntregado
+    Ctrl --> UI : Error: "Los kilos devueltos exceden la cantidad entregada — E2"
+  else Kilos válidos
+    alt Seleccionó Lote específico
+      Ctrl -> DB : select sum(kilos_devueltos) from devoluciones_qa WHERE id_despacho AND id_lote
+      activate DB
+      DB --> Ctrl : previoDevuelto
+      deactivate DB
+      alt previoDevuelto + kilos > totalEntregado
+        Ctrl --> UI : Error: "El lote ya fue parcialmente devuelto... supera lo entregado — E4"
+      end
+    end
+    
+    Ctrl -> DB : insert into devoluciones_qa(id_despacho, id_lote, motivo, kilos, requiere_reposicion)
+    activate DB
+    DB --> Ctrl : devolucion (id_devolucion)
+    deactivate DB
+    
+    Ctrl -> DB : insert into movimientos_kardex(tipo_operacion='DEVOLUCION', cantidad=kilos)
+    activate DB
+    DB --> Ctrl : ok
+    deactivate DB
+    
+    alt requiere_reposicion = true (Reposición caliente)
+      Ctrl -> DB : select original order details
+      activate DB
+      DB --> Ctrl : originalOrderData
+      deactivate DB
+      
+      Ctrl -> DB : insert into pedidos_ventas(cliente, total, estado='Pendiente', observaciones='REPOSICIÓN CALIENTE')
+      activate DB
+      DB --> Ctrl : nuevoPedido (id_pedido)
+      deactivate DB
+      
+      loop Para cada linea original
+        Ctrl -> DB : insert into detalle_pedidos (linea)
+        activate DB
+        DB --> Ctrl : ok
+        deactivate DB
+      end
+      
+      Ctrl -> DB : update devoluciones_qa set id_pedido_reposicion = id_pedido
+      activate DB
+      DB --> Ctrl : ok
+      deactivate DB
+    end
+    
+    DB -> DB : <<trigger>> insert into bitacora_auditoria
+    
+    Ctrl --> UI : success: true, id_devolucion, id_pedido_reposicion
+  end
+end
+deactivate Ctrl
+
+UI --> Actor : Mostrar confirmación de devolución y de pedido de reposición
+deactivate UI
+deactivate Actor
+@enduml
+```
 # 11	CAPÍTULO 5: FLUJO DE TRABAJO — IMPLEMENTACIÓN
 
 El Flujo de Trabajo de la Implementación detalla la estructura física del proyecto de software, las herramientas del entorno de ingeniería de software utilizadas, el mapeo de la arquitectura física y los diagramas de componentes por subsistemas que gobiernan la lógica de negocio del ERP/CRM de GRULAC S.R.L.
@@ -6675,7 +8000,8 @@ skinparam componentStyle uml2
 skinparam roundCorner 8
 skinparam packageStyle rectangle
 
-package "React/Next.js SPA (Capa de Presentación)" {
+' Capas Técnicas (Izquierda)
+package "Views (React/Next.js Componentes)" as PKG_Views {
   component "Sidebar.js" as LAY_Side
   component "Topbar.js" as LAY_Top
   component "page.js (Catalogo)" as COMP_Cat
@@ -6689,33 +8015,113 @@ package "React/Next.js SPA (Capa de Presentación)" {
   component "page.js (Disposicion QA)" as COMP_Disp
 }
 
-package "Supabase Client & Auth (Bridge Middleware)" {
-  interface "Supabase.js Connection" as SUPA
-}
-
-package "Next.js controllers (Capa de Control)" {
+package "Controllers (Next.js Controllers)" as PKG_Ctrls {
   component "CTR_Inventario.js" as C_Inv
   component "CTR_Produccion.js" as C_Prod
   component "CTR_Proceso.js" as C_Proc
   component "CTR_Calidad.js" as C_Cal
 }
 
-package "PostgreSQL 15 Tables (Capa de Persistencia)" {
-  component "ce_catalogo_items" as M_Cat
-  component "ce_kardex_movimientos" as M_Kard
-  component "ce_receta_bom" as M_BOM
-  component "ce_detalle_receta" as M_Det
-  component "ce_orden_produccion" as M_OP
-  component "ce_parametros_proceso" as M_Param
-  component "ce_lote_produccion" as M_Lote
-  component "ce_presentaciones_lote" as M_Pres
-  component "ce_ficha_calidad" as M_Ficha
-  component "ce_bitacora_auditoria" as M_Bit
+package "Database Config (Client Setup)" as PKG_DBConfig {
+  component "supabaseClient.js" as COMP_SClient
 }
 
-database "PostgreSQL 15 (AWS Cloud)" as DB
+package "Bootstrap / Config (Next.js Config)" as PKG_Bootstrap {
+  component "next.config.js" as COMP_NextConfig
+}
 
-' Relaciones de Presentación
+' Entrypoints Centrales
+component "middleware.js\n(Rutas & Entrypoint)" as COMP_Entry
+component "supabase.js\n(Conexión Cliente DB)" as COMP_SConn
+
+' Subsistemas / Paquetes de Negocio (Derecha)
+package "P1: Seguridad y Auditoría" as SUB_Seg
+package "P2: Gestión de Usuario" as SUB_User
+package "P3: Gestión de Inventario (WMS)" as SUB_Inv
+package "P4: Gestión Comercial" as SUB_Com
+package "P5: Gestión de Proveedores y Compras" as SUB_Prov
+package "P6: Acopio y Formulación" as SUB_Aco
+package "P7: Producción en Planta" as SUB_Prod
+package "P8: Control de Calidad y Bioseguridad" as SUB_QA
+package "P9: Auditoría e Inteligencia Artificial" as SUB_IA
+package "P10: Ventas y Despacho Comercial" as SUB_Vent
+
+' Capa Inferior: Base de Datos
+package "BASE DE DATOS (Paquete_BaseDatos)" as PKG_BD {
+  component "BASE DE DATOS::PostgreSQL 15\n(Supabase Dedicated)" as COMP_PG <<database>>
+  component "BASE DE DATOS::Supabase Client\n(Driver)" as COMP_Driver
+  component "BASE DE DATOS::schema.sql\n(Script de Inicialización)" as COMP_Schema <<script file>>
+  component "BASE DE DATOS::Triggers & Functions\n(Auditoría)" as COMP_Trig <<script file>>
+  
+  component "ce_catalogo_items" as T_Cat <<table>>
+  component "ce_kardex_movimientos" as T_Kard <<table>>
+  component "ce_orden_produccion" as T_OP <<table>>
+  component "ce_ficha_calidad" as T_Ficha <<table>>
+  component "ce_bitacora_auditoria" as T_Aud <<table>>
+  component "ce_ventas_despacho" as T_Vent <<table>>
+}
+
+' Capa Inferior: Reportes
+package "REPORTE (Paquete_Reportes)" as PKG_Rep {
+  component "REPORTE::ReportController.js" as COMP_RepCtrl <<script file>>
+  component "REPORTE::Reporte Estático\n(Ficha QA / Ticket)" as COMP_RepEst <<report>>
+  component "REPORTE::Reporte Dinámico\n(PDF / XLSX / CSV)" as COMP_RepDin <<report>>
+  component "REPORTE::Reporte por Comando\nde Voz (NLP / IA)" as COMP_RepVoz <<report>>
+  component "REPORTE::Dashboard Estadístico\n(Tiempo Real)" as COMP_RepDash <<view>>
+}
+
+' Relaciones de Capas Técnicas a Entrypoint/Conexión
+PKG_Views ..> COMP_Entry : <<use>>
+PKG_Ctrls ..> COMP_Entry : <<use>>
+PKG_DBConfig ..> COMP_SConn : <<use>>
+PKG_Bootstrap ..> COMP_SConn : <<use>>
+
+' Relaciones de Subsistemas a Entrada (Delegación)
+SUB_Seg ..> COMP_Entry : <<delegate>>
+SUB_User ..> COMP_Entry : <<delegate>>
+SUB_Inv ..> COMP_Entry : <<delegate>>
+SUB_Com ..> COMP_Entry : <<delegate>>
+SUB_Prov ..> COMP_Entry : <<delegate>>
+SUB_Aco ..> COMP_Entry : <<delegate>>
+SUB_Prod ..> COMP_Entry : <<delegate>>
+SUB_QA ..> COMP_Entry : <<delegate>>
+SUB_IA ..> COMP_Entry : <<delegate>>
+SUB_Vent ..> COMP_Entry : <<delegate>>
+
+' Conexión Central a Base de Datos
+COMP_SConn --> COMP_PG
+
+' Estructura Interna de la Base de Datos
+COMP_PG ..> COMP_Driver : <<connect>>
+COMP_PG ..> COMP_Schema : <<initialize>>
+COMP_PG ..> COMP_Trig : <<initialize>>
+COMP_PG ..> T_Cat : <<table of>>
+COMP_PG ..> T_Kard : <<table of>>
+COMP_PG ..> T_OP : <<table of>>
+COMP_PG ..> T_Ficha : <<table of>>
+COMP_PG ..> T_Aud : <<table of>>
+COMP_PG ..> T_Vent : <<table of>>
+
+' Estructura Interna de Reportes
+COMP_RepCtrl ..> COMP_RepEst : <<generate>>
+COMP_RepCtrl ..> COMP_RepDin : <<generate>>
+COMP_RepCtrl ..> COMP_RepVoz : <<generate>>
+COMP_RepCtrl ..> COMP_RepDash : <<render>>
+
+' Uso de Base de Datos y Reportes por parte de Subsistemas Clave
+SUB_Inv ..> COMP_PG : <<read/write>>
+SUB_Prod ..> COMP_PG : <<read/write>>
+SUB_QA ..> COMP_PG : <<read/write>>
+SUB_IA ..> COMP_PG : <<read/write>>
+SUB_Vent ..> COMP_PG : <<read/write>>
+
+SUB_Inv ..> COMP_RepCtrl : <<use>>
+SUB_Prod ..> COMP_RepCtrl : <<use>>
+SUB_QA ..> COMP_RepCtrl : <<use>>
+SUB_IA ..> COMP_RepCtrl : <<use>>
+SUB_Vent ..> COMP_RepCtrl : <<use>>
+
+' Conexiones de Flujo Interno en Vistas
 LAY_Side ..> COMP_Cat
 LAY_Side ..> COMP_Kardex
 LAY_Side ..> COMP_Ajustes
@@ -6733,50 +8139,42 @@ COMP_Params --> C_Proc
 COMP_Cierre --> C_Prod
 COMP_Ficha --> C_Cal
 COMP_Disp --> C_Cal
-
-' Controladores a Supabase Bridge
-C_Inv --> SUPA
-C_Prod --> SUPA
-C_Proc --> SUPA
-C_Cal --> SUPA
-
-' Supabase a Entidades PostgreSQL
-SUPA ..> M_Cat
-SUPA ..> M_Kard
-SUPA ..> M_BOM
-SUPA ..> M_Det
-SUPA ..> M_OP
-SUPA ..> M_Param
-SUPA ..> M_Lote
-SUPA ..> M_Pres
-SUPA ..> M_Ficha
-SUPA ..> M_Bit
-
-' Base de datos física
-M_Cat --> DB : SQL DML
-M_Kard --> DB : SQL DML
-M_BOM --> DB : SQL DML
-M_Det --> DB : SQL DML
-M_OP --> DB : SQL DML
-M_Param --> DB : SQL DML
-M_Lote --> DB : SQL DML
-M_Pres --> DB : SQL DML
-M_Ficha --> DB : SQL DML
-M_Bit --> DB : SQL DML
-
-' Trigger relación
-M_Kard ..> M_Bit : <<trigger>>
-M_OP ..> M_Bit : <<trigger>>
-M_Lote ..> M_Bit : <<trigger>>
-M_Ficha ..> M_Bit : <<trigger>>
 @enduml
 ```
 
 ### Descripción dinámica de la arquitectura global:
-*   **React/Next.js SPA (Frontera):** Aloja los componentes web reactivos e interactivos de la planta y administración. Los formularios capturan parámetros físicos y semáforos dinámicos en base al estado del cliente React.
-*   **Next.js Controllers (Control):** Archivos JS modulares en `src/lib/controllers/` que implementan las reglas del negocio específicas, validaciones de stock, fórmulas matemáticas de recetas lácteas y rendimientos atómicos de tinas.
-*   **Supabase Client (Bridge):** Conector físico que encapsula las credenciales y el túnel HTTPS de comunicación segura. Realiza consultas a la base de datos e inyecta el token de sesión del usuario para cumplir con las políticas RLS.
-*   **PostgreSQL 15 Tables (Entidades):** Mapeo estricto del modelo relacional físico del ERP. Los disparadores (Triggers) implementados a nivel BD garantizan que cualquier acción DML (insert o update) sobre lotes, Kardex y calidad genere automáticamente una traza inmutable en `ce_bitacora_auditoria` sin depender del servidor de aplicaciones.
+*   **Views (React/Next.js Componentes - Capa de Presentación):** Aloja los componentes web reactivos e interactivos del frontend del ERP/CRM (vistas de planta, almacén y administración). Los componentes UI se comunican con los controladores y consumen datos dinámicos.
+*   **Controllers (Next.js Controllers - Capa de Control):** Contiene los controladores modulares (`CTR_*`) que implementan las reglas de negocio, validaciones de inventario, recetas de formulación y control de calidad.
+*   **middleware.js (Entrypoint de Autenticación y Rutas):** Intercepta y valida de forma segura todas las peticiones HTTPS entrantes, gestionando sesiones mediante Supabase Auth antes de redirigirlas.
+*   **supabase.js (Conexión Cliente DB):** Encapsula el cliente Supabase para actuar como puente seguro (Bridge Connection) hacia la base de datos relacional PostgreSQL.
+*   **Paquete BASE DE DATOS (Persistencia):** Aloja la base de datos PostgreSQL 15 en la nube de Supabase, el driver de conexión, el esquema físico de inicialización (`schema.sql`), disparadores/funciones de auditoría (`Triggers & Functions`) y las entidades físicas principales como `ce_catalogo_items` (items), `ce_kardex_movimientos` (Kárdex), `ce_orden_produccion` (producción), `ce_ficha_calidad` (calidad), `ce_bitacora_auditoria` (auditoría/IA) y `ce_ventas_despacho` (ventas).
+*   **Paquete REPORTE (Reportabilidad):** Centraliza la lógica de salida de información mediante `ReportController.js`, encargada de generar reportes estáticos en PDF/HTML, reportes dinámicos interactivos, reportes mediante comandos de voz estructurados (NLP) y el dashboard estadístico de tiempo real.
+
+---
+
+### 11.2.1 Especificación e Implementación de los Tres Tipos de Reportes
+En concordancia con las pautas de diseño del Ciclo 4 y las directrices de la docente, el sistema ERP/CRM de GRULAC S.R.L. implementa físicamente la funcionalidad de reportabilidad bajo tres modalidades tecnológicas diferenciadas:
+
+1. **Reportes Estáticos (Consultas Fijas e Imprimibles):**
+   * **Propósito:** Ofrecer de manera inmediata y sin parámetros adicionales un comprobante formal sobre un registro histórico del sistema.
+   * **Implementación Física:** Formateados en HTML/CSS estructurado mediante Tailwind CSS, utilizando vistas optimizadas para impresión (ocultando barras laterales y elementos de navegación del dashboard principal mediante la clase `print:hidden`).
+   * **Ejemplos Implementados:** 
+     * **Ticket de Triage de Leche Cruda:** Emitido automáticamente al registrar el ingreso de la cisterna con los resultados de pH, temperatura y acidez.
+     * **Acta de Disposición y Retención de Bioseguridad:** Generada de forma estática para los lotes enviados a cuarentena o reproceso.
+
+2. **Reportes Dinámicos (Filtros Avanzados y Exportación Multi-formato):**
+   * **Propósito:** Permitir a los tomadores de decisiones (Gerencia, Jefes de Producción) interactuar con la información mediante filtros paramétricos y exportar el consolidado a formatos legibles e impresos.
+   * **Implementación Física:** El frontend React maneja filtros reactivos en memoria sobre un conjunto de datos en JSON, actualizando dinámicamente gráficos de barras y tablas analíticas. La exportación se implementa bajo cuatro variantes:
+     * **PDF/HTML:** Ejecutando la función `window.print()` nativa del navegador sobre contenedores CSS con hojas de estilo para tamaño A4.
+     * **CSV (Valores Separados por Comas):** Generación al vuelo de archivos planos para migración rápida de datos.
+     * **Excel (XLSX/CSV):** Estructurado con los balances acumulados y mermas del Kárdex, optimizado para hojas de cálculo empresariales.
+   * **Ejemplos Implementados:** 
+     * **Kárdex Dinámico de Inventario:** Permite filtrar por SKU de insumo, rango de fechas y tipo de movimiento (IN/OUT/AJUSTE), calculando sumatorias en caliente de ingresos, egresos y saldos remanentes.
+
+3. **Reportes por Comando de Voz (Procesamiento NLP e Integración de Consultas):**
+   * **Propósito:** Habilitar a los operarios en planta (quienes manipulan materiales con guantes y herramientas húmedas) o directores en movimiento la capacidad de consultar el estado operativo del sistema mediante la voz.
+   * **Implementación Física:** El sistema de topbar integra un botón de micrófono. Al activarse, captura el flujo de audio del usuario, lo procesa mediante la API de reconocimiento de voz para convertirlo a texto y analiza la cadena sintáctica mediante un servicio NLP local en `ReporteIAValidator.php` (o controlador equivalente). El sistema identifica la intención de búsqueda y el parámetro temporal, traduciéndolo en una llamada parametrizada segura que levanta la información directamente desde PostgreSQL.
+   * **Ejemplo Implementado:** El usuario indica por voz: *"mostrarme los lotes liberados en la gestión 1-2026"* o *"mostrarme el stock de dulce de leche"*. El analizador reconoce el comando, consulta la vista `ce_lote_produccion` filtrando por `estado = 'Liberado_Comercial'` y renderiza la grilla de lotes automáticamente en pantalla sin necesidad de navegación manual.
 
 ---
 
@@ -6867,194 +8265,989 @@ PROTOTIPO-GRULAC-CRM/
 
 ### Diagramas de Componentes por Subsistema (Mapeo de Paquetes en PUDS)
 
-Siguiendo la metodología rigurosa de PUDS, a continuación se presentan los diagramas de componentes detallados que gobiernan físicamente cada subsistema y paquete de negocio del proyecto lácteo:
+Siguiendo la metodología de PUDS y respetando la estructura en 3 niveles (Páginas/Formularios -> Controladores -> Tablas), se detallan los componentes y flujos de dependencias para los 10 paquetes del proyecto lácteo:
 
-#### 1. Subsistema de Seguridad, Usuarios y Auditoría Forense (`Paquete_Seguridad`)
-Este subsistema gobierna el control estricto de accesos RBAC y el registro de la bitácora de auditoría forense mediante triggers en base de datos PostgreSQL:
+#### 1. Paquete P1: Seguridad (`Paquete_Seguridad`)
+Este paquete gobierna el ingreso controlado y la verificación de permisos en las vistas del sistema.
 
 ```plantuml
-@startuml ComponentesSeguridadAuditoria
+@startuml ComponentesP1Seguridad
 skinparam backgroundColor #FEFEFE
 skinparam componentStyle uml2
 skinparam roundCorner 8
 
-package "React/Next.js (Presentacion)" {
-  component "layout.js (dashboard)" as UI_Guard
-  component "page.js (roles)" as UI_Roles
+package "Presentación (Páginas/Vistas)" {
+  component "login/page.js" as UI_Login <<formulario>>
+  component "recuperar-acceso/page.js" as UI_Forgot <<formulario>>
 }
 
-package "Next.js Client (Auth Control)" {
-  interface "Supabase Auth API" as API_Auth
+package "Control (Controladores)" {
+  component "supabase/client.js" as C_AuthClient <<class>>
 }
 
-package "PostgreSQL Entities (Data)" {
-  component "ce_usuarios" as T_Users
-  component "ce_empleados" as T_Empl
-  component "ce_roles" as T_Roles
-  component "ce_bitacora_auditoria" as T_Bitacora
+package "Persistencia (Entidades/Tablas)" {
+  component "usuarios" as T_Users <<table>>
 }
 
-database "PostgreSQL 15" {
-  [Bitacora Trigger] as TRG_Bit
-}
-
-' Flujo de dependencias físicas
-UI_Guard ..> API_Auth : verificarSesion()
-UI_Roles ..> T_Roles : SELECT / UPDATE
-T_Users --> T_Bitacora : <<trigger>>
-T_Empl --> T_Bitacora : <<trigger>>
-T_Roles --> T_Bitacora : <<trigger>>
-TRG_Bit --> T_Bitacora : INSERT inmutable
+' Flujos de dependencias
+UI_Login ..> C_AuthClient : <<use>>
+UI_Forgot ..> C_AuthClient : <<use>>
+C_AuthClient ..> T_Users : <<use>>
 @enduml
 ```
+*   **Descripción del Flujo**: Las interfaces de acceso (`login/page.js` y `recuperar-acceso/page.js`) delegan la lógica de verificación de sesión en el cliente de base de datos (`supabase/client.js`), el cual valida las credenciales directamente contra la tabla `usuarios` en el motor de persistencia.
 
-#### 2. Subsistema de Inventario de Insumos y Kardex WMS (`Paquete_Inventario`)
-Este subsistema gobierna el control en tiempo real de insumos químicos (cuajo, sal, cloruro) y materias primas, disparando alertas de stock bajo y registrando mermas debidamente justificadas:
+#### 2. Paquete P2: Gestión de Usuario (`Paquete_Usuario`)
+Este paquete gestiona las cuentas de los empleados de la planta, sus perfiles y asignaciones.
 
 ```plantuml
-@startuml ComponentesInventarioWMS
+@startuml ComponentesP2Usuario
 skinparam backgroundColor #FEFEFE
 skinparam componentStyle uml2
 skinparam roundCorner 8
 
-package "React/Next.js Boundary Pages" {
-  component "page.js (catalogo)" as UI_Cat
-  component "page.js (kardex)" as UI_Kardex
-  component "page.js (ajustes)" as UI_Ajustes
-  component "page.js (alertas)" as UI_Alertas
+package "Presentación (Páginas/Vistas)" {
+  component "usuarios/page.js" as UI_Users <<formulario>>
 }
 
-package "Next.js controllers" {
-  component "CTR_Inventario.js" as C_Inv
+package "Control (Controladores)" {
+  component "supabase/admin.js" as C_AuthAdmin <<class>>
 }
 
-package "PostgreSQL Entities" {
-  component "ce_catalogo_items" as T_Items
-  component "ce_kardex_movimientos" as T_Kardex
-  component "ce_bitacora_auditoria" as T_Bitacora
+package "Persistencia (Entidades/Tablas)" {
+  component "usuarios" as T_Users <<table>>
 }
 
-' Flujo de dependencias
-UI_Cat --> C_Inv : getCatalogo()
-UI_Kardex --> C_Inv : getKardex()
-UI_Ajustes --> C_Inv : registrarMerma()
-UI_Alertas --> C_Inv : configurarStockMinimo()
-
-C_Inv ..> T_Items : SELECT / UPDATE
-C_Inv ..> T_Kardex : INSERT / SELECT
-T_Kardex --> T_Bitacora : <<trigger>> registrar bitacora
-T_Items --> T_Bitacora : <<trigger>> registrar bitacora
+' Flujos de dependencias
+UI_Users ..> C_AuthAdmin : <<use>>
+C_AuthAdmin ..> T_Users : <<use>>
 @enduml
 ```
+*   **Descripción del Flujo**: La página de administración de usuarios (`usuarios/page.js`) consume las funciones administrativas de `supabase/admin.js` para crear, actualizar o suspender cuentas, persistiendo los datos de manera directa sobre la tabla `usuarios`.
 
-#### 3. Subsistema de Producción y Lotes Lácteos BOM (`Paquete_Produccion`)
-Este subsistema administra el caldero y las tinas de hilado/prensado, calculando deducciones de inventario según recetas BOM por cada 100L de leche y registrando el timelining físico de parámetros del lote:
+#### 3. Paquete P3: Gestión de Inventario (WMS) (`Paquete_Inventario`)
+Este paquete gobierna el control de materias primas, insumos y movimientos de Kárdex.
 
 ```plantuml
-@startuml ComponentesProduccionBOM
+@startuml ComponentesP3InventarioWMS
 skinparam backgroundColor #FEFEFE
 skinparam componentStyle uml2
 skinparam roundCorner 8
 
-package "React/Next.js Boundary Pages" {
-  component "page.js (recetas)" as UI_BOM
-  component "page.js (apertura)" as UI_Apert
-  component "page.js (parametros)" as UI_Param
-  component "page.js (cierre)" as UI_Cierre
+package "Presentación (Páginas/Vistas)" {
+  component "catalogo/page.js" as UI_Cat <<formulario>>
+  component "kardex/page.js" as UI_Kard <<formulario>>
+  component "ajustes/page.js" as UI_Ajustes <<formulario>>
 }
 
-package "Next.js controllers" {
-  component "CTR_Produccion.js" as C_Prod
-  component "CTR_Proceso.js" as C_Proc
+package "Control (Controladores)" {
+  component "CTR_Inventario.js" as C_Inv <<class>>
 }
 
-package "PostgreSQL Entities" {
-  component "ce_receta_bom" as T_BOM
-  component "ce_detalle_receta" as T_DetBOM
-  component "ce_orden_produccion" as T_OP
-  component "ce_parametros_proceso" as T_Params
-  component "ce_lote_produccion" as T_Lote
-  component "ce_presentaciones_lote" as T_Pres
-  component "ce_bitacora_auditoria" as T_Bitacora
+package "Persistencia (Entidades/Tablas)" {
+  component "ce_catalogo_items" as T_Items <<table>>
+  component "ce_kardex_movimientos" as T_Kardex <<table>>
 }
 
-' Relaciones de dependencia
-UI_BOM --> C_Prod
-UI_Apert --> C_Prod
-UI_Param --> C_Proc
-UI_Cierre --> C_Prod
+' Flujos de dependencias
+UI_Cat ..> C_Inv : <<use>>
+UI_Kard ..> C_Inv : <<use>>
+UI_Ajustes ..> C_Inv : <<use>>
 
-C_Prod ..> T_BOM : SELECT
-C_Prod ..> T_DetBOM : SELECT
-C_Prod ..> T_OP : INSERT (Crear Orden)
-C_Proc ..> T_Params : INSERT (Timestamps)
-C_Prod ..> T_Lote : INSERT (Crear Lote)
-C_Prod ..> T_Pres : INSERT (Desglose)
-
-T_OP --> T_Bitacora : <<trigger>>
-T_Lote --> T_Bitacora : <<trigger>>
-T_Params --> T_Bitacora : <<trigger>>
+C_Inv ..> T_Items : <<use>>
+C_Inv ..> T_Kardex : <<use>>
 @enduml
 ```
+*   **Descripción del Flujo**: El stock de catálogo, los movimientos y los ajustes de merma se solicitan desde la interfaz hacia el controlador de negocio `CTR_Inventario.js`. Este ejecuta los cálculos y persiste los registros transaccionales en las tablas `ce_catalogo_items` y `ce_kardex_movimientos`.
 
-#### 4. Subsistema de Control de Calidad y Liberación QA (`Paquete_Calidad`)
-Este subsistema implementa la barrera sanitaria digital estricta que dictamina la liberación o retención en cuarentena/reproceso de lotes, impidiendo que productos no conformes ingresen al inventario comercial:
+#### 4. Paquete P4: Gestión Comercial (`Paquete_Comercial`)
+Este paquete administra el portafolio de clientes y las solicitudes/pedidos comerciales del ERP.
 
 ```plantuml
-@startuml ComponentesCalidadQA
+@startuml ComponentesP4Comercial
 skinparam backgroundColor #FEFEFE
 skinparam componentStyle uml2
 skinparam roundCorner 8
 
-package "React/Next.js Boundary Pages" {
-  component "page.js (ficha QA)" as UI_Ficha
-  component "page.js (disposicion QA)" as UI_Disp
-  component "page.js (liberacion QA)" as UI_Lib
+package "Presentación (Páginas/Vistas)" {
+  component "clientes/page.js" as UI_Clientes <<formulario>>
+  component "pedidos/page.js" as UI_Pedidos <<formulario>>
 }
 
-package "Next.js controllers" {
-  component "CTR_Calidad.js" as C_Cal
+package "Control (Controladores)" {
+  component "CTR_Inventario.js" as C_Inv <<class>>
 }
 
-package "PostgreSQL Entities" {
-  component "ce_ficha_calidad" as T_Ficha
-  component "ce_lote_produccion" as T_Lote
-  component "ce_presentaciones_lote" as T_Pres
-  component "ce_kardex_movimientos" as T_Kardex
-  component "ce_bitacora_auditoria" as T_Bitacora
+package "Persistencia (Entidades/Tablas)" {
+  component "clientes" as T_Clientes <<table>>
+  component "pedidos_ventas" as T_Pedidos <<table>>
 }
 
-' Relaciones de dependencias
-UI_Ficha --> C_Cal : registrarFicha()
-UI_Disp --> C_Cal : registrarDisposicion()
-UI_Lib --> C_Cal : liberarLote()
+' Flujos de dependencias
+UI_Clientes ..> C_Inv : <<use>>
+UI_Pedidos ..> C_Inv : <<use>>
 
-C_Cal ..> T_Ficha : INSERT (Crear Ficha)
-C_Cal ..> T_Lote : SELECT / UPDATE (Estado)
-C_Cal ..> T_Pres : SELECT
-C_Cal ..> T_Kardex : INSERT (Ingreso Almacén)
-
-T_Ficha --> T_Bitacora : <<trigger>>
-T_Lote --> T_Bitacora : <<trigger>>
-T_Kardex --> T_Bitacora : <<trigger>>
+C_Inv ..> T_Clientes : <<use>>
+C_Inv ..> T_Pedidos : <<use>>
 @enduml
 ```
+*   **Descripción del Flujo**: Las interfaces de gestión de clientes y registro de pedidos interactúan con el controlador comercial `CTR_Inventario.js` para asegurar que las ventas y el flujo comercial se persistan y validen contra las tablas `clientes` y `pedidos_ventas`.
+
+#### 5. Paquete P5: Gestión de Proveedores y Compras (`Paquete_Proveedores_Compras`)
+Este paquete gobierna los registros de proveedores externos y órdenes de compra.
+
+```plantuml
+@startuml ComponentesP5ProveedoresCompras
+skinparam backgroundColor #FEFEFE
+skinparam componentStyle uml2
+skinparam roundCorner 8
+
+package "Presentación (Páginas/Vistas)" {
+  component "proveedores/page.js" as UI_Prov <<formulario>>
+  component "compras/page.js" as UI_Compras <<formulario>>
+}
+
+package "Control (Controladores)" {
+  component "CTR_Inventario.js" as C_Inv <<class>>
+}
+
+package "Persistencia (Entidades/Tablas)" {
+  component "proveedores" as T_Prov <<table>>
+  component "compras" as T_Compras <<table>>
+}
+
+' Flujos de dependencias
+UI_Prov ..> C_Inv : <<use>>
+UI_Compras ..> C_Inv : <<use>>
+
+C_Inv ..> T_Prov : <<use>>
+C_Inv ..> T_Compras : <<use>>
+@enduml
+```
+*   **Descripción del Flujo**: Las interfaces de proveedores y órdenes de compra envían las peticiones al controlador `CTR_Inventario.js` para gestionar los datos de abastecimiento de materias primas y persistir la información en las tablas `proveedores` y `compras`.
+
+#### 6. Paquete P6: Acopio y Formulación (`Paquete_Acopio_Formulacion`)
+Este paquete administra la recepción de leche y las fórmulas/recetas BOM autorizadas.
+
+```plantuml
+@startuml ComponentesP6AcopioFormulacion
+skinparam backgroundColor #FEFEFE
+skinparam componentStyle uml2
+skinparam roundCorner 8
+
+package "Presentación (Páginas/Vistas)" {
+  component "acopio/page.js" as UI_Aco <<formulario>>
+  component "recetas/page.js" as UI_Recetas <<formulario>>
+}
+
+package "Control (Controladores)" {
+  component "CTR_Produccion.js" as C_Prod <<class>>
+}
+
+package "Persistencia (Entidades/Tablas)" {
+  component "ce_receta_bom" as T_BOM <<table>>
+  component "ce_detalle_receta" as T_DetBOM <<table>>
+}
+
+' Flujos de dependencias
+UI_Aco ..> C_Prod : <<use>>
+UI_Recetas ..> C_Prod : <<use>>
+
+C_Prod ..> T_BOM : <<use>>
+C_Prod ..> T_DetBOM : <<use>>
+@enduml
+```
+*   **Descripción del Flujo**: Las interfaces de control de acopio de leche cruda y el configurador de recetas lácteas interactúan con el controlador de producción `CTR_Produccion.js` para leer y procesar las recetas de la tabla `ce_receta_bom` y sus desgloses en `ce_detalle_receta`.
+
+#### 7. Paquete P7: Producción en Planta (`Paquete_Produccion`)
+Este paquete gestiona las órdenes de producción en planta, lotificación y parámetros físicos.
+
+```plantuml
+@startuml ComponentesP7Produccion
+skinparam backgroundColor #FEFEFE
+skinparam componentStyle uml2
+skinparam roundCorner 8
+
+package "Presentación (Páginas/Vistas)" {
+  component "apertura/page.js" as UI_Apertura <<formulario>>
+  component "parametros/page.js" as UI_Params <<formulario>>
+  component "cierre/page.js" as UI_Cierre <<formulario>>
+}
+
+package "Control (Controladores)" {
+  component "CTR_Produccion.js" as C_Prod <<class>>
+  component "CTR_Proceso.js" as C_Proc <<class>>
+}
+
+package "Persistencia (Entidades/Tablas)" {
+  component "ce_orden_produccion" as T_OP <<table>>
+  component "ce_lote_produccion" as T_Lote <<table>>
+  component "ce_presentaciones_lote" as T_Pres <<table>>
+  component "ce_parametros_proceso" as T_Params <<table>>
+}
+
+' Flujos de dependencias
+UI_Apertura ..> C_Prod : <<use>>
+UI_Params ..> C_Proc : <<use>>
+UI_Cierre ..> C_Prod : <<use>>
+
+C_Prod ..> T_OP : <<use>>
+C_Prod ..> T_Lote : <<use>>
+C_Prod ..> T_Pres : <<use>>
+C_Proc ..> T_Params : <<use>>
+@enduml
+```
+*   **Descripción del Flujo**: La apertura del día, el registro de parámetros en tinas de hilado y el cierre de lotes en planta se comunican con los controladores `CTR_Produccion.js` (para lotificación y cierres) y `CTR_Proceso.js` (para parámetros físicos). Estos persisten los datos en las tablas de `ce_orden_produccion`, `ce_lote_produccion`, `ce_presentaciones_lote` y `ce_parametros_proceso`.
+
+#### 8. Paquete P8: Control de Calidad y Bioseguridad (`Paquete_Calidad`)
+Este paquete administra las fichas de calidad del laboratorio y autorizaciones sanitarias.
+
+```plantuml
+@startuml ComponentesP8Calidad
+skinparam backgroundColor #FEFEFE
+skinparam componentStyle uml2
+skinparam roundCorner 8
+
+package "Presentación (Páginas/Vistas)" {
+  component "ficha-qa/page.js" as UI_Ficha <<formulario>>
+  component "disposicion-qa/page.js" as UI_Disp <<formulario>>
+}
+
+package "Control (Controladores)" {
+  component "CTR_Calidad.js" as C_Cal <<class>>
+}
+
+package "Persistencia (Entidades/Tablas)" {
+  component "ce_ficha_calidad" as T_Ficha <<table>>
+  component "ce_lote_produccion" as T_Lote <<table>>
+}
+
+' Flujos de dependencias
+UI_Ficha ..> C_Cal : <<use>>
+UI_Disp ..> C_Cal : <<use>>
+
+C_Cal ..> T_Ficha : <<use>>
+C_Cal ..> T_Lote : <<use>>
+@enduml
+```
+*   **Descripción del Flujo**: La captura de análisis de laboratorio (`ficha-qa/page.js`) y las decisiones de bioseguridad (`disposicion-qa/page.js`) se envían a `CTR_Calidad.js`, el cual registra los parámetros en `ce_ficha_calidad` y actualiza el estado de disponibilidad comercial en `ce_lote_produccion`.
+
+#### 9. Paquete P9: Auditoría e Inteligencia Artificial (`Paquete_Auditoria_IA`)
+Este paquete contiene el motor NLP/IA para comandos de voz y el registro inmutable de transacciones.
+
+```plantuml
+@startuml ComponentesP9AuditoriaIA
+skinparam backgroundColor #FEFEFE
+skinparam componentStyle uml2
+skinparam roundCorner 8
+
+package "Presentación (Páginas/Vistas)" {
+  component "voz/page.js" as UI_Voz <<formulario>>
+  component "auditoria/page.js" as UI_Auditoria <<formulario>>
+}
+
+package "Control (Controladores)" {
+  component "CTR_Proceso.js" as C_Proc <<class>>
+}
+
+package "Persistencia (Entidades/Tablas)" {
+  component "ce_bitacora_auditoria" as T_Audit <<table>>
+}
+
+' Flujos de dependencias
+UI_Voz ..> C_Proc : <<use>>
+UI_Auditoria ..> C_Proc : <<use>>
+
+C_Proc ..> T_Audit : <<use>>
+@enduml
+```
+*   **Descripción del Flujo**: El módulo de comandos de voz por inteligencia artificial (`voz/page.js`) y el visor de registros forenses se conectan a `CTR_Proceso.js`, que procesa los textos mediante procesamiento de lenguaje natural y escribe las auditorías de forma inmutable en `ce_bitacora_auditoria`.
+
+#### 10. Paquete P10: Ventas y Despacho Comercial (`Paquete_Ventas_Despacho`)
+Este paquete gestiona facturación, pasarelas de pago y logística de despachos.
+
+```plantuml
+@startuml ComponentesP10VentasDespacho
+skinparam backgroundColor #FEFEFE
+skinparam componentStyle uml2
+skinparam roundCorner 8
+
+package "Presentación (Páginas/Vistas)" {
+  component "facturacion/page.js" as UI_Fact <<formulario>>
+  component "despachos/page.js" as UI_Desp <<formulario>>
+  component "devoluciones/page.js" as UI_Dev <<formulario>>
+}
+
+package "Control (Controladores)" {
+  component "CTR_Calidad.js" as C_Cal <<class>>
+}
+
+package "Persistencia (Entidades/Tablas)" {
+  component "pagos_clientes" as T_Pagos <<table>>
+  component "despachos_logisticos" as T_Despachos <<table>>
+  component "devoluciones_qa" as T_Devoluciones <<table>>
+}
+
+' Flujos de dependencias
+UI_Fact ..> C_Cal : <<use>>
+UI_Desp ..> C_Cal : <<use>>
+UI_Dev ..> C_Cal : <<use>>
+
+C_Cal ..> T_Pagos : <<use>>
+C_Cal ..> T_Despachos : <<use>>
+C_Cal ..> T_Devoluciones : <<use>>
+@enduml
+```
+*   **Descripción del Flujo**: Los procesos de facturación, despacho de camiones (según lotes FEFO) y registro de devoluciones por clientes se conectan con el controlador `CTR_Calidad.js` (para validar la liberación sanitaria de los lotes) y persisten los datos financieros y logísticos en `pagos_clientes`, `despachos_logisticos` y `devoluciones_qa`.
+
+# 12. CAPÍTULO 6: FLUJO DE TRABAJO — PRUEBAS
+
+El Flujo de Trabajo de las Pruebas detalla la metodología, los objetivos de aseguramiento de calidad, la planificación de casos de prueba integrados bajo la estrategia de Caja Negra, y las métricas de calidad que certifican la estabilidad y consistencia de la base transaccional del sistema de información de GRULAC S.R.L.
 
 ---
 
-ANEXOS
+## 12.1. Planificar pruebas
 
+### Objetivos de las Pruebas
+* **Verificar que el sistema cumple con los requisitos funcionales de inocuidad, inventario, ventas y trazabilidad.**
+* **Validar la integración entre módulos (triage, producción, calidad, inventario, facturación y despachos).**
+* **Garantizar la estabilidad y consistencia de las consultas de kárdex y alertas ante alta concurrencia.**
+* **Asegurar la inmutabilidad de la bitácora de auditoría forense ante modificaciones.**
+* **Confirmar la usabilidad del sistema para todos los roles de usuario (cajero, laboratorista, supervisor, administrador, encargado de despacho).**
+* **Validar la correcta subida de archivos y resguardo de fichas de calidad en almacenamiento en la nube (Cloud Storage).**
+* **Validar la integración y respuesta segura de la pasarela de pagos internacional (PayPal).**
+* **Validar la precisión del análisis de comandos de voz (NLP) para la generación interactiva de reportes.**
 
-CONTROL DE HILADO PARA LA MOZZARELLA
+### Estrategia de Pruebas
+* **Pruebas Unitarias:** Validar la lógica individual de los controladores de negocio (`CTR_Inventario.js`, `CTR_Produccion.js`, `CTR_Proceso.js`, `CTR_Calidad.js`).
+* **Pruebas de Integración:** Verificar la correcta deducción de insumos del kárdex al abrir una orden de producción, el ingreso automático de producto terminado al liberar un lote aprobado, la subida de documentos a Supabase Storage y la comunicación API de PayPal.
+* **Pruebas de Sistema:** Validar el flujo completo de negocio end-to-end (de leche cruda a producto terminado despachado y facturado por pasarela).
+* **Pruebas de Aceptación:** Validar con usuarios reales de la planta y administración (laboratorista, jefe de producción, encargado de calidad, vendedor, despachador).
+* **Pruebas de Rendimiento:** Evaluar el tiempo de respuesta al cargar el kárdex con más de 1,500 registros y la latencia del reconocimiento de voz por NLP.
+* **Pruebas de Seguridad:** Validar que las políticas RLS y el control RBAC impidan acciones no autorizadas en tablas sensibles (`ce_bitacora_auditoria`, `usuarios`, `pagos_clientes`).
 
-FICHA RECEPCIÓN DE LA LECHE
+---
 
-PLANILLA DE LA ELABORACION DE LA CUAJADA
+## 12.2. Casos de pruebas
 
-LOTE
+A continuación, se describen los Casos de Prueba de Caja Negra implementados sobre el flujo de integración de GRULAC S.R.L.:
 
-QUESO PRENSADO
+### Caso de Prueba CP-001: Registrar Recepción de Leche Cruda y Triage Bioquímico
+* **Entrada:**
+  * Volumen recibido: 1,500 L
+  * Análisis: pH: 6.6, Acidez Dornic: 16°D, Temperatura: 4°C, Presencia de Antibióticos: Negativo
+  * Productor: "Colonia Basilio - Ganadero Juan P."
+  * Laboratorista: usuario "lab01" con sesión activa
+* **Resultado Esperado:**
+  * Recepción registrada con estado "Aceptada"
+  * Volumen de leche cruda ingresado y acumulado en stock de materia prima
+  * Ticket de triage generado con código único y firmas correspondientes
+* **Condiciones:**
+  * Laboratorista autenticado con permisos de recepción
+  * Cisterna autorizada en planta Basilio
+* **Procedimiento de Prueba:**
+  1. Iniciar sesión como laboratorista (lab01)
+  2. Acceder al módulo "Recepción y Triage Lácteo"
+  3. Ingresar volumen, productor y los parámetros de pH, acidez y antibióticos
+  4. Confirmar registro de recepción
+  5. Verificar generación automática de ticket imprimible
+  6. Confirmar actualización del stock en el kárdex de materia prima
+* **Interfaz:** Formulario de triage de leche cruda y ticket de recepción
 
-PLANILLA
+### Caso de Prueba CP-002: Apertura de Orden de Producción con Insumos Insuficientes
+* **Entrada:**
+  * Receta: "Queso Mozzarella de Barra"
+  * Volumen de leche a procesar: 1,000 L
+  * Insumo "Cloruro de Calcio": stock actual en almacén de 300g (mínimo requerido para 1000L es 500g)
+  * Supervisor: usuario "prod01" con sesión activa
+* **Resultado Esperado:**
+  * El sistema bloquea la apertura de la orden de producción
+  * Alerta visual ("Stock Insuficiente de Cloruro de Calcio") detallando el faltante
+  * No se descuenta stock de ningún insumo ni se genera código de lote
+* **Condiciones:**
+  * Supervisor autenticado con permisos en planta
+  * Existencia de la receta BOM activa para Queso Mozzarella
+* **Procedimiento de Prueba:**
+  1. Iniciar sesión como supervisor de producción
+  2. Acceder a "Nueva Orden de Producción"
+  3. Seleccionar la receta "Queso Mozzarella" e ingresar 1,000 L de leche
+  4. Intentar confirmar apertura
+  5. Verificar la aparición del mensaje de alerta y bloqueo de la acción
+* **Interfaz:** Formulario de apertura de producción y alerta de stock insuficiente
+
+### Caso de Prueba CP-003: Registrar Ficha de Control de Calidad post-producción
+* **Entrada:**
+  * Lote: "20260621-MOZ01" (Queso Mozzarella)
+  * Parámetros: pH: 5.2, Humedad: 45%, Textura: Conforme, Grados Brix (suero): 6.0
+  * Dictamen: "Conforme"
+  * Ing. de Calidad: usuario "calidad01" con sesión activa
+* **Resultado Esperado:**
+  * Ficha de calidad guardada satisfactoriamente
+  * Lote cambia de estado a "Pendiente de Liberación"
+  * Bloqueo de comercialización activo hasta la confirmación de liberación
+* **Condiciones:**
+  * Lote de producción previamente cerrado y codificado
+  * Ingeniero de calidad autenticado con permisos de laboratorio
+* **Procedimiento de Prueba:**
+  1. Iniciar sesión como ingeniero de calidad
+  2. Acceder a "Ficha de Calidad"
+  3. Seleccionar el lote "20260621-MOZ01" de la lista de pendientes
+  4. Registrar parámetros fisicoquímicos medidos
+  5. Seleccionar dictamen "Conforme" y confirmar registro
+  6. Verificar actualización del estado del lote en la base de datos
+* **Interfaz:** Formulario de ficha de calidad fisicoquímica
+
+### Caso de Prueba CP-004: Liberación de Lote e Ingreso Automático a Almacén
+* **Entrada:**
+  * Lote: "20260621-MOZ01" (Estado: Pendiente de Liberación)
+  * Desglose de presentaciones: Barra de 2 kg (50 unidades, 100 kg total)
+  * Ing. de Calidad / Administrador con sesión activa
+* **Resultado Esperado:**
+  * Lote cambia de estado a "Liberado Comercial"
+  * Se registran automáticamente 50 unidades de Queso Mozzarella Barra en la cámara de frío
+  * Kárdex registra movimiento tipo 'IN' (Entrada por Producción) detallando el lote de origen
+* **Condiciones:**
+  * El lote debe contar con una ficha de calidad aprobada ("Conforme")
+* **Procedimiento de Prueba:**
+  1. Acceder al módulo "Liberación de Producto Terminado"
+  2. Seleccionar el lote "20260621-MOZ01"
+  3. Verificar el desglose de presentaciones ingresado en producción
+  4. Confirmar liberación del lote
+  5. Verificar actualización de stock en cámara de frío y el registro de entrada en Kárdex
+* **Interfaz:** Formulario de liberación e inventario de producto terminado
+
+### Caso de Prueba CP-005: Generar Pedido de Venta y Reserva Preventiva de Stock
+* **Entrada:**
+  * Cliente: "Hot Burger S.A."
+  * Producto: Queso Mozzarella Barra (Presentación 2 kg)
+  * Cantidad solicitada: 30 unidades
+  * Vendedor: usuario "ventas01" con sesión activa
+* **Resultado Esperado:**
+  * Pedido registrado con estado "Confirmado"
+  * Se reservan preventivamente 30 unidades en el stock de cámara de frío, disminuyendo el "Stock Disponible Comercial" a fin de evitar sobreventa
+  * Total de pedido calculado correctamente
+* **Condiciones:**
+  * Cliente debidamente registrado en el directorio comercial
+  * Stock disponible suficiente en cámara de frío (mínimo 30 unidades)
+* **Procedimiento de Prueba:**
+  1. Iniciar sesión como vendedor (ventas01)
+  2. Acceder al módulo "Pedidos de Venta" y seleccionar "Nuevo Pedido"
+  3. Seleccionar cliente "Hot Burger S.A." y agregar 30 unidades de Queso Mozzarella Barra
+  4. Confirmar pedido
+  5. Verificar reducción de stock disponible para otros pedidos
+* **Interfaz:** Formulario de registro de pedidos comerciales
+
+### Caso de Prueba CP-006: Despacho Físico de Producto Terminado por FEFO
+* **Entrada:**
+  * Pedido confirmado: #PED-2026-001 (Cliente: Hot Burger S.A., 30 unidades de Mozzarella)
+  * Lote a expirar primero: "20260610-MOZ01" (vence 10/08/2026, stock: 40 unidades)
+  * Lote más nuevo: "20260621-MOZ01" (vence 21/08/2026, stock: 50 unidades)
+  * Despachador: usuario "despacho01" con sesión activa
+* **Resultado Esperado:**
+  * El sistema sugiere y asigna el lote "20260610-MOZ01" por estrategia FEFO
+  * Despacho registrado con éxito
+  * Stock del lote "20260610-MOZ01" disminuye a 10 unidades
+  * Nota de despacho/entrega generada asociando el lote sugerido al cliente
+* **Condiciones:**
+  * Pedido previamente confirmado y pendiente de entrega
+  * Existencia de múltiples lotes del producto con fechas de vencimiento diferentes
+* **Procedimiento de Prueba:**
+  1. Iniciar sesión como encargado de despacho
+  2. Acceder a "Despachos y Salidas"
+  3. Seleccionar pedido #PED-2026-001
+  4. Verificar que el sistema sugiere despachar del lote "20260610-MOZ01"
+  5. Confirmar despacho físico y generar nota de entrega
+  6. Verificar actualización del stock por lote en el inventario
+* **Interfaz:** Módulo de despachos y nota de entrega valorada
+
+### Caso de Prueba CP-007: Consultar Bitácora de Auditoría y Verificación de Inmutabilidad
+* **Entrada:**
+  * Rango de fechas: "2026-06-01" a "2026-06-21"
+  * Filtrado de usuario: "lab01"
+  * Intento de manipulación: Ejecución de un comando SQL DELETE en `ce_bitacora_auditoria` por parte de un usuario con privilegios
+* **Resultado Esperado:**
+  * El sistema despliega el visor de auditoría forense con las filas correspondientes de la tabla `ce_bitacora_auditoria`.
+  * La base de datos rechaza de forma absoluta cualquier acción DML (UPDATE, DELETE) sobre la tabla de auditoría mediante reglas/triggers a nivel del motor PostgreSQL, asegurando la inmutabilidad de la bitácora.
+* **Condiciones:**
+  * Usuario con rol de Administrador o Auditor autenticado en el CRM.
+* **Procedimiento de Prueba:**
+  1. Iniciar sesión como Administrador.
+  2. Acceder al módulo "Seguridad y Auditoría Forense" -> "Bitácora de Eventos".
+  3. Seleccionar el rango de fechas y filtrar por el usuario `lab01`.
+  4. Verificar la visualización detallada del registro de triage insertado por `lab01`.
+  5. Intentar eliminar o modificar una entrada de la bitácora desde la consola o interfaz (debe ser bloqueado y arrojar error de base de datos).
+* **Interfaz:** Visor de bitácora forense de auditoría.
+
+### Caso de Prueba CP-008: Respaldar Fichas de Calidad en Storage Externo
+* **Entrada:**
+  * Documento físico: "Ficha_Calidad_Lote_MOZ01.pdf" (peso: 1.2 MB)
+  * Ingeniero de Calidad: usuario "calidad01" con sesión activa.
+* **Resultado Esperado:**
+  * El documento PDF se almacena exitosamente en el bucket `fichas-calidad` de Supabase Storage.
+  * La URL pública y firmada de descarga se guarda en el campo `url_documento` de la tabla `ce_ficha_calidad`.
+  * Visualización del enlace de descarga activo en el perfil del lote.
+* **Condiciones:**
+  * Ficha de control de calidad previamente completada y guardada.
+  * Credenciales de acceso de Supabase Storage válidas y conexión de red activa.
+* **Procedimiento de Prueba:**
+  1. Iniciar sesión como Ingeniero de Calidad (calidad01).
+  2. Acceder a "Fichas de Calidad" y buscar el lote "20260621-MOZ01".
+  3. Hacer clic en "Cargar Documento de Respaldo".
+  4. Seleccionar el archivo PDF local y confirmar la subida.
+  5. Verificar que el enlace "Ver Documento" aparece y descarga el archivo desde el storage.
+* **Interfaz:** Formulario de carga de adjuntos de control de calidad.
+
+### Caso de Prueba CP-009: Emitir Factura y Procesar Pago con Pasarela PayPal Sandbox
+* **Entrada:**
+  * Pedido confirmado: #PED-2026-001 (Cliente: Hot Burger S.A.)
+  * Tarjeta de Crédito de Pruebas de PayPal Sandbox.
+  * Cajero/Vendedor: usuario "ventas01" con sesión activa.
+* **Resultado Esperado:**
+  * PayPal autoriza y captura la transacción con éxito, retornando `paypal_capture_id`.
+  * El estado de pago en la tabla `pagos_clientes` cambia a "Aprobado".
+  * Se emite automáticamente la factura comercial en formato PDF (`ce_facturas`) y se envía al cliente.
+* **Condiciones:**
+  * Pedido registrado y pendiente de cobro en el sistema.
+  * Configuración del cliente de PayPal Sandbox (client_id) cargada correctamente.
+* **Procedimiento de Prueba:**
+  1. Iniciar sesión como Cajero.
+  2. Acceder a "Facturación y Cobros".
+  3. Seleccionar el pedido #PED-2026-001 de Hot Burger S.A.
+  4. Seleccionar método de pago "PayPal" y pulsar "Procesar Pago".
+  5. Completar el flujo de autenticación y confirmación en la ventana emergente de PayPal Sandbox.
+  6. Verificar que la factura se genera y el estado del pedido pasa a "Facturado/Pagado".
+* **Interfaz:** Pasarela de pagos externa (PayPal modal) y visor de facturación.
+
+### Caso de Prueba CP-010: Registrar Devolución de Queso por Control de Calidad
+* **Entrada:**
+  * Código de despacho: #DESP-001 (Lote de origen: "20260610-MOZ01").
+  * Cantidad a devolver: 15 unidades (30 kg).
+  * Motivo: "Pérdida de vacío en empaque (falla de sellado)".
+  * Encargado de Calidad: usuario "calidad01" con sesión activa.
+* **Resultado Esperado:**
+  * Devolución registrada con éxito en la tabla `devoluciones_qa`.
+  * La cantidad devuelta se ingresa a "Merma en Cuarentena" en el stock físico, sin retornar automáticamente al inventario de venta disponible a fin de resguardar la inocuidad.
+  * Kárdex registra una entrada restringida tipo 'DEV_QA' detallando el lote.
+* **Condiciones:**
+  * El despacho #DESP-001 debe encontrarse en estado entregado.
+* **Procedimiento de Prueba:**
+  1. Iniciar sesión como Encargado de Calidad.
+  2. Acceder al módulo "Logística Inversa y Devoluciones".
+  3. Ingresar el código de despacho #DESP-001.
+  4. Seleccionar los ítems a devolver, cantidad (15 unidades) y registrar el motivo de rechazo.
+  5. Confirmar registro.
+  6. Verificar que el Kárdex refleja la entrada a merma de calidad y el inventario disponible comercial no se ve afectado.
+* **Interfaz:** Formulario de registro de devoluciones por calidad.
+
+### Caso de Prueba CP-011: Procesar Comando de Voz por Inteligencia Artificial
+* **Entrada:**
+  * Comando dictado por voz: "mostrarme los lotes liberados en la gestión 1-2026"
+  * Conversor: Web Speech API del navegador.
+  * Usuario: "prod01" con sesión activa.
+* **Resultado Esperado:**
+  * La Web Speech API captura el audio y transcribe la cadena exacta.
+  * El controlador NLP interpreta la intención de búsqueda (`action: 'query_lotes'`) y los filtros (`estado: 'Liberado_Comercial'`).
+  * El sistema redirige automáticamente al usuario al visor de lotes con los filtros aplicados en pantalla.
+* **Condiciones:**
+  * Navegador con permisos de micrófono concedidos al sitio web.
+  * Conexión de voz activa en el dashboard del CRM.
+* **Procedimiento de Prueba:**
+  1. Iniciar sesión como Supervisor de Producción.
+  2. Hacer clic en el botón de micrófono en la Topbar del sistema.
+  3. Dictar claramente el comando: "mostrarme los lotes liberados en la gestión 1-2026".
+  4. Soltar el botón de grabación.
+  5. Verificar que el sistema transcribe el texto y realiza la transición de pantalla correspondiente.
+* **Interfaz:** Control de micrófono y grilla dinámica de visualización filtrada.
+
+---
+
+## 12.3. Métricas de Calidad de Pruebas
+* **Cobertura de casos de uso principales:** ≥97% (flujo completo implementado en los 4 ciclos).
+* **Tasa de efectividad de los bloqueos de bioseguridad (triage con antibióticos, cuarentena de lotes):** 100%.
+* **Tasa de éxito en la transcripción y parseo de comandos de voz (NLP/Speech):** ≥90%.
+* **Tiempos de carga y subida en Supabase Storage (archivos ≤5MB):** ≤3.0 segundos.
+* **Tiempo de respuesta en consultas de Kárdex Dinámico:** ≤2.0 segundos para 1,500+ registros.
+* **Pruebas de usabilidad en dispositivos portátiles de planta satisfactorias:** ≥90%.
+* **Tasa de éxito en la primera ejecución de pruebas de integración:** ≥90%.
+
+---
+
+## 12.4. Criterios de Aceptación
+* **Todas las pruebas de integración del flujo lácteo (triage, recetas, lotes, calidad, storage, pasarela y despacho) ejecutadas con éxito.**
+* **Cero fugas de producto en "Cuarentena" o "Rechazado" al stock comercial de despacho.**
+* **Trazabilidad completa bidireccional (de cisterna a cliente y de cliente a lote/ganadero) resuelta en pantalla en menos de 3 minutos.**
+* **Integración segura de pagos PayPal Sandbox validada y registrada sin discrepancias financieras.**
+* **Usuarios clave (laboratorista, jefe de producción e ingeniero de calidad) validan la usabilidad de la interfaz en planta Basilio.**
+* **Aprobación formal del documento completo por la docente de la materia.**
+
+---
+
+# 13. CONCLUSIONES Y RECOMENDACIONES
+
+## Conclusiones
+* **Cumplimiento de Objetivos:** El desarrollo e implementación del ERP/CRM personalizado para GRULAC S.R.L. resolvió el problema raíz diagnosticado en el diagrama de Ishikawa (PF-01). Se logró consolidar una base de datos centralizada en PostgreSQL administrada a través de Supabase y un frontend reactivo en Next.js.
+* **Mitigación de Riesgos en Trazabilidad:** La automatización del triage de leche cruda (CU18) y el bloqueo preventivo de lotes en cuarentena garantizan un cumplimiento estricto del 100% de los parámetros requeridos por la normativa de SENASAG, disminuyendo a cero el riesgo de multas y cierres por contaminación.
+* **Eliminación de Cuellos de Botella:** La digitalización del inventario redujo a cero el desfase temporal de hasta 8 horas provocado por la digitación de registros manuales en Excel. La Ingeniera de Control de Calidad se liberó de aproximadamente 3.5 horas diarias de trabajo administrativo repetitivo.
+* **Consolidación Comercial y FEFO:** La integración en tiempo real entre la planta (Basilio) y las oficinas comerciales en Santa Cruz permite la toma de pedidos validando el stock de forma automática. El sistema guía el despacho utilizando la regla FEFO, reduciendo en un 95% el riesgo de merma por caducidad en cámara de frío.
+
+## Recomendaciones
+* **Mantenimiento y Soporte Continuo:** Establecer un plan de respaldos automáticos de la base de datos cloud mediante políticas de Supabase y revisiones periódicas del log inmutable de auditoría para prever accesos no autorizados.
+* **Optimización de Costos Serverless:** Monitorear el volumen de llamadas API y almacenamiento de fotos de contramuestras en el Bucket de Supabase a fin de mantener la suscripción en niveles gratuitos o de bajo coste operativo.
+* **Capacitación del Personal:** Realizar capacitaciones trimestrales a los operarios en planta sobre la correcta captura de datos en tiempo real mediante las tablets industriales y el uso de los comandos de voz.
+* **Evolución del Sistema (Fase Futura):** Integrar sensores IoT de pH y temperatura de manera directa en los calderos y tinas de hilado/prensado, lo que permitirá capturar la información fisicoquímica automáticamente sin depender de la entrada manual. Incorporar servicios cognitivos avanzados de inteligencia artificial para pronosticar la demanda de queso Mozzarella y Cheddar basada en el histórico de compras de clientes estrella como Hot Burger.
+
+---
+
+# 14. BIBLIOGRAFÍA
+
+* **Jacobson, I., Booch, G., Rumbaugh, J. (2000).** *El Proceso Unificado de Desarrollo de Software*. Addison Wesley.
+* **Fowler, M. (2003).** *UML Destilado: Una guía breve para el lenguaje estándar de modelado de objetos*. Pearson Educación.
+* **Larman, C. (2003).** *UML y Patrones: Una introducción al análisis y diseño orientado a objetos y al proceso unificado*. Prentice Hall.
+* **PostgreSQL Global Development Group (2025).** *PostgreSQL 15.0 Documentation*. Recuperado de https://www.postgresql.org/docs/15/
+* **Vercel Inc. (2026).** *Next.js Documentation and Guides*. Recuperado de https://nextjs.org/docs
+* **Supabase Inc. (2026).** *Supabase Database and Authentication Service Documentation*. Recuperado de https://supabase.com/docs
+
+---
+
+# ANEXOS
+
+## Anexo A: Entrevistas para Obtención de Requisitos
+
+### Entrevista N° 1: Ingeniera de Control de Calidad y Producción (Ing. Carla Giovanna Condori Díaz)
+**Entrevistador:** Equipo de Desarrollo de Sistemas  
+**Entrevistado:** Ing. Carla Giovanna Condori Díaz (Ing. Industrial - Encargada de Control de Calidad y Producción)  
+**Ubicación:** Planta Basilio (Km 102 de la Carretera Bioceánica)
+
+*(A continuación se transcribe la conversación íntegra registrada para la especificación del sistema)*
+
+video1944283373
+ Actualizar a Ilimitado para eliminar este mensaje.
+Buenas noches, muchas gracias por la oportunidad que nos está dando y su tiempo. Me
+gustaría que se pueda presentar, me diga de qué empresa es, qué se dedica y cuál es su rubro.
+Buenas noches, mi nombre es Carla Giovanna Condori Díaz, soy ingeniera industrial.
+En la empresa que estoy trabajando ahorita se llama Grulat. Estoy en el área de control de
+calidad, en la parte también del área de producción. Mayormente esta empresa está destinada
+a crear derivados lácteos.
+Esto quiere decir que producen queso mozzarella, queso cheddar, dulce de leche, esos son los
+productos que hace la empresa. Perfecto. Bueno, usted creo que me ha mencionado que esté
+trabajando ya como unos dos meses, tres meses.
+Más o menos ese rango, ¿no? Ahora, en ese transcurso de ese tiempo, usted también dijo que
+la empresa como tal era una empresa nueva que recién estaba comenzando, se estaba
+lanzando en el mercado. ¿Usted qué problemas encontró, o bueno, cuando entró al trabajo en
+Ciensuaria, qué problemas vio que tiene la empresa? Por ejemplo, el problema principal ha sido
+que no hay un orden, no hay registro, y más que todo la organización. Ok, y también una
+pregunta aquí importante.
+Cuando ustedes hacían sus controles de inventario, ¿lo manejaba una sola persona de una
+forma estandarizada o estaba en cualquier formato, ya que como sabemos que es una
+empresa nueva, como tal, no tiene aún bien establecido a su base, ¿no? Claro. En sí, esa
+información se comparte con el operario para tener un… corroborar que se está llevando de
+acuerdo a la producción, pero en sí no es al 100% efectiva, se podría decir, porque hay ciertos
+errores que nos… que al descuidarse un rato, uno ya puede estar perdiendo cuántos lotes
+están entrando, así, siempre hay que estar pendiente, no es algo automatizado. Ok, ahora otra
+pregunta igual, por ejemplo, ¿cómo saben cuánto stock tienen disponible en tiempo real? O
+sea, para hacer su producción, me imagino que ustedes deben tener un stock mínimo para
+hacer la producción de cada producto, ¿no? Claro, ahorita el stock se tiene según lo que llega la
+leche y según lo que se está produciendo, pero si un stock actualizado por día de producción
+no se tiene.
+Y vemos la necesidad, por ejemplo, ahorita tenemos un problema, ha estado saliendo estos
+días lo que es el producto de dulce de leche repostero y no hemos quedado sin producto, o sea,
+estamos produciendo hoy día para despachar mañana, literal. El pedido que nos piden,
+estamos haciendo la producción un día antes, algo así. Ahorita estamos así, recortado de
+producto, no tenemos almacén.
+O sea, que si en un caso hipotético le llega otro pedido, ustedes no van a poder cómo entregar
+ese pedido porque no tienen el suficiente stock para esa cantidad de producción. O sea, quiere
+
+decir que ahorita, la demanda del mercado aumentó, por lo tanto, estamos ahorita restringidos
+ciertos productos como en el dulce de leche. Ok, ahora, creo que en un cierto momento usted
+dijo que, por ejemplo, en cuanto, usted dijo que en sí, la empresa cuando surgió, creo que
+surgió el año pasado en septiembre, me imagino, ¿no? Y yo la pregunta que le quería hacer es,
+si usted tiene los registros de los que se hacía de producción, de los inventarios de ese año, en
+esa fecha, ¿se tiene o solo se tiene de este mes o a partir de este año? ¿Se hace un control, o
+sea, tiene un historial de todo eso? En sí, un historial detallado no.
+Porque se han hecho pruebas y cuando una empresa está haciendo pruebas, no hace como un
+registro, digamos. Solamente se analiza los datos, cómo están saliendo, así que desde
+diciembre del año pasado se ha empezado a hacer lo que es registro de, no de todos los
+procesos, solo de algunos. Recién este año se está implementando.
+Ok. Ahora, mi pregunta también es importante acá, es ¿cuántas personas manejan el inventario
+y cómo comparten la información? Ahorita somos dos personas. Mi persona y el encargado del
+envasado.
+Que controla cuánto se va a despachar. Esas áreas están conectadas. Pasa que también me
+encargo del área de despacho y tengo que tener el control de lo que está entrando envasado a
+la cámara de almacenamiento del producto terminado.
+Ok, y ahora, esto es muy importante también. Por ejemplo, ¿existen registros duplicados o
+inconsistentes? Aquí me voy, digamos, como usted solo ahorita creo que maneja sus
+inventarios o sus stocks en tablas de ELSE, muchas veces puede darse el caso que coloquen,
+digamos, del mismo lote dos veces, digamos. Quién sabe porque lo manejan dos personas, no
+hay esa restricción.
+Entonces, ¿ha llegado a un punto que se ha llegado a ver eso? Por el momento no. O sea, pero
+igual puede ser. El problema que hemos estado teniendo son, no podemos estar controlando
+exactamente los pesos de lo que está entrando al envasado.
+Y eso ¿cuánto costo se da? Tenemos el problema de que está bien una pérdida de peso
+después del proceso de prensado. Ahí estamos haciendo un análisis. Por eso se está ocupando
+por pensar ni bien se envasa el producto.
+Más que todo en el queso. ¿Usted quiere decir que, digamos, en este caso, el queso cuando
+ustedes lo producen, tras que lo acaban de producir, lo sacan de, no sé, su… ¿cómo me dijo que
+se llamaba esa máquina de stripper? ¿O qué es esa cosita que era aplastado? ¿Qué me dijo?
+Prensado. Ah, el prensado va a salir con un peso, pero llegado al momento cuando ya se lo va a
+vender, o se tiene que mandar los lotes, su peso disminuye.
+Exacto. Claro, porque se saca todo el líquido que tiene el producto, todo el suero. Y usted,
+¿alguna vez ustedes han verificado, digamos, según las horas que pasan, cuánto llega a
+disminuir su peso? Porque me imagino que debe ir según eso.
+
+¿O qué puede variar? Porque me imagino que cuando ustedes lo guardan, está a una
+temperatura que todos están… o sea, están a la misma temperatura. Entonces, no creo que
+pueda afectar en este caso la temperatura. O sí puede llegar a afectar, no sé, dígame.
+Más que todo la temperatura tiene que ver con el prensado. Cuánta presión es sometida a los
+prensados. Porque eso, más que todo eso.
+Ok. Ahora, mire, una pregunta también que tengo. ¿Usted necesita ver el stock en tiempo real y
+recibir alerta? ¿A qué me voy con esto? O sea, que usted pueda tener tablas dinámicas,
+digamos, ¿no? Y que cuando usted vea que ya su stock está por debajo del mínimo para hacer
+por lo menos producción mínima, no sé cuánto van a ganar en su producción.
+Pero, o sea, ¿necesitan eso? ¿Tienen eso? ¿O todavía no lo tienen? No, todavía no. Ese sistema
+de implementación, no. No lo estamos manejando todavía.
+Ok. Ahora, ¿están dispuestos a usar un sistema digital en el cual les pueda ayudar todo esto,
+digamos? O sea, hacerlo simplemente que ustedes tengan que ingresar ciertos datos, pero
+todo pueda estar de forma… o sea, todo puede estar relacionado, conectado y que, digamos,
+ustedes hagan una producción, el stock disminuya y todas las demás tablas también de lo que
+se parte de inventario, producción, puedan ser agregados automáticamente. Sí.
+Así se podría manejar mejor y no tendríamos ciertos errores como tal vez a veces a última hora
+cuando queremos producir no sabemos cuánto de materia prima tenemos de insumos, todo
+eso, y a última hora nos quedamos sin producir por nada más. Eso nos ayudaría poder
+suministrarnos de los insumos con más tiempo. Ya.
+Ahora, entonces, después de esta propuesta que se le dio, ¿qué problemas han tenido por no
+tener un sistema organizado? O sea, ¿a qué me voy con lo que les dije anteriormente? Que todo
+sea, o sea, de forma automática, por así decirla. Tal vez no tener el control exacto del stock,
+más que todo en la cámara de producto terminado. Otro también que tenemos problemas
+siempre es que nos faltan insumos a veces a última hora que queremos hacer la producción.
+Ok. ¿Llevan control por lote o solo cantidades generales? Por lote y esta semana estamos
+haciendo por unidades también. Más que todo cuando hay el producto terminado.
+Ok. Bueno, independientemente de todos esos problemas, aparte han tenido problemas con
+registrar las ventas que se han dado, no sé. En ese ruro han llegado a tener problemas, o sea,
+en el poder registrar, aparcar todo bien, para quién se fue, qué hora, qué día, en qué momento,
+qué tipo de lote.
+Porque como usted me dice que ahorita, o sea, no está, me dice de forma, no hay un sistema
+que pueda hacer todo eso. No sé si ha llegado a haber un problema similar. Miren, en la parte
+de lo que es el despacho, no hay un control riguroso de los lotes.
+¿Qué pasa? Que tenemos un problema de que nuestra, de que hay, que tenemos distintos tipos
+
+de quesos, no solo uno solo. Y estamos en ese proceso de estandarización. ¿Esto qué quiere
+decir? Que por ese motivo no podemos controlar exacto lo que sale un lote, es lo que se está
+despachando, si no combinado.
+Y, o sea, se supone que para llegar a estandarizar una receta, o no sé, o el procedimiento para
+elaborar cada producto, es un tiempo determinado, y en todo este tiempo determinado que ya
+han tenido de, no sé cuántos, cuántos meses en vigencia lleva en sí ya la empresa. Está como 6
+meses. Ajá, entonces todo ese transcurso todavía no han llegado a estandarizar, pero tal vez ya
+tienen ciertas partes estandarizadas o todavía les falta, o sea, obviamente que les falta, pero mi
+pregunta es redundante, ¿les falta o en unos 2, 3 meses ya los puedan lograr estandarizar? Sí,
+yo creo que sí, porque estamos trabajando en eso justamente la anterior semana se hizo una
+capacitación en donde vinieron a mejorar el proceso de elaboración de ciertos productos.
+Ok, perfecto, entonces me dice que ustedes, por ejemplo, de todo, por ejemplo, si en un año
+ustedes hacen un control de producción, me imagino que solo ustedes lo van a manejar en
+Excel, digamos, no tienen como tal una base de datos que pueda funcionar de forma relacional
+y que todos los demás registros puedan conectarse, digamos, ¿no? No tienen como tal ahorita
+eso, que es un sistema. Ok, es como que una empresa que en un tiempo determinado sí lo va a
+buscar porque es necesario, pero como ahorita como tal no es su prioridad, pero por eso están
+teniendo muchos problemas, digamos, no pueden controlar el stock, tampoco pueden
+controlar muchas veces la entrada y la salida de los lotes que se tienen, me imagino que
+también de las ventas, ¿no? Es un poco difícil, pero principalmente yo creo que debe ser de
+producción, creo que es uno de los más difíciles que se les hace controlar por el hecho de que
+no mantienen un stock actual ni de los insumos, ni de las cosas que se ocupan, o cosas que hay
+que tomar en cuenta cuando se hace la receta, digamos, ¿no? Sí, exacto, ese es uno de los
+problemas. Ok, y ahora usted en su área de usted, que me imagino que igual usted hace
+control de calidad, igual usted le tocó llevar los inventarios, me dicen, ¿no? Cuando usted
+observó los inventarios, ¿los inventarios funcionaban de forma dinámica o simplemente el
+rellenado se tenía que hacer manual, ustedes mismos? Era rellenado manual.
+Y creo que era muy moroso porque, por ejemplo, muchas veces, usted me imagino que no
+tiene siempre la disponibilidad de tiempo de estar ahí rellenado manual porque también se
+tiene que encargar de otras ocupaciones, ¿no? Sí, exacto, como es una empresa pequeña,
+estamos distribuidos en diferentes áreas. Ok, bueno, entonces muchas gracias por la
+oportunidad, por poderme dar esa información, las problemáticas que tuvo. Como tal, usted
+me está diciendo que todavía es una empresa pequeña, creo que todavía como tal no tienen
+una misión ni una visión, ¿no? Exacto, por el momento.
+Ok, y disculpe, ¿esta empresa de dónde o cómo surgió? ¿Quiénes son los dueños? Es una
+asociación de ganaderos que han estado, han visto la necesidad de poder crear esta empresa
+para brindar ayuda a las pequeñas colonias que hay aquí cerca de Valle Nuevo, que es una con
+la que se trabaja y otras colonias que se está implementando que es trabajar para poder
+ayudar y tengan un crecimiento, ¿no? Ok, perfecto. Muchas gracias por su tiempo, como le digo
+
+nuevamente, gracias por ser disponible y me disculpa la hora, la tardanza también. Le voy a
+pasar una hojita, bueno, en sí una foto y me puede pasar los siguientes datos, por favor, para
+poder rellenar y verificar, o sea, ser verídico, que yo sí hice la entrevista.
+Claro. Ya, perfecto, muchas gracias, espero que en la segunda entrevista a ver, mostrarle el
+avance y usted me dé su punto de vista y qué falencias puede tener el avance que hemos
+tenido, ¿no? Perfecto, claro. Hasta luego, gracias.
+ Actualizar a Ilimitado para eliminar este mensaje.
+
+---
+
+### Entrevista N° 2: Coordinación de Despacho y Ventas Lácteas
+**Entrevistador:** Equipo de Desarrollo de Sistemas  
+**Entrevistado:** Ing. Carla Giovanna Condori Díaz (Área de Compras, Ventas y Despacho en Planta)  
+**Ubicación:** Oficinas Comerciales y Planta Basilio
+
+*(A continuación se transcribe la conversación íntegra registrada para el análisis logístico del ERP)*
+
+video1103575357
+ Actualizar a Ilimitado para eliminar este mensaje.
+Ok. Ya, la primera pregunta ¿Quiénes son sus clientes de Grulag? ¿Cuál es el segmento al que
+está dirigido más que todo? Y si tienen nombres o razones sociales. Ah, ya.
+Bueno, nosotros de momento estamos en apertura de clientes. Tenemos aproximadamente
+como tres clientes fijos y los demás son ocasionales, embargo el término son productores
+independientes creo, los que venden los mercados, los que venden a granel, etc. Las tiendas de
+barrio, así.
+Ok, ya. ¿Los clientes fijos siempre compran o son eventuales? De vez en cuando, digamos. No,
+tienen ellos programado.
+Más que todo tenemos dos. Uno es la línea Hot, Hot Burger. Con Hot Burger manejamos su
+línea de queso cheddar que nosotros lo producimos y actualmente estamos manejando
+también su línea de queso mozzarella para su, para la sucursal de pizza, si mal no tengo
+entendido.
+Ok, ok. Este, los datos que maneja de su cliente solo son nombre, teléfono o NIT y dirección de
+entrega o también otros datos? Nosotros de momento no manejamos esos datos. Somos
+planta productiva.
+Quienes manejan esos datos son la línea comercial. De momento solo conocemos el nombre de
+Hot, que sabemos para quién es, pero no tenemos los datos de ellos. Ok.
+Este, ¿Tiene clientes fuera de la región o todos son locales? Tenemos un cliente de Benny. No sé
+si está dentro del valor que nos ha, nos consume mucho lo que el dulce de leche o el repostero.
+Ok.
+Y actualmente los pedidos se coordinan por WhatsApp, llamada o en persona? Tenemos un
+grupo de WhatsApp donde llega la solicitud y ahí nosotros coordinamos, sí. Ok, perfecto. Este,
+¿Los pedidos son anticipados o del día? Y si son anticipados, más o menos cuánto tiempo se
+prevé? Ah, ya.
+Eso depende mucho del stock que nos están pidiendo. Normalmente nos piden un día viernes o
+un día sábado para hacer los envíos el día martes y correlativo para el día viernes. Entonces nos
+piden entre semana para enviar día viernes y día martes son nuestros envíos.
+Ok. Este, ¿Tiene una lista de precios fija por producto o varía según cantidad, cliente o cantidad
+de materia prima más o menos? Tienen, que tengo entendido, sí, una lista fija de precios por
+producto. Nosotros no lo manejamos, lo maneja la línea comercial.
+Ok. Este, ¿Emiten un documento de nota de venta, factura o eso se maneja en otra área? Sí,
+
+nosotros emitimos una, un recibo de entrega para nosotros, para nuestro, nuestra trazabilidad
+y nuestro respaldo. La línea comercial es quien emite la factura.
+Ok. Este, ¿Le ha sucedido que algún cliente pida devolución y cómo manejan más o menos ese
+efecto? Sí, alguna vez hemos tenido devolución, pero el sistema que se maneja es el siguiente,
+se notifica la línea comercial, se hace la observación del producto, se nos deriva el lote del
+producto y nosotros colaboramos con la contramuestra que tenemos en planta y si va la
+observación entonces nos derivan y nosotros podemos proceder de dos formas. Uno, el cliente
+puede solicitar que se le reponga el producto con otro o en todo caso que se haga la
+devolución en cuanto a dinero, un pago.
+Ok. Normalmente se ha corrido por la primera opción, el cliente siempre pide una reposición.
+Solo hemos tenido como unas tres o cuatro observaciones por parte de los clientes en general,
+en toda nuestra línea productiva y en todo este tiempo de producción.
+Ok. Este, ¿En promedio cuántas unidades por kilogramos más o menos vende típicamente en
+un pedido? Ya, nosotros manejamos cuatro productos, dulce de leche, manejamos queso
+mozzarella y manejamos queso cheddar fundido o untable. Ok.
+En nuestra línea de queso cheddar, nuestro pedido oscila entre 70 y 100 kilos, es por peso. En
+nuestra línea de queso mozzarella, manejamos 100 kilos en promedio. Y en nuestra línea de
+dulce de leche, es por unidad.
+El que en la unidad que más nos piden o la presentación que más nos piden es en 5 kilos y su
+pedido oscila entre 30 y 50 unidades. Ok, perfecto. Este, ¿Realiza también pedidos mínimos, o
+sea, por unidad solamente? Sí, también nosotros no.
+Nosotros hacemos un stock de bastante cantidad. Quien se, quien pide o bueno, quien deriva la
+venta por unidad es la línea comercial. Ellos se abastecen con un stock que nosotros derivamos
+desde planta.
+Ok, perfecto. Este, ¿Cobra actualmente efectivo, transferencia bancaria, QR? Tengo entendido
+que aceptan todas las modelos de pago. Tenemos cuenta, tenemos QR de la cuenta bancaria,
+efectivo y transferencia bancaria también.
+Ok, ¿Realiza créditos también para los pedidos? Eso sí, no sabría responderte. Ok. Yo, yo creo
+que de momento no.
+Ok, perfecto. Este, a ver esto es sobre los créditos. ¿El pago se realiza previo a la entrega o
+después, o sea, al momento de ser entregado más o menos? Es contra entrega, sí.
+Se hace, se entrega el producto y se hace el pago. Ok. Este, ¿Los insumos actualmente cómo
+son adquiridos? O sea, ¿Tiene una, una, una persona o un personal encargado de, para las
+compras? Sí, de momento para la compra de los insumos lo manejo yo.
+
+Lo que hacemos es sacar un inventario, un stock cada fin de semana o en todo caso cada
+viernes y sábado para hacer una reposición o una solicitud para empezar el día lunes. Ok. Este,
+¿Tienen unos proveedores fijos o cambian según el precio o algún otro aspecto? Al inicio
+cambiábamos uno por estabilidad de producto.
+Nosotros queremos saber si el insumo era bueno. Entonces al inicio sí variábamos los
+proveedores, pero hoy en día nosotros ya tenemos proveedores fijos y solamente hacemos la
+solicitud con código del producto que queremos. Ok, ok, perfecto.
+Este, ¿Se guardan los registros de cada compra, cantidad y todos los aspectos, no? Sí,
+guardamos los registros, exacto. Ok. Este, ¿Más o menos quién está a cargo de decidir la
+compra de insumos? Es su persona, ¿No? Sí, nosotros tenemos un stock de acuerdo a la
+cantidad que se hace en producción semanal.
+Entonces tenemos un mínimo de pedido. Ponele que si teníamos que producir, ponele 100 kilos
+y yo necesitaba un insumo, yo debo tener un stock mínimo para 30 kilos, por lo menos, para
+tener una variabilidad de ponerle unos tres días o dos días en cuanto al tiempo que me puedan
+entregar el insumo que requiero. Ok.
+Porque cada insumo varía en tiempos de entrega dependiendo del tipo de insumo que es. Ok,
+entonces tiene una cantidad mínima más o menos de reserva, ¿No? Sí, exacto. Ok.
+Este, ¿Cuánto tiempo más o menos tarda en llegar el insumo desde que el pedido? Varía de
+acuerdo al insumo, pero normalmente oscila entre 3 a máximo 5 días. Ok. Este, ¿Más o menos
+si tiene el conocimiento de cuántas personas, cuánto es el personal de la empresa? Ah, de
+momento tenemos 9 personas en la empresa.
+9 personas, ok. ¿Y conoce el rol de cada una? Claro, eh, tengo 3 operadoras que son mujeres en
+la línea de dulce de leche y queso cheddar untable. Ok.
+Tengo un operador en la línea de envasados y salado de queso. Tengo otro operador en la línea
+de elaboración de queso mozzarella. Tengo otro operador en la línea de pasteurización.
+Tengo uno más en la línea de calderista, que es el que maneja nuestro caldero, el vapor que
+nosotros generamos. Ok. Tengo uno en la línea de calidad.
+Tengo un supervisor de producción y tengo una persona que va a ser el contacto, que es mi,
+bueno, el que hace la recopilación de leche, acopio de leche en realidad. Tengo un
+agropecuario. Ok.
+Esos son totalmente, con mi persona 10. Ok, perfecto. ¿Cuál es la dirección exacta más o menos
+de la empresa? La planta principal procesadora está en el kilómetro 102 de la avenida Camino
+hacia Tres Cruces.
+Bioceánica creo que es el nombre de la carretera. Ok, perfecto. ¿Cuál es el horario más o menos
+
+de producción y de atención al cliente? Nosotros manejamos nuestra línea productiva en los
+horarios de 7 y media de la mañana a 5 de la tarde.
+En realidad producimos hasta las 4, pero tenemos como una hora de espacio entre limpiar y
+tener ordenado todo el sistema para el día siguiente. Y horario de atención al cliente,
+normalmente acá cuando vienen a preguntar, lo manejamos desde las 9 de la mañana hasta el
+mediodía y después desde las 2 hasta las 4 de la tarde. Ok.
+Pero en la línea comercial, que está en las oficinas comerciales que están en Santa Cruz,
+atienden de 8 de la mañana hasta las 6 de la tarde si no estoy mal. Ok, ¿la empresa entrega el
+producto o el cliente pasa a retirar al lugar? Depende de la cantidad, pero normalmente la
+empresa entrega el producto, porque como te dije estamos abriendo mercado, entonces
+nosotros tenemos la predisposición de entregar el producto. Ok, este el inventario de
+producción, ¿cómo es el manejo que se da? Ya, lo que nosotros hacemos es un inventario por
+día.
+Tenemos un registro de producción de cada producto que se realiza, lo almacenamos y mi
+supervisor de producción lo que hace es pasarlo a documento Excel, donde va sumando y
+cuantificando cuánto se hace producción en la semana o en el día y todo lo que tenemos en
+stock. Entonces va actualizando constantemente ese valor. Ok, perfecto.
+Eso fue todo, muchas gracias por su tiempo, realmente se lo agradezco. No, ningún problema,
+un gusto. Perfecto, ok, ya, nos vemos.
+Hasta luego.
+ Actualizar a Ilimitado para eliminar este mensaje.
+
+---
+
+## Anexo B: Formularios Físicos Originales de Planta
+
+A continuación, se describen en formato digital y estructurado las planillas que los operarios utilizaban en soporte de papel antes de la implementación del ERP Lácteo:
+
+### Planilla 1: Ficha de Triage y Recepción de Leche Cruda
+| Campo            | Tipo de Dato | Restricción / Unidad       | Propósito                     |
+| :--------------- | :----------- | :------------------------- | :---------------------------- |
+| N° Ticket        | Autonumérico | Único                      | Identificación fiscal         |
+| Productor        | Texto Libre  | Obligatorio                | Colonia ganadera de origen    |
+| Litros Recibidos | Decimal      | Litros (L)                 | Volumen de acopio             |
+| pH Leche         | Decimal      | Rango Aceptable: 6.5 - 6.8 | Control de acidez inicial     |
+| Temperatura      | Decimal      | Grados Celsius (°C)        | Temperatura de refrigeración  |
+| Antibióticos     | Booleano     | Positivo / Negativo        | Bloquea acopio si es Positivo |
+| Firmas           | Físico       | Laboratorista y Chofer     | Validación legal              |
+
+### Planilla 2: Elaboración de Cuajada (Queso Mozzarella/Cheddar)
+| Parámetro           | Unidad de Medida | Frecuencia | Rango de Control    |
+| :------------------ | :--------------- | :--------- | :------------------ |
+| Volumen Leche       | Litros           | Por Tina   | 500L - 1,000L       |
+| Adición Cloruro Ca  | Gramos           | Por Tina   | 100g - 200g         |
+| Adición Cuajo       | Mililitros       | Por Tina   | 80ml - 150ml        |
+| pH de Coagulación   | pH               | Única      | 6.3 - 6.4           |
+| pH de Molienda      | pH               | Única      | 5.1 - 5.3           |
+| Peso Bruto Obtenido | Kilogramos       | Por Lote   | Rendimiento de tina |
+
+### Planilla 3: Control de Hilado (Queso Mozzarella)
+| N° Horma | Peso Declarado (g) | Lote de Origen | Estado Visual |
+| :------- | :----------------- | :------------- | :------------ |
+| 1        | 2,050              | 20260621-MOZ01 | Conforme      |
+| 2        | 2,010              | 20260621-MOZ01 | Conforme      |
+| 3        | 1,990              | 20260621-MOZ01 | Conforme      |
+| 4        | 2,020              | 20260621-MOZ01 | Conforme      |
+
+---
 
 FIN

@@ -194,7 +194,7 @@ export async function liberarLote(idLote) {
     // PASO 6 (Lectura Entidad): CTR_Calidad recupera el desglose de presentaciones en CE_PresentacionesLote
     // Método: getPresentaciones(id_lote)
     // (Persistido como estructura JSON en observaciones del lote en este modelo relacional físico)
-    
+
     // PASO 7 (Bucle & Creación): CTR_Calidad genera los ingresos al inventario en CE_Kardex_Movimientos
     // Método: generarIngresoKardex() -> insert(INGRESO_PRODUCCION)
     // Cada inserción física de ingreso en Kardex ejecuta el trigger hacia CE_Bitacora
@@ -312,7 +312,7 @@ export async function enviarDisposicion(idLote, tipoDisposicion, justificacion, 
     // Registro físico inmutable del lote no conforme y las justificaciones del laboratorio
     const { data: { user } } = await supabase.auth.getUser()
     const { data: usuarioDb } = user ? await supabaseAdmin.from('usuarios').select('id_usuario').eq('auth_uid', user.id).single() : { data: null }
-    
+
     await supabaseAdmin.from('bitacora_auditoria').insert([{
       id_usuario: usuarioDb?.id_usuario || 1,
       accion_sql: 'UPDATE',
@@ -347,7 +347,7 @@ export async function enviarDisposicion(idLote, tipoDisposicion, justificacion, 
  */
 async function verificarSegregacionFunciones(idOrden, idEvaluador) {
   const supabaseAdmin = createAdminClient()
-  
+
   const { data: usuario } = await supabaseAdmin
     .from('usuarios')
     .select('id_rol, roles(nombre_rol, permisos_json)')
@@ -466,7 +466,7 @@ async function verificarFichaNoConforme(idLote) {
  */
 async function generarIngresoKardex(lote, idUsuario) {
   const supabaseAdmin = createAdminClient()
-  
+
   // 1. Registrar ingreso en Kardex
   const { data: kardex, error: kardexError } = await supabaseAdmin
     .from('movimientos_kardex')
@@ -536,7 +536,7 @@ function bloquearKardexComercial(idLote) {
  */
 async function notificarJefeProduccion(idOrden, idLote, instrucciones) {
   const supabaseAdmin = createAdminClient()
-  
+
   const { data: orden } = await supabaseAdmin
     .from('ordenes_produccion')
     .select('id_jefe_produccion')
