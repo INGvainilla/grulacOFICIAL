@@ -2,6 +2,29 @@
 
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import fs from 'fs'
+
+// Monkey-patch fs.readFileSync to resolve Next.js dynamic pathing issue on Windows/WSL
+const originalReadFileSync = fs.readFileSync
+fs.readFileSync = function (filePath, options) {
+  if (typeof filePath === 'string') {
+    let targetPath = filePath
+    const actualCwd = process.cwd()
+    
+    targetPath = targetPath.replace(/^[Cc]:\\ROOT\\Documents\\1-2026\\D\\grulacOFICIAL\\PROTOTIPO-GRULAC-CRM/i, actualCwd)
+    targetPath = targetPath.replace(/^\/ROOT\/Documents\/1-2026\/D\/grulacOFICIAL\/PROTOTIPO-GRULAC-CRM/i, actualCwd)
+    targetPath = targetPath.replace(/^\/ROOT\/PROTOTIPO-GRULAC-CRM/i, actualCwd)
+    targetPath = targetPath.replace(/^[Cc]:\\ROOT/i, 'C:\\Users\\User')
+    targetPath = targetPath.replace(/^\/ROOT/i, 'C:/Users/User')
+    
+    if (process.platform === 'win32') {
+      targetPath = targetPath.replace(/\//g, '\\')
+    }
+    return originalReadFileSync.call(fs, targetPath, options)
+  }
+  return originalReadFileSync.call(fs, filePath, options)
+}
+
 import PDFDocument from 'pdfkit'
 import { randomUUID, createHash } from 'crypto'
 
