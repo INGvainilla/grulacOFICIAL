@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { Sidebar } from '@/components/sidebar'
 import { Topbar } from '@/components/topbar'
 
+
 export default async function DashboardLayout({ children }) {
   const supabase = await createClient()
   const { data: { session } } = await supabase.auth.getSession()

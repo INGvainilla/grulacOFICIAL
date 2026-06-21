@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { cn } from '@/lib/utils'
-import { LayoutDashboard, Users, UserCog, Package, History, Truck, Building2, ShoppingCart, FlaskConical } from 'lucide-react'
+import { LayoutDashboard, Users, UserCog, Package, History, Truck, Building2, ShoppingCart, FlaskConical, ClipboardList, FileArchive, Receipt, PackageCheck, Undo2, BarChart3 } from 'lucide-react'
 
 export const PACKAGES = [
   {
@@ -19,6 +19,8 @@ export const PACKAGES = [
     items: [
       { module: 'empleados', title: 'Empleados (RRHH)', href: '/empleados', icon: Users },
       { module: 'roles', title: 'Roles y Permisos', href: '/roles', icon: UserCog },
+      { module: 'bitacora', title: 'Bitácora de Auditoría', href: '/bitacora', icon: ClipboardList },
+      { module: 'respaldos', title: 'Respaldos Documentales', href: '/respaldos', icon: FileArchive },
     ]
   },
   {
@@ -36,6 +38,9 @@ export const PACKAGES = [
     name: 'Gestión Comercial',
     items: [
       { module: 'clientes', title: 'Cartera de Clientes', href: '/clientes', icon: Building2 },
+      { module: 'pedidos', title: 'Pedidos y Ventas', href: '/pedidos', icon: ShoppingCart },
+      { module: 'facturacion', title: 'Facturación', href: '/facturacion', icon: Receipt },
+      { module: 'devoluciones', title: 'Devoluciones', href: '/devoluciones', icon: Undo2 },
     ]
   },
   {
@@ -71,19 +76,33 @@ export const PACKAGES = [
       { module: 'calidad', title: 'Disposición Restrictiva', href: '/calidad/disposicion', icon: FlaskConical },
       { module: 'calidad', title: 'Liberación a Almacén', href: '/calidad/liberacion', icon: Package }
     ]
+  },
+  {
+    id: 'p9',
+    name: 'Logística y Despachos',
+    items: [
+      { module: 'despacho', title: 'Despachos', href: '/despachos', icon: PackageCheck },
+    ]
+  },
+  {
+    id: 'p10',
+    name: 'Reportes e Indicadores',
+    items: [
+      { module: 'reportes', title: 'Reportes + Voz', href: '/reportes', icon: BarChart3 },
+    ]
   }
 ]
 
 export function SidebarContent({ user, onItemClick }) {
   const pathname = usePathname()
-  
+
   // Módulo de Seguridad (Capa de Control PUDS): Filtro Básico RBAC
   // Se evalúan los privilegios de la sesión; si no existen, se asume un rol de demostración.
   const permissions = user?.roles?.permisos_json?.modulos || []
-  
+
   const isAllowed = (item) => {
     if (permissions.includes('ALL')) return true
-    
+
     // Mapeo de superpoderes según el SQL del usuario
     if (item.module === 'inicio') return true
     if (item.module === 'proveedores' && (permissions.includes('recepcion') || permissions.includes('calidad'))) return true
@@ -94,6 +113,12 @@ export function SidebarContent({ user, onItemClick }) {
     if (['ajustes', 'alertas'].includes(item.module) && permissions.includes('almacen')) return true
     if (item.module === 'produccion' && permissions.includes('produccion')) return true
     if (item.module === 'calidad' && permissions.includes('calidad')) return true
+    if (item.module === 'bitacora' && (permissions.includes('auditoria') || permissions.includes('ALL') || permissions.includes('produccion') || permissions.includes('calidad'))) return true
+    if (item.module === 'respaldos' && (permissions.includes('respaldos') || permissions.includes('ALL') || permissions.includes('produccion') || permissions.includes('calidad'))) return true
+    if (item.module === 'facturacion' && (permissions.includes('facturacion') || permissions.includes('ventas') || permissions.includes('ALL'))) return true
+    if (item.module === 'despacho' && (permissions.includes('despacho') || permissions.includes('almacen') || permissions.includes('ALL'))) return true
+    if (item.module === 'devoluciones' && (permissions.includes('ventas') || permissions.includes('ALL'))) return true
+    if (item.module === 'reportes') return true
 
     return permissions.includes(item.module)
   }
@@ -115,7 +140,7 @@ export function SidebarContent({ user, onItemClick }) {
           <span className="font-semibold tracking-tight">GRULAC ERP</span>
         </div>
       </div>
-      
+
       <div className="flex-1 overflow-y-auto py-4">
         {filteredPackages.map((pkg) => (
           <div key={pkg.id} className="mb-6">
@@ -130,8 +155,8 @@ export function SidebarContent({ user, onItemClick }) {
                   onClick={onItemClick}
                   className={cn(
                     "flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors",
-                    pathname === item.href 
-                      ? "bg-primary text-primary-foreground" 
+                    pathname === item.href
+                      ? "bg-primary text-primary-foreground"
                       : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
                   )}
                 >
@@ -143,11 +168,11 @@ export function SidebarContent({ user, onItemClick }) {
           </div>
         ))}
       </div>
-      
+
       <div className="p-4 border-t border-border/50 bg-zinc-900/50 flex-shrink-0">
         <div className="text-xs text-zinc-500 font-mono">
           ID: {user?.id_usuario || 'MODO'}
-          <br/>
+          <br />
           ROL: {user?.roles?.nombre_rol || 'LOCAL'}
         </div>
       </div>

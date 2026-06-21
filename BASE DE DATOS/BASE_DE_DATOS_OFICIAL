@@ -1,0 +1,36 @@
+-- =====================================================
+-- CU28 - Pasarela de Pagos (PayPal Sandbox)
+-- Tabla: pagos_clientes
+-- =====================================================
+-- Ejecutar UNA SOLA VEZ en el SQL Editor de Supabase.
+-- =====================================================
+
+CREATE TABLE IF NOT EXISTS pagos_clientes (
+  id_pago BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  id_factura BIGINT REFERENCES factura(id_factura) ON DELETE CASCADE,
+  monto_total DECIMAL(12,2) NOT NULL,
+  moneda VARCHAR(3) DEFAULT 'USD',
+  estado VARCHAR(20) DEFAULT 'Pendiente',
+  paypal_order_id VARCHAR(100),
+  paypal_capture_id VARCHAR(100),
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+ALTER TABLE pagos_clientes ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "pagos_clientes_select"
+  ON pagos_clientes FOR SELECT
+  TO authenticated
+  USING (true);
+
+CREATE POLICY "pagos_clientes_insert"
+  ON pagos_clientes FOR INSERT
+  TO authenticated
+  WITH CHECK (true);
+
+CREATE POLICY "pagos_clientes_update"
+  ON pagos_clientes FOR UPDATE
+  TO authenticated
+  USING (true)
+  WITH CHECK (true);
