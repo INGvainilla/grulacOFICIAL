@@ -2,11 +2,16 @@
 
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
+import { headers } from 'next/headers'
 
 export async function inviteEmpleadoAction(formData) {
   try {
     const supabaseAdmin = createAdminClient()
     const supabaseNormal = await createClient()
+    const headersList = await headers()
+    const host = headersList.get('host')
+    const protocol = headersList.get('x-forwarded-proto') || 'http'
+    const origin = `${protocol}://${host}`
 
     // OBTENER LA IDENTIDAD DEL ADMIN (Para la bitácora)
     const { data: { session } } = await supabaseNormal.auth.getSession()
@@ -39,8 +44,8 @@ export async function inviteEmpleadoAction(formData) {
       data: {
         nombre: formData.nombre_completo.trim()
       },
-      // Hacemos que el link del correo los lleve a definir su contraseña
-      redirectTo: 'http://localhost:3000/actualizar-contrasena'
+      // Hacemos que el link del correo los lleve a definir su contraseña pasando por callback para PKCE flow
+      redirectTo: `${origin}/auth/callback?next=/actualizar-contrasena&type=invite`
     })
 
     if (authError) {

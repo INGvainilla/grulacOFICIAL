@@ -5,6 +5,7 @@ export async function GET(request) {
   const { searchParams } = new URL(request.url)
   const code = searchParams.get('code')
   const next = searchParams.get('next') ?? '/inicio'
+  const type = searchParams.get('type')
 
   if (code) {
     const supabase = await createClient()
@@ -12,7 +13,11 @@ export async function GET(request) {
     
     if (!error) {
       // Si el intercambio es exitoso, redirigimos a la ruta final
-      return NextResponse.redirect(new URL(next, request.url))
+      const redirectUrl = new URL(next, request.url)
+      if (type) {
+        redirectUrl.searchParams.set('type', type)
+      }
+      return NextResponse.redirect(redirectUrl)
     }
   }
 

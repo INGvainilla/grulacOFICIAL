@@ -29,7 +29,7 @@ export default function RecuperarAccesoPage() {
     // E1/E2: Por seguridad NO revelamos si el email existe o no
     // Supabase resetPasswordForEmail envía el email solo si existe
     const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
-      redirectTo: `${window.location.origin}/actualizar-contrasena`,
+      redirectTo: `${window.location.origin}/auth/callback?next=/actualizar-contrasena&type=recovery`,
     })
 
     if (error) {

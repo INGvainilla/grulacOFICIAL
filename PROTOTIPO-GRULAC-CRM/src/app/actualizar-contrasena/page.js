@@ -70,6 +70,13 @@ export default function ActualizarContrasenaPage() {
       supabase.auth.getSession().then(({ data: { session } }) => {
         if (!session) {
           router.push('/login')
+        } else {
+          // Si hay sesión activa (ej. redirección desde callback), obtener el tipo de la URL
+          const urlParams = new URLSearchParams(window.location.search)
+          const type = urlParams.get('type')
+          if (type) {
+            setFlowType(type)
+          }
         }
       })
     }
