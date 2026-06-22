@@ -18,15 +18,17 @@ El proyecto está estructurado utilizando los *Route Groups* de Next.js para org
 
 *   **`login/` / `recuperar-acceso/` / `actualizar-contrasena/`**: Flujos de autenticación de usuarios.
 *   **`(dashboard)/`**: Layout principal para usuarios logueados. Contiene los siguientes submódulos:
-    *   **`(p2-gestion-usuario)/`**: Gestión de `empleados`, `roles`, y `perfil` del usuario actual.
+    *   **`(p2-gestion-usuario)/`**: Gestión de `empleados`, `roles` y `perfil` del usuario actual.
     *   **`(p3-gestion-inventario)/`**: 
         *   `catalogo`: Maestro de ítems (Materias primas, insumos, productos terminados, empaques).
         *   `kardex`: Control de movimientos (Entradas/Salidas/Saldos) en almacén.
-    *   **`(p4-gestion-comercial)/`**: Gestión de `clientes` y presumiblemente ventas.
+    *   **`(p4-gestion-comercial)/`**: Gestión de cartera de `clientes`.
     *   **`(p5-gestion-proveedores-compras)/`**: Gestión de `proveedores` y registro de `compras`.
     *   **`(p6-acopio-formulacion)/`**: 
         *   `acopio`: Registro de recolección de leche o materia prima principal.
         *   `recetas`: Formulación para la creación de productos terminados.
+    *   **`(p9-auditoria-soporte)/`**: Auditoría (`bitacora`), respaldos documentales (`respaldos`) y reportes asistidos por voz de IA (`reportes`).
+    *   **`(p10-ventas-despacho)/`**: Flujo comercial de salidas que incluye reservas y `pedidos`, `facturacion`, `despachos` FEFO y `devoluciones`.
     *   **`inicio/`**: Dashboard principal o landing interno.
 
 ## 4. Patrones de Desarrollo Identificados

@@ -19,8 +19,6 @@ export const PACKAGES = [
     items: [
       { module: 'empleados', title: 'Empleados (RRHH)', href: '/empleados', icon: Users },
       { module: 'roles', title: 'Roles y Permisos', href: '/roles', icon: UserCog },
-      { module: 'bitacora', title: 'Bitácora de Auditoría', href: '/bitacora', icon: ClipboardList },
-      { module: 'respaldos', title: 'Respaldos Documentales', href: '/respaldos', icon: FileArchive },
     ]
   },
   {
@@ -38,9 +36,6 @@ export const PACKAGES = [
     name: 'Gestión Comercial',
     items: [
       { module: 'clientes', title: 'Cartera de Clientes', href: '/clientes', icon: Building2 },
-      { module: 'pedidos', title: 'Pedidos y Ventas', href: '/pedidos', icon: ShoppingCart },
-      { module: 'facturacion', title: 'Facturación', href: '/facturacion', icon: Receipt },
-      { module: 'devoluciones', title: 'Devoluciones', href: '/devoluciones', icon: Undo2 },
     ]
   },
   {
@@ -79,16 +74,21 @@ export const PACKAGES = [
   },
   {
     id: 'p9',
-    name: 'Logística y Despachos',
+    name: 'Auditoría y Soporte del Sistema',
     items: [
-      { module: 'despacho', title: 'Despachos', href: '/despachos', icon: PackageCheck },
+      { module: 'bitacora', title: 'Bitácora de Auditoría', href: '/bitacora', icon: ClipboardList },
+      { module: 'respaldos', title: 'Respaldos Documentales', href: '/respaldos', icon: FileArchive },
+      { module: 'reportes', title: 'Reportes + Voz', href: '/reportes', icon: BarChart3 },
     ]
   },
   {
     id: 'p10',
-    name: 'Reportes e Indicadores',
+    name: 'Ventas y Despacho Comercial',
     items: [
-      { module: 'reportes', title: 'Reportes + Voz', href: '/reportes', icon: BarChart3 },
+      { module: 'pedidos', title: 'Pedidos y Ventas', href: '/pedidos', icon: ShoppingCart },
+      { module: 'facturacion', title: 'Facturación', href: '/facturacion', icon: Receipt },
+      { module: 'despacho', title: 'Despachos', href: '/despachos', icon: PackageCheck },
+      { module: 'devoluciones', title: 'Devoluciones', href: '/devoluciones', icon: Undo2 },
     ]
   }
 ]

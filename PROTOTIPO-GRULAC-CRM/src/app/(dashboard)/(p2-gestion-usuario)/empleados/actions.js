@@ -8,10 +8,13 @@ export async function inviteEmpleadoAction(formData) {
   try {
     const supabaseAdmin = createAdminClient()
     const supabaseNormal = await createClient()
-    const headersList = await headers()
-    const host = headersList.get('host')
-    const protocol = headersList.get('x-forwarded-proto') || 'http'
-    const origin = `${protocol}://${host}`
+    let origin = process.env.NEXT_PUBLIC_APP_URL
+    if (!origin) {
+      const headersList = await headers()
+      const host = headersList.get('host')
+      const protocol = headersList.get('x-forwarded-proto') || 'http'
+      origin = `${protocol}://${host}`
+    }
 
     // OBTENER LA IDENTIDAD DEL ADMIN (Para la bitácora)
     const { data: { session } } = await supabaseNormal.auth.getSession()
